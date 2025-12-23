@@ -46,24 +46,32 @@ class ChatbotController extends Controller
     public function updateConfig(Request $request)
     {
         $validated = $request->validate([
-            'business_name' => 'required|string|max:255',
+            'business_name' => 'nullable|string|max:255',
             'business_description' => 'nullable|string',
             'business_hours' => 'nullable|string|max:255',
-            'welcome_message' => 'required|string',
-            'menu_message' => 'required|string',
-            'menu_command' => 'required|string|max:50',
-            'help_command' => 'required|string|max:50',
+            'welcome_message' => 'nullable|string',
+            'menu_message' => 'nullable|string',
+            'menu_command' => 'nullable|string|max:50',
+            'help_command' => 'nullable|string|max:50',
             'offline_message' => 'nullable|string',
             'error_message' => 'nullable|string',
             'not_found_message' => 'nullable|string',
             'order_confirmation_message' => 'nullable|string',
             'order_status_message' => 'nullable|string',
             'payment_confirmation_message' => 'nullable|string',
+            'monitoring_enabled' => 'nullable|boolean',
+            'monitoring_phone_number' => 'nullable|string|max:20',
+            'monitoring_email' => 'nullable|email|max:255',
         ]);
 
         $config = WhatsappChatbotConfig::first();
         if (!$config) {
             $config = new WhatsappChatbotConfig();
+            // Si no existe, necesitamos un business_profile_id
+            $businessProfile = \App\Models\WhatsappBusinessProfile::first();
+            if ($businessProfile) {
+                $config->business_profile_id = $businessProfile->id;
+            }
         }
 
         $config->fill($validated);

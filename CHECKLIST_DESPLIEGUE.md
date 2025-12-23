@@ -110,3 +110,5 @@ chmod +x deploy.sh
 5. **Verifica base de datos**: Conexión y credenciales correctas
 
 
+
+

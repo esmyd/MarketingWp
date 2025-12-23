@@ -18,7 +18,9 @@ use App\Models\WhatsappPrice;
 use App\Models\WhatsappCart;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
- use App\Models\WhatsappButton;
+use App\Models\WhatsappButton;
+use App\Mail\MonitoringNotification;
+use Illuminate\Support\Facades\Mail;
 
 class WhatsappService
 {
@@ -424,6 +426,9 @@ class WhatsappService
             if (!empty($message['id']) && !empty($message['from'])) {
                 $this->markMessageAsRead($message['id'], $message['from']);
             }
+
+            // Enviar notificaciones de monitoreo
+            $this->sendMonitoringNotifications($message);
         } catch (\Exception $e) {
             Log::error('❌ Error procesando mensaje', [
                 'error' => $e->getMessage(),
@@ -4662,6 +4667,241 @@ class WhatsappService
                 'error' => $e->getMessage(),
                 'line' => $e->getLine(),
                 'to' => $to
+            ]);
+        }
+    }
+
+    /**
+     * Envía notificaciones de monitoreo (WhatsApp y Email) cuando se recibe un mensaje
+     */
+    private function sendMonitoringNotifications(array $message)
+    {
+        try {
+            // Obtener configuración de monitoreo
+            $config = WhatsappChatbotConfig::first();
+
+            if (!$config || !$config->monitoring_enabled) {
+                return;
+            }
+
+            // Obtener información del contacto
+            $from = $message['from'];
+            $contact = WhatsappContact::where('phone_number', $from)->first();
+            $contactName = $contact ? $contact->name : 'Contacto sin nombre';
+
+            // Extraer contenido del mensaje según su tipo
+            $messageContent = $this->extractMessageContent($message);
+            $messageType = $message['type'] ?? 'desconocido';
+            $timestamp = isset($message['timestamp'])
+                ? date('Y-m-d H:i:s', $message['timestamp'])
+                : now()->format('Y-m-d H:i:s');
+
+            // Enviar mensaje de WhatsApp si está configurado
+            // No enviar si el número de monitoreo es el mismo que el que está escribiendo
+            if (!empty($config->monitoring_phone_number)) {
+                // Normalizar números para comparación (quitar espacios, guiones, etc.)
+                $normalizedFrom = preg_replace('/[^0-9]/', '', $from);
+                $normalizedMonitoring = preg_replace('/[^0-9]/', '', $config->monitoring_phone_number);
+
+                // Solo enviar si los números son diferentes
+                if ($normalizedFrom !== $normalizedMonitoring) {
+                    $this->sendMonitoringWhatsAppMessage(
+                        $config->monitoring_phone_number,
+                        $contactName,
+                        $from,
+                        $messageContent,
+                        $messageType,
+                        $timestamp
+                    );
+                } else {
+                    Log::info('⏭️ Mensaje de monitoreo omitido: el número de monitoreo es el mismo que el remitente', [
+                        'phone' => substr($from, 0, 4) . '****' . substr($from, -4)
+                    ]);
+                }
+            }
+
+            // Enviar email si está configurado
+            if (!empty($config->monitoring_email)) {
+                $this->sendMonitoringEmail(
+                    $config->monitoring_email,
+                    $contactName,
+                    $from,
+                    $messageContent,
+                    $messageType,
+                    $timestamp
+                );
+            }
+        } catch (\Exception $e) {
+            Log::error('❌ Error enviando notificaciones de monitoreo', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Extrae el contenido del mensaje según su tipo
+     */
+    private function extractMessageContent(array $message): string
+    {
+        $type = $message['type'] ?? 'text';
+
+        switch ($type) {
+            case 'text':
+                if (is_array($message['text'] ?? null)) {
+                    return $message['text']['body'] ?? 'Mensaje de texto sin contenido';
+                }
+                return $message['text'] ?? 'Mensaje de texto sin contenido';
+
+            case 'interactive':
+                $interactive = $message['interactive'] ?? null;
+                if ($interactive) {
+                    if (isset($interactive['button_reply']['title'])) {
+                        return 'Botón: ' . $interactive['button_reply']['title'];
+                    }
+                    if (isset($interactive['list_reply']['title'])) {
+                        return 'Lista: ' . $interactive['list_reply']['title'];
+                    }
+                }
+                return 'Mensaje interactivo';
+
+            case 'image':
+                return '📷 Imagen enviada';
+
+            case 'audio':
+                return '🎵 Audio enviado';
+
+            case 'video':
+                return '🎥 Video enviado';
+
+            case 'document':
+                $document = $message['document'] ?? [];
+                $filename = $document['filename'] ?? 'Documento';
+                return '📄 Documento: ' . $filename;
+
+            case 'location':
+                $location = $message['location'] ?? [];
+                $latitude = $location['latitude'] ?? '';
+                $longitude = $location['longitude'] ?? '';
+                return '📍 Ubicación: ' . $latitude . ', ' . $longitude;
+
+            case 'sticker':
+                return '😊 Sticker enviado';
+
+            default:
+                return 'Tipo de mensaje: ' . $type;
+        }
+    }
+
+    /**
+     * Envía un mensaje de WhatsApp de monitoreo
+     */
+    private function sendMonitoringWhatsAppMessage(
+        string $monitoringPhone,
+        string $contactName,
+        string $contactPhone,
+        string $messageContent,
+        string $messageType,
+        string $timestamp
+    ) {
+        try {
+            // Crear o obtener el contacto de monitoreo
+            $monitoringContact = WhatsappContact::where('phone_number', $monitoringPhone)->first();
+
+            if (!$monitoringContact) {
+                // Crear contacto de monitoreo si no existe
+                $monitoringContact = WhatsappContact::create([
+                    'business_profile_id' => $this->businessProfile->id,
+                    'phone_number' => $monitoringPhone,
+                    'name' => 'Monitoreo',
+                    'status' => 'active'
+                ]);
+            }
+
+            // Formatear el mensaje de monitoreo
+            $monitoringMessage = "🔔 *Nuevo mensaje recibido*\n\n";
+            $monitoringMessage .= "👤 *Contacto:* " . $contactName . "\n";
+            $monitoringMessage .= "📱 *Teléfono:* " . $contactPhone . "\n";
+            $monitoringMessage .= "📝 *Tipo:* " . ucfirst($messageType) . "\n";
+            $monitoringMessage .= "🕐 *Fecha/Hora:* " . $timestamp . "\n\n";
+            $monitoringMessage .= "*Mensaje:*\n" . $messageContent;
+
+            // Enviar el mensaje
+            $this->sendTextMessage($monitoringContact, $monitoringMessage, false);
+
+            Log::info('✅ Mensaje de monitoreo enviado a WhatsApp', [
+                'monitoring_phone' => substr($monitoringPhone, 0, 4) . '****' . substr($monitoringPhone, -4),
+                'contact' => substr($contactPhone, 0, 4) . '****' . substr($contactPhone, -4)
+            ]);
+        } catch (\Exception $e) {
+            Log::error('❌ Error enviando mensaje de monitoreo a WhatsApp', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'monitoring_phone' => substr($monitoringPhone, 0, 4) . '****' . substr($monitoringPhone, -4)
+            ]);
+        }
+    }
+
+    /**
+     * Envía un email de monitoreo
+     */
+    private function sendMonitoringEmail(
+        string $monitoringEmail,
+        string $contactName,
+        string $contactPhone,
+        string $messageContent,
+        string $messageType,
+        string $timestamp
+    ) {
+        try {
+            // Verificar que la configuración de correo esté disponible
+            $mailDriver = config('mail.default', 'smtp');
+
+            // Si el driver es 'log', solo registrar en logs (no intentar enviar realmente)
+            if ($mailDriver === 'log') {
+                Log::info('📧 Email de monitoreo (modo log)', [
+                    'email' => $monitoringEmail,
+                    'contact' => substr($contactPhone, 0, 4) . '****' . substr($contactPhone, -4),
+                    'message' => 'El email se registró en los logs. Configura un servidor SMTP para enviar emails reales.'
+                ]);
+                return;
+            }
+
+            // Verificar configuración SMTP básica
+            if ($mailDriver === 'smtp') {
+                $mailHost = config('mail.mailers.smtp.host');
+                if (empty($mailHost) || $mailHost === 'smtp.mailgun.org') {
+                    Log::warning('⚠️ Configuración de correo no válida', [
+                        'mail_driver' => $mailDriver,
+                        'mail_host' => $mailHost,
+                        'message' => 'Por favor, configura MAIL_HOST, MAIL_USERNAME y MAIL_PASSWORD en tu archivo .env'
+                    ]);
+                    return;
+                }
+            }
+
+            Mail::to($monitoringEmail)->send(
+                new MonitoringNotification(
+                    $contactName,
+                    $contactPhone,
+                    $messageContent,
+                    $messageType,
+                    $timestamp
+                )
+            );
+
+            Log::info('✅ Email de monitoreo enviado', [
+                'email' => $monitoringEmail,
+                'contact' => substr($contactPhone, 0, 4) . '****' . substr($contactPhone, -4)
+            ]);
+        } catch (\Exception $e) {
+            // No lanzar excepción, solo registrar el error para que el sistema continúe funcionando
+            Log::error('❌ Error enviando email de monitoreo', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'email' => $monitoringEmail,
+                'suggestion' => 'Verifica tu configuración de correo en el archivo .env. Puedes usar MAIL_MAILER=log para desarrollo.'
             ]);
         }
     }

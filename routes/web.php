@@ -28,6 +28,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/chats/{contact}', [App\Http\Controllers\AdminController::class, 'chat'])->name('chat');
     Route::get('/chats/{contact}/messages', [App\Http\Controllers\AdminController::class, 'chat'])->name('chat.messages');
     Route::get('/chats/{contact}/new-messages', [App\Http\Controllers\AdminController::class, 'getNewMessages'])->name('chat.new-messages');
+    Route::get('/chats/list/update', [App\Http\Controllers\AdminController::class, 'getContactsList'])->name('chat.contacts.update');
     Route::post('/chats/send', [App\Http\Controllers\AdminController::class, 'sendMessage'])->name('chat.send');
     Route::get('/messages/{message}/image', [App\Http\Controllers\AdminController::class, 'getImage'])->name('message.image');
     Route::get('/contacts/{id}', [App\Http\Controllers\AdminController::class, 'contactDetails']);
@@ -57,6 +58,19 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     // Configuración del Chatbot
     Route::get('/chatbot/config', [App\Http\Controllers\Admin\ChatbotController::class, 'config'])->name('chatbot.config');
     Route::put('/chatbot/config', [App\Http\Controllers\Admin\ChatbotController::class, 'updateConfig'])->name('chatbot.config.update');
+
+    // Campañas de Marketing
+    Route::resource('marketing', App\Http\Controllers\Admin\MarketingCampaignController::class)->names([
+        'index' => 'marketing.index',
+        'create' => 'marketing.create',
+        'store' => 'marketing.store',
+        'show' => 'marketing.show',
+        'edit' => 'marketing.edit',
+        'update' => 'marketing.update',
+        'destroy' => 'marketing.destroy',
+    ]);
+    Route::post('/marketing/{campaign}/send', [App\Http\Controllers\Admin\MarketingCampaignController::class, 'send'])->name('marketing.send');
+    Route::get('/marketing/contacts/search', [App\Http\Controllers\Admin\MarketingCampaignController::class, 'getContacts'])->name('marketing.contacts.search');
 });
 
 // Rutas de autenticación

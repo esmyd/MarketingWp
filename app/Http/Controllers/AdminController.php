@@ -58,7 +58,13 @@ class AdminController extends Controller
                 ->orderByDesc('created_at')
                 ->first();
             $contact->last_client_message = $lastClientMsg ? $lastClientMsg->content : null;
+            // Guardar la fecha del último mensaje para ordenar
+            $contact->last_message_date = $lastClientMsg ? $lastClientMsg->created_at : null;
         }
+        // Ordenar contactos por fecha del último mensaje (más reciente primero)
+        $contacts = $contacts->sortByDesc(function($contact) {
+            return $contact->last_message_date ? $contact->last_message_date->timestamp : 0;
+        })->values();
         // Si hay al menos un contacto, redirigir al primer chat
         if ($contacts->count() > 0) {
             return redirect()->route('admin.chat', $contacts->first()->id);
@@ -80,7 +86,13 @@ class AdminController extends Controller
                 ->orderByDesc('created_at')
                 ->first();
             $contactItem->last_client_message = $lastClientMsg ? $lastClientMsg->content : null;
+            // Guardar la fecha del último mensaje para ordenar
+            $contactItem->last_message_date = $lastClientMsg ? $lastClientMsg->created_at : null;
         }
+        // Ordenar contactos por fecha del último mensaje (más reciente primero)
+        $contacts = $contacts->sortByDesc(function($contact) {
+            return $contact->last_message_date ? $contact->last_message_date->timestamp : 0;
+        })->values();
         $contact = \App\Models\WhatsappContact::findOrFail($contactId);
         $messages = \App\Models\WhatsappMessage::where('contact_id', $contactId)->orderBy('created_at')->get();
 
@@ -909,6 +921,59 @@ class AdminController extends Controller
                 'message' => 'Error al actualizar el estado del bot: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    public function getContactsList(Request $request)
+    {
+        $currentContactId = $request->input('current_contact_id');
+
+        $contacts = \App\Models\WhatsappContact::whereIn('id', function($query) {
+            $query->select('contact_id')->from('whatsapp_messages')->distinct();
+        })->get();
+
+        // Contar mensajes por contacto y obtener último mensaje del cliente
+        foreach ($contacts as $contactItem) {
+            $contactItem->messages_count = \App\Models\WhatsappMessage::where('contact_id', $contactItem->id)->count();
+            $lastClientMsg = \App\Models\WhatsappMessage::where('contact_id', $contactItem->id)
+                ->where('sender_type', 'client')
+                ->orderByDesc('created_at')
+                ->first();
+            $contactItem->last_client_message = $lastClientMsg ? $lastClientMsg->content : null;
+            $contactItem->last_message_date = $lastClientMsg ? $lastClientMsg->created_at : null;
+
+            // Verificar si hay mensajes nuevos comparando con el último mensaje visto
+            // Si el contacto es el actual, no tiene mensajes nuevos
+            $hasNewMessage = false;
+            if ($lastClientMsg && $currentContactId != $contactItem->id) {
+                // El indicador se manejará en el frontend comparando con localStorage
+                // Por ahora, marcamos como nuevo si tiene mensajes recientes (últimas 24 horas)
+                $twentyFourHoursAgo = now()->subHours(24);
+                $hasNewMessage = $lastClientMsg->created_at->isAfter($twentyFourHoursAgo);
+            }
+            $contactItem->has_new_message = $hasNewMessage;
+            $contactItem->last_message_timestamp = $lastClientMsg ? $lastClientMsg->created_at->toIso8601String() : null;
+        }
+
+        // Ordenar contactos por fecha del último mensaje (más reciente primero)
+        $contacts = $contacts->sortByDesc(function($contact) {
+            return $contact->last_message_date ? $contact->last_message_date->timestamp : 0;
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'contacts' => $contacts->map(function($contact) {
+                return [
+                    'id' => $contact->id,
+                    'name' => $contact->name ?? 'Cliente',
+                    'phone_number' => $contact->phone_number,
+                    'messages_count' => $contact->messages_count ?? 0,
+                    'last_client_message' => $contact->last_client_message,
+                    'last_message_date' => $contact->last_message_date ? $contact->last_message_date->toIso8601String() : null,
+                    'last_message_timestamp' => $contact->last_message_timestamp ?? null,
+                    'has_new_message' => $contact->has_new_message ?? false,
+                ];
+            })
+        ]);
     }
 
     public function getNewMessages($contactId, Request $request)

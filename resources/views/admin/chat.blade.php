@@ -145,10 +145,58 @@
         border-right: 1px solid #313d45;
         min-width: 380px;
         max-width: 380px;
+        width: 380px;
         height: 100%;
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        position: relative;
+        z-index: 10;
+        transition: transform 0.3s ease;
+    }
+
+    /* Mobile sidebar overlay */
+    .wa-sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1999;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .wa-sidebar-overlay.show {
+        display: block;
+        opacity: 1;
+    }
+
+    /* Mobile toggle button */
+    .wa-mobile-toggle {
+        background: transparent;
+        border: none;
+        color: #e9edef;
+        font-size: 1.25rem;
+        padding: 0.5rem;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background 0.2s ease;
+        min-width: 40px;
+        min-height: 40px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .wa-mobile-toggle:hover {
+        background: #2a3942;
+    }
+
+    .wa-mobile-toggle i {
+        font-size: 1.1rem;
     }
 
     .wa-sidebar-header {
@@ -159,6 +207,10 @@
         align-items: center;
         gap: 12px;
         min-height: 59px;
+    }
+
+    .wa-sidebar-header .wa-mobile-toggle {
+        display: none;
     }
 
     .wa-sidebar-header-title {
@@ -283,6 +335,32 @@
         margin-left: auto;
         padding-left: 8px;
     }
+
+    .wa-message-count-badge {
+        background: #34B7F1;
+        color: white;
+        border-radius: 10px;
+        padding: 0 6px;
+        font-size: 11px;
+        font-weight: 500;
+        margin-left: 4px;
+    }
+
+    .wa-new-message-indicator {
+        color: #25d366;
+        font-size: 12px;
+        margin-left: 4px;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+    }
     /* Chat Panel Styles */
     .wa-chat-panel {
         flex: 1;
@@ -311,9 +389,15 @@
         display: flex;
         align-items: center;
         gap: 12px;
-        z-index: 1;
+        z-index: 1001;
         position: relative;
         min-height: 59px;
+    }
+
+    .wa-chat-header .wa-mobile-toggle {
+        display: none;
+        z-index: 1002;
+        position: relative;
     }
 
     .wa-chat-avatar {
@@ -328,6 +412,18 @@
         color: #e9edef;
         font-size: 18px;
         flex-shrink: 0;
+        cursor: default;
+        transition: opacity 0.2s ease;
+    }
+
+    @media (max-width: 991.98px) {
+        .wa-chat-avatar {
+            cursor: pointer;
+        }
+
+        .wa-chat-avatar:active {
+            opacity: 0.7;
+        }
     }
 
     .wa-chat-header-info {
@@ -417,6 +513,7 @@
         gap: 2px;
         position: relative;
         z-index: 1;
+        min-height: 0;
     }
 
     .wa-chat-messages::-webkit-scrollbar {
@@ -478,8 +575,13 @@
         background: #202c33;
         padding: 8px 16px;
         border-top: 1px solid #313d45;
-        z-index: 1;
+        z-index: 100;
         position: relative;
+    }
+
+    .wa-chat-input-area {
+        position: relative;
+        z-index: 100;
     }
 
     .wa-input-wrapper {
@@ -619,6 +721,8 @@
         padding: 10px 15px;
         margin-bottom: 10px;
         box-shadow: none;
+        position: relative;
+        z-index: 1;
     }
     .stats-grid {
         display: grid;
@@ -746,13 +850,116 @@
     .emoji-btn:active {
         transform: scale(0.95);
     }
+
+    /* Responsive Styles */
+    @media (max-width: 991.98px) {
+        .wa-sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            z-index: 2000;
+            transform: translateX(-100%);
+            box-shadow: 2px 0 8px rgba(0,0,0,0.3);
+        }
+
+        .wa-sidebar.show {
+            transform: translateX(0);
+        }
+
+        .wa-chat-panel {
+            width: 100%;
+        }
+
+        .wa-sidebar-header .wa-mobile-toggle,
+        .wa-chat-header .wa-mobile-toggle {
+            display: flex !important;
+        }
+
+        .wa-card {
+            flex-direction: column;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .wa-sidebar {
+            min-width: 100%;
+            max-width: 100%;
+            width: 100%;
+        }
+
+        .wa-chat-header {
+            padding: 8px 12px;
+        }
+
+        .wa-chat-input-area {
+            padding: 8px 12px;
+        }
+
+        .wa-bubble-in,
+        .wa-bubble-out {
+            max-width: 85%;
+        }
+
+        /* Ocultar o ajustar stats-panel en móvil para que no tape el input */
+        .stats-panel {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 0;
+            padding: 8px 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5em;
+            margin-bottom: 0.5em;
+        }
+
+        .stat-card {
+            padding: 0.6em;
+            font-size: 0.85em;
+        }
+
+        .wa-input-container {
+            position: sticky;
+            bottom: 0;
+            z-index: 1000;
+            background: #202c33;
+        }
+
+        .wa-chat-input-area {
+            position: relative;
+            z-index: 1000;
+        }
+
+        /* Asegurar que el input siempre esté visible */
+        .wa-chat-panel {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .wa-chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 10px;
+        }
+    }
     </style>
 
 <div class="wa-main-bg">
+    <!-- Sidebar Overlay (Mobile) -->
+    <div class="wa-sidebar-overlay" id="waSidebarOverlay"></div>
+
     <div class="wa-card">
         <!-- Sidebar -->
-        <div class="wa-sidebar">
+        <div class="wa-sidebar" id="waSidebar">
             <div class="wa-sidebar-header">
+                <button class="wa-mobile-toggle" id="waCloseSidebar" title="Cerrar">
+                    <i class="fas fa-times"></i>
+                </button>
                 <div class="wa-sidebar-header-title">Chats</div>
             </div>
             <div class="wa-sidebar-contacts">
@@ -764,7 +971,10 @@
                             <div class="wa-sidebar-phone">
                             <span>{{ $c->phone_number }}</span>
                             @if(isset($c->messages_count) && $c->messages_count > 0)
-                                    <span style="background: #25d366; color: white; border-radius: 10px; padding: 0 6px; font-size: 11px; font-weight: 500;">{{ $c->messages_count }}</span>
+                                    <span class="wa-message-count-badge" data-contact-id="{{ $c->id }}">{{ $c->messages_count }}</span>
+                            @endif
+                            @if(isset($c->has_new_message) && $c->has_new_message)
+                                    <span class="wa-new-message-indicator" data-contact-id="{{ $c->id }}">●</span>
                             @endif
                         </div>
                         @if(!empty($c->last_client_message))
@@ -801,7 +1011,10 @@
         <div class="wa-chat-panel">
             <!-- Header -->
             <div class="wa-chat-header">
-                <div class="wa-chat-avatar">{{ strtoupper(mb_substr($contact->name ?? 'C', 0, 1)) }}</div>
+                <button class="wa-mobile-toggle" id="waOpenSidebar" title="Abrir lista de chats" style="display: none;">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="wa-chat-avatar" id="waChatAvatarToggle" title="Ver contactos">{{ strtoupper(mb_substr($contact->name ?? 'C', 0, 1)) }}</div>
                 <div class="wa-chat-header-info">
                     <div class="wa-chat-header-name">{{ $contact->name ?? 'Cliente' }}</div>
                     <div class="wa-chat-header-status">{{ $contact->phone_number }}</div>
@@ -1598,6 +1811,14 @@
                     }
                 });
 
+                // Guardar el último mensaje visto cuando llegan nuevos mensajes
+                if (hasNewMessages && data.messages && data.messages.length > 0) {
+                    const lastClientMessage = data.messages.filter(msg => msg.sender_type === 'client').pop();
+                    if (lastClientMessage) {
+                        localStorage.setItem(`last_seen_${contactId}`, lastClientMessage.created_at);
+                    }
+                }
+
                 // Scroll al final si hay mensajes nuevos y el usuario está cerca del final
                 if (hasNewMessages) {
                     setTimeout(() => {
@@ -2119,15 +2340,7 @@
     });
 
 
-        // Cargar mensajes dinámicamente cuando se cambia de contacto
-        document.querySelectorAll('.wa-sidebar-contact[data-contact-id]').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                const contactId = this.getAttribute('data-contact-id');
-                loadContactChat(contactId);
-            });
-        });
-
+        // Función global para cargar chat de contacto
         function loadContactChat(contactId) {
             // Actualizar URL sin recargar
             const newUrl = `/admin/chats/${contactId}`;
@@ -2156,7 +2369,13 @@
 
                     if (headerName) headerName.textContent = data.contact.name || 'Cliente';
                     if (headerStatus) headerStatus.textContent = data.contact.phone_number || '';
-                    if (headerAvatar) headerAvatar.textContent = (data.contact.name || 'C').charAt(0).toUpperCase();
+                    if (headerAvatar) {
+                        headerAvatar.textContent = (data.contact.name || 'C').charAt(0).toUpperCase();
+                        // Asegurar que el avatar tenga el ID para el toggle
+                        if (!headerAvatar.id) {
+                            headerAvatar.id = 'waChatAvatarToggle';
+                        }
+                    }
 
                     // Actualizar toggle del bot
                     const botToggle = document.getElementById('bot-enabled-toggle');
@@ -2204,11 +2423,43 @@
                         lastMessageTimestamp = null;
                     }
 
+                    // Actualizar el ID del contacto actual en la variable global
+                    currentContactId = parseInt(contactId);
+
                     // Actualizar estado activo en sidebar
                     document.querySelectorAll('.wa-sidebar-contact').forEach(contact => {
                         contact.classList.remove('active');
                     });
                     document.querySelector(`.wa-sidebar-contact[data-contact-id="${contactId}"]`)?.classList.add('active');
+
+                    // Guardar el último mensaje visto para este contacto
+                    if (data.messages && data.messages.length > 0) {
+                        const lastClientMessage = data.messages.filter(msg => msg.sender_type === 'client').pop();
+                        if (lastClientMessage) {
+                            // Guardar en localStorage el timestamp del último mensaje visto
+                            localStorage.setItem(`last_seen_${contactId}`, lastClientMessage.created_at);
+                        } else {
+                            // Si no hay mensajes del cliente, guardar la fecha actual
+                            localStorage.setItem(`last_seen_${contactId}`, new Date().toISOString());
+                        }
+                    } else {
+                        // Si no hay mensajes, guardar la fecha actual
+                        localStorage.setItem(`last_seen_${contactId}`, new Date().toISOString());
+                    }
+
+                    // Remover indicador de mensaje nuevo del contacto activo
+                    const activeContact = document.querySelector(`.wa-sidebar-contact[data-contact-id="${contactId}"]`);
+                    if (activeContact) {
+                        const newMessageIndicator = activeContact.querySelector('.wa-new-message-indicator');
+                        if (newMessageIndicator) {
+                            newMessageIndicator.remove();
+                        }
+                    }
+
+                    // Actualizar la lista de contactos para reflejar el cambio (con un pequeño delay para asegurar que el DOM se actualizó)
+                    setTimeout(() => {
+                        updateContactsList();
+                    }, 100);
 
                     // Actualizar estadísticas si están disponibles
                     if (data.stats && currentViewMode === 'contact') {
@@ -2227,6 +2478,31 @@
                 console.error('Error cargando mensajes:', error);
                 chatMessages.innerHTML = '<div class="text-center py-8" style="color: #f15c6d;">Error al cargar los mensajes</div>';
             });
+        }
+
+        // Agregar event listeners a los contactos originales
+        function attachContactListeners() {
+            document.querySelectorAll('.wa-sidebar-contact[data-contact-id]').forEach(link => {
+                // Remover listeners anteriores si existen
+                const newLink = link.cloneNode(true);
+                link.parentNode.replaceChild(newLink, link);
+
+                newLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const contactId = this.getAttribute('data-contact-id');
+                    if (contactId) {
+                        loadContactChat(contactId);
+                    }
+                });
+            });
+        }
+
+        // Agregar listeners cuando el DOM esté listo
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', attachContactListeners);
+        } else {
+            attachContactListeners();
         }
 
         function renderMessage(msg) {
@@ -2715,6 +2991,245 @@
                 <span style="font-size: 14px; color: #e9edef; font-weight: 500;">${escapeHtml(message)}</span>
             `;
             imgElement.parentElement.insertBefore(placeholder, imgElement);
+        }
+
+        // Mobile Sidebar Toggle
+        (function() {
+            const sidebar = document.getElementById('waSidebar');
+            const overlay = document.getElementById('waSidebarOverlay');
+            const openBtn = document.getElementById('waOpenSidebar');
+            const closeBtn = document.getElementById('waCloseSidebar');
+            const avatarToggle = document.getElementById('waChatAvatarToggle');
+
+            function openSidebar() {
+                if (sidebar) sidebar.classList.add('show');
+                if (overlay) overlay.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeSidebar() {
+                if (sidebar) sidebar.classList.remove('show');
+                if (overlay) overlay.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+
+            // Abrir sidebar al hacer clic en el avatar (móvil)
+            if (avatarToggle) {
+                avatarToggle.addEventListener('click', function(e) {
+                    // Solo abrir en móvil
+                    if (window.innerWidth <= 991.98) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openSidebar();
+                    }
+                });
+            }
+
+            // Botón de menú hamburguesa (backup, oculto por defecto)
+            if (openBtn) {
+                openBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openSidebar();
+                });
+            }
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeSidebar();
+                });
+            }
+
+            if (overlay) {
+                overlay.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeSidebar();
+                });
+            }
+
+            // Cerrar sidebar cuando se selecciona un contacto en móvil
+            const sidebarContacts = document.querySelectorAll('.wa-sidebar-contact');
+            sidebarContacts.forEach(contact => {
+                contact.addEventListener('click', function() {
+                    // Solo cerrar en móvil
+                    if (window.innerWidth <= 991.98) {
+                        setTimeout(closeSidebar, 300);
+                    }
+                });
+            });
+
+            // Cerrar sidebar al redimensionar a desktop
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 991.98) {
+                    closeSidebar();
+                }
+            });
+        })();
+
+        // Actualizar lista de contactos en tiempo real
+        let contactsUpdateInterval = null;
+        let currentContactId = {{ $contact->id }};
+
+        function updateContactsList() {
+            // Obtener el ID del contacto actual dinámicamente
+            const currentContactIdInput = document.getElementById('current-contact-id');
+            if (currentContactIdInput) {
+                currentContactId = parseInt(currentContactIdInput.value) || currentContactId;
+            }
+
+            fetch(`/admin/chats/list/update?current_contact_id=${currentContactId}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.contacts) {
+                    const contactsContainer = document.querySelector('.wa-sidebar-contacts');
+                    if (!contactsContainer) return;
+
+                    // Obtener el ID del contacto actual dinámicamente (puede haber cambiado)
+                    const currentContactIdInput = document.getElementById('current-contact-id');
+                    const actualCurrentContactId = currentContactIdInput ? parseInt(currentContactIdInput.value) : currentContactId;
+
+                    // Reconstruir la lista de contactos
+                    contactsContainer.innerHTML = '';
+                    data.contacts.forEach(contact => {
+                        const isActive = contact.id == actualCurrentContactId;
+                        const contactElement = document.createElement('a');
+                        contactElement.href = 'javascript:void(0)';
+                        contactElement.setAttribute('data-contact-id', contact.id);
+                        contactElement.className = `wa-sidebar-contact${isActive ? ' active' : ''}`;
+
+                        // Avatar
+                        const avatar = document.createElement('div');
+                        avatar.className = 'wa-sidebar-avatar';
+                        avatar.textContent = (contact.name || 'C').charAt(0).toUpperCase();
+                        contactElement.appendChild(avatar);
+
+                        // Info
+                        const info = document.createElement('div');
+                        info.className = 'wa-sidebar-contact-info';
+
+                        const name = document.createElement('div');
+                        name.className = 'wa-sidebar-name';
+                        name.textContent = contact.name || 'Cliente';
+                        info.appendChild(name);
+
+                        const phone = document.createElement('div');
+                        phone.className = 'wa-sidebar-phone';
+                        const phoneSpan = document.createElement('span');
+                        phoneSpan.textContent = contact.phone_number;
+                        phone.appendChild(phoneSpan);
+
+                        if (contact.messages_count > 0) {
+                            const badge = document.createElement('span');
+                            badge.className = 'wa-message-count-badge';
+                            badge.setAttribute('data-contact-id', contact.id);
+                            badge.textContent = contact.messages_count;
+                            phone.appendChild(badge);
+                        }
+
+                        // Verificar si hay mensajes nuevos comparando con el último mensaje visto
+                        const lastSeen = localStorage.getItem(`last_seen_${contact.id}`);
+                        let shouldShowIndicator = false;
+
+                        if (contact.last_message_timestamp && contact.id != actualCurrentContactId) {
+                            if (!lastSeen) {
+                                // Si nunca se ha visto, mostrar indicador si es reciente (últimas 24 horas)
+                                const messageDate = new Date(contact.last_message_timestamp);
+                                const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                                shouldShowIndicator = messageDate > twentyFourHoursAgo;
+                            } else {
+                                // Comparar el último mensaje con el último visto
+                                const lastSeenDate = new Date(lastSeen);
+                                const lastMessageDate = new Date(contact.last_message_timestamp);
+                                shouldShowIndicator = lastMessageDate > lastSeenDate;
+                            }
+                        }
+
+                        if (shouldShowIndicator) {
+                            const indicator = document.createElement('span');
+                            indicator.className = 'wa-new-message-indicator';
+                            indicator.setAttribute('data-contact-id', contact.id);
+                            indicator.textContent = '●';
+                            phone.appendChild(indicator);
+                        }
+
+                        info.appendChild(phone);
+
+                        if (contact.last_client_message) {
+                            const lastMsg = document.createElement('div');
+                            lastMsg.className = 'wa-sidebar-last-message';
+                            try {
+                                const decoded = JSON.parse(contact.last_client_message);
+                                if (decoded && typeof decoded === 'object') {
+                                    if (decoded.type === 'button_reply' && decoded.button_reply) {
+                                        lastMsg.textContent = decoded.button_reply.title;
+                                    } else if (decoded.type === 'list_reply' && decoded.list_reply) {
+                                        lastMsg.textContent = decoded.list_reply.title;
+                                    } else if (decoded.title) {
+                                        lastMsg.textContent = decoded.title;
+                                    } else {
+                                        lastMsg.textContent = contact.last_client_message.replace(/<[^>]*>/g, '');
+                                    }
+                                } else {
+                                    lastMsg.textContent = contact.last_client_message.replace(/<[^>]*>/g, '');
+                                }
+                            } catch (e) {
+                                lastMsg.textContent = contact.last_client_message.replace(/<[^>]*>/g, '');
+                            }
+                            info.appendChild(lastMsg);
+                        }
+
+                        contactElement.appendChild(info);
+                        contactsContainer.appendChild(contactElement);
+
+                        // Agregar evento click
+                        contactElement.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const contactId = this.getAttribute('data-contact-id');
+                            if (contactId) {
+                                loadContactChat(contactId);
+                            }
+                        });
+                    });
+
+                    // Scroll al contacto activo si existe
+                    if (activeContactId) {
+                        const newActiveContact = document.querySelector(`.wa-sidebar-contact[data-contact-id="${activeContactId}"]`);
+                        if (newActiveContact) {
+                            newActiveContact.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error actualizando lista de contactos:', error);
+            });
+        }
+
+        // Iniciar actualización periódica de contactos (cada 5 segundos)
+        function startContactsUpdate() {
+            if (contactsUpdateInterval) {
+                clearInterval(contactsUpdateInterval);
+            }
+            contactsUpdateInterval = setInterval(updateContactsList, 5000);
+            // Primera actualización inmediata
+            updateContactsList();
+        }
+
+        // Iniciar cuando el DOM esté listo
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startContactsUpdate);
+        } else {
+            startContactsUpdate();
         }
 </script>
 @endsection

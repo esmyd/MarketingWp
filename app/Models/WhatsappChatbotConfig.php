@@ -15,6 +15,9 @@ class WhatsappChatbotConfig extends Model
         'menu_commands',
         'metadata',
         'is_active',
+        'monitoring_enabled',
+        'monitoring_phone_number',
+        'monitoring_email',
         'chatgpt_enabled',
         'chatgpt_api_key',
         'chatgpt_model',
@@ -26,6 +29,7 @@ class WhatsappChatbotConfig extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'monitoring_enabled' => 'boolean',
         'chatgpt_enabled' => 'boolean',
         'greetings' => 'array',
         'menu_commands' => 'array',
