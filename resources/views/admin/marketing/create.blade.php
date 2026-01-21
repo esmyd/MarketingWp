@@ -3,14 +3,89 @@
 @section('header', 'Nueva Campaña de Marketing')
 
 @section('content')
+<!-- Validaciones de Configuración -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mb-3">
+                    <i class="fas fa-check-circle me-2"></i>Estado de Configuración
+                </h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center p-3 rounded {{ $businessProfile && $businessProfile->phone_number_id ? 'bg-success-subtle' : 'bg-danger-subtle' }}">
+                            <i class="fas {{ $businessProfile && $businessProfile->phone_number_id ? 'fa-check-circle text-success' : 'fa-times-circle text-danger' }} fa-2x me-3"></i>
+                            <div>
+                                <strong>Perfil de Negocio Meta</strong><br>
+                                <small class="text-muted">
+                                    {{ $businessProfile && $businessProfile->phone_number_id ? 'Configurado correctamente' : 'No configurado - Revisar configuración' }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center p-3 rounded {{ $businessProfile && $businessProfile->access_token ? 'bg-success-subtle' : 'bg-danger-subtle' }}">
+                            <i class="fas {{ $businessProfile && $businessProfile->access_token ? 'fa-check-circle text-success' : 'fa-times-circle text-danger' }} fa-2x me-3"></i>
+                            <div>
+                                <strong>Token de Acceso</strong><br>
+                                <small class="text-muted">
+                                    {{ $businessProfile && $businessProfile->access_token ? 'Token válido' : 'Token no configurado' }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        @php
+                            $allTemplates = \App\Models\WhatsappTemplate::all();
+                            $approvedTemplates = $templates;
+                            $totalTemplates = $allTemplates->count();
+                        @endphp
+                        <div class="d-flex align-items-center p-3 rounded {{ $approvedTemplates->count() > 0 ? 'bg-success-subtle' : 'bg-warning-subtle' }}">
+                            <i class="fas {{ $approvedTemplates->count() > 0 ? 'fa-check-circle text-success' : 'fa-exclamation-triangle text-warning' }} fa-2x me-3"></i>
+                            <div>
+                                <strong>Plantillas Aprobadas</strong><br>
+                                <small class="text-muted">
+                                    {{ $approvedTemplates->count() }} plantilla(s) disponible(s)
+                                    @if($approvedTemplates->count() === 0)
+                                        <br><span class="text-danger">Necesitas al menos una plantilla aprobada</span>
+                                        @if($totalTemplates > 0)
+                                            <br><span class="text-info small">Total en BD: {{ $totalTemplates }} (Estados: {{ $allTemplates->pluck('status')->unique()->implode(', ') }})</span>
+                                        @endif
+                                    @endif
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center p-3 rounded {{ $contacts->count() > 0 ? 'bg-success-subtle' : 'bg-warning-subtle' }}">
+                            <i class="fas {{ $contacts->count() > 0 ? 'fa-check-circle text-success' : 'fa-exclamation-triangle text-warning' }} fa-2x me-3"></i>
+                            <div>
+                                <strong>Contactos Activos</strong><br>
+                                <small class="text-muted">
+                                    {{ $contacts->count() }} contacto(s) disponible(s)
+                                    @if($contacts->count() === 0)
+                                        <br><span class="text-danger">No hay contactos para enviar</span>
+                                    @endif
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="bg-white shadow-sm rounded-lg overflow-hidden">
     <div class="p-3 p-md-4 p-lg-6">
         <form action="{{ route('admin.marketing.store') }}" method="POST" id="campaignForm">
             @csrf
 
             <!-- Información Básica -->
-            <div class="mb-4">
-                <h4 class="mb-3">Información Básica</h4>
+            <div class="mb-4 pb-3 border-bottom">
+                <h4 class="mb-3">
+                    <i class="fas fa-info-circle me-2 text-primary"></i>Información Básica
+                </h4>
 
                 <div class="mb-3">
                     <label for="name" class="form-label">Nombre de la Campaña <span class="text-danger">*</span></label>
@@ -30,8 +105,10 @@
             </div>
 
             <!-- Tipo de Mensaje -->
-            <div class="mb-4">
-                <h4 class="mb-3">Tipo de Mensaje</h4>
+            <div class="mb-4 pb-3 border-bottom">
+                <h4 class="mb-3">
+                    <i class="fas fa-envelope me-2 text-primary"></i>Tipo de Mensaje
+                </h4>
 
                 <div class="mb-3">
                     <label for="message_type" class="form-label">Tipo <span class="text-danger">*</span></label>
@@ -78,8 +155,10 @@
             </div>
 
             <!-- Destinatarios -->
-            <div class="mb-4">
-                <h4 class="mb-3">Destinatarios</h4>
+            <div class="mb-4 pb-3 border-bottom">
+                <h4 class="mb-3">
+                    <i class="fas fa-users me-2 text-primary"></i>Destinatarios
+                </h4>
 
                 <div class="mb-3">
                     <label for="recipient_type" class="form-label">Tipo de Destinatarios <span class="text-danger">*</span></label>
@@ -107,7 +186,29 @@
 
                 <!-- Selección manual -->
                 <div class="mb-3" id="selected_contacts_field" style="display: none;">
-                    <label class="form-label">Seleccionar Contactos</label>
+                    <label class="form-label">Seleccionar Contactos o Agregar Números</label>
+                    
+                    <!-- Opción para agregar números manualmente -->
+                    <div class="card mb-3 border-primary">
+                        <div class="card-header bg-primary-subtle">
+                            <i class="fas fa-plus-circle me-2"></i>Agregar Números Manualmente
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <textarea class="form-control" id="manual_numbers" rows="3" 
+                                          placeholder="Ingresa números de teléfono, uno por línea. Ejemplo:&#10;+1234567890&#10;+0987654321&#10;521234567890"></textarea>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Ingresa números en formato internacional (con código de país), uno por línea.
+                                </small>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addManualNumbers()">
+                                <i class="fas fa-plus me-1"></i>Agregar Números
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Lista de contactos -->
                     <div class="mb-2">
                         <input type="text" class="form-control" id="contact_search" placeholder="Buscar contacto..."
                                onkeyup="searchContacts(this.value)">
@@ -124,13 +225,20 @@
                             </div>
                         @endforeach
                     </div>
-                    <small class="form-text text-muted">Total seleccionados: <span id="selected_count">0</span></small>
+                    <div class="mt-2">
+                        <small class="form-text text-muted">
+                            <i class="fas fa-users me-1"></i>
+                            Total seleccionados: <span id="selected_count" class="badge bg-primary rounded-pill">0</span>
+                        </small>
+                    </div>
                 </div>
             </div>
 
             <!-- Programación -->
-            <div class="mb-4">
-                <h4 class="mb-3">Programación</h4>
+            <div class="mb-4 pb-3 border-bottom">
+                <h4 class="mb-3">
+                    <i class="fas fa-calendar-alt me-2 text-primary"></i>Programación
+                </h4>
 
                 <div class="mb-3">
                     <div class="form-check">
@@ -153,12 +261,12 @@
             </div>
 
             <!-- Botones -->
-            <div class="d-flex justify-content-between">
-                <a href="{{ route('admin.marketing.index') }}" class="btn btn-secondary">
-                    <i class="fas fa-times"></i> Cancelar
+            <div class="d-flex justify-content-between align-items-center mt-4 pt-3">
+                <a href="{{ route('admin.marketing.index') }}" class="btn btn-outline-secondary rounded-pill px-4">
+                    <i class="fas fa-times me-2"></i> Cancelar
                 </a>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Guardar Campaña
+                <button type="submit" class="btn btn-primary rounded-pill px-5">
+                    <i class="fas fa-save me-2"></i> Guardar Campaña
                 </button>
             </div>
         </form>
@@ -232,6 +340,45 @@ function searchContacts(query) {
             contact.style.display = 'none';
         }
     });
+}
+
+function addManualNumbers() {
+    const numbersText = document.getElementById('manual_numbers').value.trim();
+    if (!numbersText) {
+        alert('Por favor ingresa al menos un número');
+        return;
+    }
+
+    const numbers = numbersText.split('\n').filter(n => n.trim() !== '');
+    const contactsList = document.getElementById('contacts_list');
+    
+    numbers.forEach(phoneNumber => {
+        phoneNumber = phoneNumber.trim();
+        if (phoneNumber) {
+            // Verificar si el número ya existe
+            const existingCheckbox = document.querySelector(`input[value="${phoneNumber}"]`);
+            if (existingCheckbox) {
+                existingCheckbox.checked = true;
+                updateSelectedCount();
+                return;
+            }
+
+            // Crear nuevo contacto temporal (será manejado en el backend)
+            const newContactDiv = document.createElement('div');
+            newContactDiv.className = 'form-check';
+            newContactDiv.innerHTML = `
+                <input class="form-check-input" type="checkbox" name="manual_numbers[]"
+                       value="${phoneNumber}" id="manual_${phoneNumber}" checked onchange="updateSelectedCount()">
+                <label class="form-check-label" for="manual_${phoneNumber}">
+                    <i class="fas fa-phone me-1"></i>${phoneNumber} <span class="badge bg-info ms-2">Nuevo</span>
+                </label>
+            `;
+            contactsList.appendChild(newContactDiv);
+        }
+    });
+
+    document.getElementById('manual_numbers').value = '';
+    updateSelectedCount();
 }
 
 // Inicializar

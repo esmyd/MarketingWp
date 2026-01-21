@@ -11,21 +11,26 @@
                     <h3 class="mb-0">{{ $campaign->name }}</h3>
                     <div class="d-flex flex-wrap gap-2">
                         @if($campaign->status === 'draft' || $campaign->status === 'scheduled')
-                            <a href="{{ route('admin.marketing.edit', $campaign) }}" class="btn btn-warning btn-sm">
-                                <i class="fas fa-edit"></i> Editar
+                            <a href="{{ route('admin.marketing.edit', $campaign) }}" class="btn btn-outline-warning btn-sm rounded-pill px-3">
+                                <i class="fas fa-edit me-1"></i> Editar
                             </a>
                         @endif
                         @if($campaign->status === 'draft' || $campaign->status === 'scheduled')
                             <form action="{{ route('admin.marketing.send', $campaign) }}" method="POST" class="d-inline"
                                   onsubmit="return confirm('¿Estás seguro de enviar esta campaña?')">
                                 @csrf
-                                <button type="submit" class="btn btn-success btn-sm">
-                                    <i class="fas fa-paper-plane"></i> Enviar Campaña
+                                <button type="submit" class="btn btn-success btn-sm rounded-pill px-3">
+                                    <i class="fas fa-paper-plane me-1"></i> Enviar Campaña
                                 </button>
                             </form>
                         @endif
-                        <a href="{{ route('admin.marketing.index') }}" class="btn btn-secondary btn-sm">
-                            <i class="fas fa-arrow-left"></i> Volver
+                        @if($campaign->status === 'completed')
+                            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#rescheduleModal">
+                                <i class="fas fa-calendar-alt me-1"></i> Reprogramar
+                            </button>
+                        @endif
+                        <a href="{{ route('admin.marketing.index') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                            <i class="fas fa-arrow-left me-1"></i> Volver
                         </a>
                     </div>
                 </div>
@@ -165,6 +170,41 @@
                 @else
                     <p class="text-muted">Las estadísticas estarán disponibles después del envío.</p>
                 @endif
+
+                @if($campaign->failed_count > 0 && $campaign->error_details)
+                    <div class="mt-4 pt-3 border-top">
+                        <h6 class="text-danger mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Errores de Envío
+                        </h6>
+                        <div class="accordion" id="errorAccordion">
+                            @foreach($campaign->error_details as $index => $error)
+                                <div class="accordion-item border-danger">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed bg-danger-subtle" type="button" data-bs-toggle="collapse" data-bs-target="#error{{ $index }}">
+                                            <i class="fas fa-user-circle me-2"></i>
+                                            <strong>{{ $error['contact_name'] ?? 'Contacto desconocido' }}</strong>
+                                            <small class="ms-2 text-muted">({{ $error['phone_number'] ?? 'N/A' }})</small>
+                                        </button>
+                                    </h2>
+                                    <div id="error{{ $index }}" class="accordion-collapse collapse" data-bs-parent="#errorAccordion">
+                                        <div class="accordion-body bg-white">
+                                            <div class="alert alert-danger mb-0">
+                                                <strong>Error:</strong><br>
+                                                {{ $error['error'] ?? 'Error desconocido' }}
+                                                @if(isset($error['timestamp']))
+                                                    <br><small class="text-muted">
+                                                        <i class="far fa-clock me-1"></i>
+                                                        {{ \Carbon\Carbon::parse($error['timestamp'])->format('d/m/Y H:i:s') }}
+                                                    </small>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -195,5 +235,42 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para Reprogramar -->
+@if($campaign->status === 'completed')
+<div class="modal fade" id="rescheduleModal" tabindex="-1" aria-labelledby="rescheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="rescheduleModalLabel">
+                    <i class="fas fa-calendar-alt me-2"></i>Reprogramar Campaña
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('admin.marketing.reschedule', $campaign) }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        La campaña será reprogramada y las estadísticas se resetearán.
+                    </div>
+                    <div class="mb-3">
+                        <label for="scheduled_at" class="form-label">Nueva Fecha y Hora de Envío <span class="text-danger">*</span></label>
+                        <input type="datetime-local" class="form-control" id="scheduled_at" name="scheduled_at" required>
+                        <small class="form-text text-muted">La fecha debe ser futura</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">
+                        <i class="fas fa-calendar-check me-1"></i> Reprogramar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
 @endsection
 

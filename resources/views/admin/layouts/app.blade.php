@@ -190,17 +190,49 @@
         .sidebar-user-info {
             display: flex;
             align-items: center;
-            padding: 0.5rem 0.75rem;
-            margin-bottom: 0.5rem;
-            color: rgba(255,255,255,.8);
-            font-size: 0.85rem;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+            background-color: rgba(255,255,255,.05);
+            border-radius: 0.5rem;
+            color: rgba(255,255,255,.9);
+            font-size: 0.9rem;
+            gap: 0.75rem;
         }
 
-        .sidebar-user-info i {
-            font-size: 1.2rem;
-            color: #25d366;
-            margin-right: 0.5rem;
+        .sidebar-user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.95rem;
             flex-shrink: 0;
+        }
+
+        .sidebar-user-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sidebar-user-name {
+            font-weight: 600;
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sidebar-user-role {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,.6);
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .sidebar-logout-form {
@@ -210,19 +242,22 @@
 
         .sidebar-logout-btn {
             width: 100%;
-            color: rgba(255,255,255,.8) !important;
-            background-color: transparent !important;
-            border: none;
+            color: rgba(255,255,255,.9) !important;
+            background-color: rgba(220, 53, 69, 0.15) !important;
+            border: 1px solid rgba(220, 53, 69, 0.3) !important;
             padding: 0.75rem 1rem;
             margin: 0;
             border-radius: 0.5rem;
             cursor: pointer;
             transition: all 0.2s ease;
+            font-weight: 500;
         }
 
         .sidebar-logout-btn:hover {
-            background-color: rgba(220, 53, 69, 0.2) !important;
+            background-color: rgba(220, 53, 69, 0.3) !important;
+            border-color: rgba(220, 53, 69, 0.5) !important;
             color: #ff6b6b !important;
+            transform: translateX(2px);
         }
 
         .sidebar-logout-btn i {
@@ -304,6 +339,7 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            margin-bottom: 1rem;
         }
 
         .top-navbar .navbar-brand {
@@ -324,13 +360,47 @@
         .top-navbar .user-info {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
             color: #6c757d;
             font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
         }
 
-        .top-navbar .user-info i {
-            color: #25d366;
+        .top-navbar .user-info:hover {
+            background-color: #f8f9fa;
+        }
+
+        .top-navbar .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .top-navbar .user-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-navbar .user-name {
+            font-weight: 600;
+            color: #343a40;
+            font-size: 0.95rem;
+        }
+
+        .top-navbar .user-role {
+            font-size: 0.75rem;
+            color: #6c757d;
         }
 
         .top-navbar .logout-btn {
@@ -356,6 +426,68 @@
 
         .top-navbar .logout-btn i {
             font-size: 0.85rem;
+        }
+
+        /* User Dropdown */
+        .user-dropdown {
+            position: relative;
+        }
+
+        .user-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 0.5rem;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            min-width: 200px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .user-dropdown.show .user-dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            color: #343a40;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid #f1f3f5;
+        }
+
+        .user-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .user-dropdown-item:hover {
+            background-color: #f8f9fa;
+            color: #25d366;
+        }
+
+        .user-dropdown-item i {
+            width: 20px;
+            text-align: center;
+        }
+
+        .user-dropdown-item.logout-item {
+            color: #dc3545;
+        }
+
+        .user-dropdown-item.logout-item:hover {
+            background-color: #fff5f5;
+            color: #c82333;
         }
 
         /* Mobile Overlay */
@@ -409,7 +541,11 @@
                 flex-wrap: wrap;
             }
 
-            .top-navbar .user-info span {
+            .top-navbar {
+                padding: 0.5rem 1rem;
+            }
+
+            .top-navbar .user-details {
                 display: none;
             }
 
@@ -491,13 +627,17 @@
                 <i class="fas fa-home"></i>
                 <span class="sidebar-text">Dashboard</span>
             </a>
-            <a href="{{ route('admin.orders') }}" class="nav-link {{ request()->routeIs('admin.orders') ? 'active' : '' }}">
-                <i class="fas fa-shopping-cart"></i>
-                <span class="sidebar-text">Pedidos</span>
-            </a>
             <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chats') ? 'active' : '' }}">
                 <i class="fas fa-comments"></i>
                 <span class="sidebar-text">Chats</span>
+            </a>
+            <a href="{{ route('admin.marketing.index') }}" class="nav-link {{ request()->routeIs('admin.marketing.*') ? 'active' : '' }}">
+                <i class="fas fa-bullhorn"></i>
+                <span class="sidebar-text">Campañas</span>
+            </a>
+            <a href="{{ route('admin.orders') }}" class="nav-link {{ request()->routeIs('admin.orders') ? 'active' : '' }}">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="sidebar-text">Pedidos</span>
             </a>
             <div class="sidebar-section">
                 <span class="sidebar-text">Gestión del Chatbot</span>
@@ -514,24 +654,22 @@
                 <i class="fas fa-cog"></i>
                 <span class="sidebar-text">Configuración</span>
             </a>
-            <div class="sidebar-section">
-                <span class="sidebar-text">Marketing</span>
-            </div>
-            <a href="{{ route('admin.marketing.index') }}" class="nav-link {{ request()->routeIs('admin.marketing.*') ? 'active' : '' }}">
-                <i class="fas fa-bullhorn"></i>
-                <span class="sidebar-text">Campañas</span>
-            </a>
         </nav>
 
-        <!-- Sidebar Footer with Logout -->
+        <!-- Sidebar Footer with User Profile -->
         <div class="sidebar-footer">
             <div class="sidebar-user-info">
-                <i class="fas fa-user-circle"></i>
-                <span class="sidebar-text">{{ Auth::user()->name ?? 'Administrador' }}</span>
+                <div class="sidebar-user-avatar">
+                    {{ strtoupper(substr(Auth::user()->name ?? 'A', 0, 1)) }}
+                </div>
+                <div class="sidebar-user-details">
+                    <span class="sidebar-text sidebar-user-name">{{ Auth::user()->name ?? 'Administrador' }}</span>
+                    <span class="sidebar-text sidebar-user-role">Administrador</span>
+                </div>
             </div>
             <form action="{{ route('logout') }}" method="POST" class="sidebar-logout-form">
                 @csrf
-                <button type="submit" class="nav-link sidebar-logout-btn" onclick="return confirm('¿Estás seguro de que deseas cerrar sesión?');">
+                <button type="submit" class="sidebar-logout-btn" onclick="return confirm('¿Estás seguro de que deseas cerrar sesión?');">
                     <i class="fas fa-sign-out-alt"></i>
                     <span class="sidebar-text">Cerrar Sesión</span>
                 </button>
@@ -541,6 +679,53 @@
 
     <!-- Main Content -->
     <div class="main-wrapper" id="mainWrapper">
+        <!-- Top Navbar -->
+        <nav class="top-navbar">
+            <div class="navbar-brand">
+                <i class="fab fa-whatsapp text-success"></i>
+                <span>Panel Administrativo</span>
+            </div>
+            <div class="user-menu">
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-info" onclick="document.getElementById('userDropdown').classList.toggle('show')">
+                        <div class="user-avatar">
+                            {{ strtoupper(substr(Auth::user()->name ?? 'A', 0, 1)) }}
+                        </div>
+                        <div class="user-details d-none d-md-flex">
+                            <span class="user-name">{{ Auth::user()->name ?? 'Administrador' }}</span>
+                            <span class="user-role">Administrador</span>
+                        </div>
+                        <i class="fas fa-chevron-down d-none d-md-block" style="font-size: 0.75rem;"></i>
+                    </div>
+                    <div class="user-dropdown-menu">
+                        <a href="{{ route('admin.profile.show') }}" class="user-dropdown-item">
+                            <i class="fas fa-user"></i>
+                            <span>Mi Perfil</span>
+                        </a>
+                        <a href="{{ route('admin.chatbot.config') }}" class="user-dropdown-item">
+                            <i class="fas fa-cog"></i>
+                            <span>Configuración</span>
+                        </a>
+                        <div style="border-top: 1px solid #dee2e6; margin: 0.5rem 0;"></div>
+                        <form action="{{ route('logout') }}" method="POST" style="margin: 0;">
+                            @csrf
+                            <button type="submit" class="user-dropdown-item logout-item" style="width: 100%; border: none; background: none; text-align: left; cursor: pointer;" onclick="return confirm('¿Estás seguro de que deseas cerrar sesión?');">
+                                <i class="fas fa-sign-out-alt"></i>
+                                <span>Cerrar Sesión</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <form action="{{ route('logout') }}" method="POST" class="d-none d-md-block">
+                    @csrf
+                    <button type="submit" class="logout-btn" onclick="return confirm('¿Estás seguro de que deseas cerrar sesión?');">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Cerrar Sesión</span>
+                    </button>
+                </form>
+            </div>
+        </nav>
+
         <!-- Mobile Menu Button (Fixed) -->
         <button class="mobile-menu-btn" id="mobileMenuBtn" style="position: fixed; top: 10px; left: 10px; z-index: 1001; background: white; border: 1px solid #dee2e6; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <i class="fas fa-bars"></i>
@@ -661,6 +846,14 @@
                     sidebar.classList.remove('show');
                     sidebarOverlay.classList.remove('show');
                     document.body.style.overflow = '';
+                }
+            });
+
+            // Close user dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                const userDropdown = document.getElementById('userDropdown');
+                if (userDropdown && !userDropdown.contains(event.target)) {
+                    userDropdown.classList.remove('show');
                 }
             });
         })();

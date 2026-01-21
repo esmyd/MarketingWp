@@ -38,6 +38,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     // Menús y Categorías
     Route::get('/menus', [App\Http\Controllers\Admin\ChatbotController::class, 'menus'])->name('menus.index');
     Route::post('/menus', [App\Http\Controllers\Admin\ChatbotController::class, 'storeMenu'])->name('menus.store');
+    Route::get('/menus/{menu}', [App\Http\Controllers\Admin\ChatbotController::class, 'showMenu'])->name('menus.show');
     Route::put('/menus/{menu}', [App\Http\Controllers\Admin\ChatbotController::class, 'updateMenu'])->name('menus.update');
     Route::delete('/menus/{menu}', [App\Http\Controllers\Admin\ChatbotController::class, 'deleteMenu'])->name('menus.delete');
 
@@ -70,7 +71,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
         'destroy' => 'marketing.destroy',
     ]);
     Route::post('/marketing/{campaign}/send', [App\Http\Controllers\Admin\MarketingCampaignController::class, 'send'])->name('marketing.send');
+    Route::post('/marketing/{campaign}/reschedule', [App\Http\Controllers\Admin\MarketingCampaignController::class, 'reschedule'])->name('marketing.reschedule');
     Route::get('/marketing/contacts/search', [App\Http\Controllers\Admin\MarketingCampaignController::class, 'getContacts'])->name('marketing.contacts.search');
+
+    // Perfil de Usuario
+    Route::get('/profile', [App\Http\Controllers\Admin\UserProfileController::class, 'show'])->name('profile.show');
+    Route::put('/profile', [App\Http\Controllers\Admin\UserProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [App\Http\Controllers\Admin\UserProfileController::class, 'updatePassword'])->name('profile.password.update');
 });
 
 // Rutas de autenticación

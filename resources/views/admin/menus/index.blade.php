@@ -47,6 +47,19 @@
 
             <!-- Lista de categorías -->
             <div class="mt-8 flex flex-col">
+                @if($menus->isEmpty())
+                    <div class="text-center py-16 bg-white shadow-sm rounded-lg border border-dashed border-gray-300">
+                        <div class="text-5xl mb-4">🗂️</div>
+                        <h3 class="text-xl font-semibold mb-2">Aún no tienes categorías</h3>
+                        <p class="text-gray-500 mb-4">Crea tu primera categoría para organizar el chatbot.</p>
+                        <button type="button" onclick="openCreateModal()" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Crear Categoría
+                        </button>
+                    </div>
+                @else
                 <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
                     <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
                         <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
@@ -72,6 +85,7 @@
                                                 </div>
                                                 <div class="ml-4">
                                                     <div class="font-medium text-gray-900">{{ $menu->title }}</div>
+                                                    <div class="text-xs text-gray-500">Items: {{ $menu->items->count() }}</div>
                                                 </div>
                                             </div>
                                         </td>
@@ -107,6 +121,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
             </div>
         </main>
     </div>
@@ -204,7 +219,7 @@ function openEditModal(id) {
     document.getElementById('categoryForm').action = `/admin/menus/${id}`;
     document.getElementById('methodField').innerHTML = '@method("PUT")';
 
-    // Aquí deberías cargar los datos del menú usando una petición AJAX
+    // Cargar datos del menú vía AJAX
     fetch(`/admin/menus/${id}`)
         .then(response => response.json())
         .then(data => {

@@ -29,7 +29,8 @@ class WhatsappCampaign extends Model
         'failed_count',
         'delivered_count',
         'read_count',
-        'metadata'
+        'metadata',
+        'error_details'
     ];
 
     protected $casts = [
@@ -37,6 +38,7 @@ class WhatsappCampaign extends Model
         'recipient_filters' => 'array',
         'selected_contacts' => 'array',
         'metadata' => 'array',
+        'error_details' => 'array',
         'scheduled_at' => 'datetime',
         'sent_at' => 'datetime'
     ];

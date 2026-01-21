@@ -86,13 +86,26 @@ class WhatsappService
                 return true;
             }
 
+            $errorData = $response->json();
+            $errorMessage = $errorData['error']['message'] ?? 'Error desconocido al enviar plantilla';
+            $errorCode = $errorData['error']['code'] ?? null;
+            $errorType = $errorData['error']['type'] ?? null;
+            $fullError = "Error {$errorCode}: {$errorMessage}";
+
             Log::error('WhatsApp API Error', [
-                'response' => $response->json(),
+                'response' => $errorData,
                 'contact' => $contact->phone_number,
                 'template' => $template->name
             ]);
 
-            return false;
+            // Retornar array con detalles para campañas, false para compatibilidad
+            return [
+                'success' => false,
+                'error' => $fullError,
+                'error_code' => $errorCode,
+                'error_type' => $errorType,
+                'boolean' => false
+            ];
         } catch (\Exception $e) {
             Log::error('WhatsApp Service Error', [
                 'error' => $e->getMessage(),
@@ -100,7 +113,11 @@ class WhatsappService
                 'template' => $template->name
             ]);
 
-            return false;
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'boolean' => false
+            ];
         }
     }
 
@@ -164,13 +181,25 @@ class WhatsappService
             }
 
             $errorData = $response->json();
+            $errorMessage = $errorData['error']['message'] ?? 'Error desconocido al enviar mensaje de texto';
+            $errorCode = $errorData['error']['code'] ?? null;
+            $errorType = $errorData['error']['type'] ?? null;
+            $fullError = "Error {$errorCode}: {$errorMessage}";
+
             Log::error('WhatsApp API Error al enviar texto', [
                 'status' => $response->status(),
                 'response' => $errorData,
                 'contact' => $contact->phone_number
             ]);
 
-            return false;
+            // Retornar array con detalles para campañas, false para compatibilidad
+            return [
+                'success' => false,
+                'error' => $fullError,
+                'error_code' => $errorCode,
+                'error_type' => $errorType,
+                'boolean' => false
+            ];
         } catch (\Exception $e) {
             Log::error('WhatsApp Service Error al enviar texto', [
                 'error' => $e->getMessage(),
@@ -178,7 +207,11 @@ class WhatsappService
                 'contact' => $contact->phone_number
             ]);
 
-            return false;
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'boolean' => false
+            ];
         }
     }
 

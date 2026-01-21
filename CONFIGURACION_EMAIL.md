@@ -94,3 +94,4 @@ MAIL_FROM_NAME="Tu Nombre"
 
 El sistema continuará funcionando normalmente aunque falle el envío de email. Los errores se registrarán en los logs pero no afectarán el funcionamiento del bot de WhatsApp ni el envío de mensajes de monitoreo por WhatsApp.
 
+

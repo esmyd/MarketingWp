@@ -38,7 +38,24 @@ class MarketingCampaignController extends Controller
      */
     public function create()
     {
-        $templates = WhatsappTemplate::where('status', 'approved')->get();
+        // Buscar plantillas aprobadas o activas (funciona en producción y local)
+        // Prioriza: 'approved', 'active', 'Active - Quality pendin', etc.
+        $templates = WhatsappTemplate::where(function($query) {
+            $query->whereRaw('LOWER(status) LIKE ?', ['approved%'])
+                  ->orWhereRaw('LOWER(status) LIKE ?', ['active%'])
+                  ->orWhere('status', 'APPROVED')
+                  ->orWhere('status', 'approved')
+                  ->orWhere('status', 'ACTIVE')
+                  ->orWhere('status', 'active');
+        })->get();
+
+        // Si no hay resultados, obtener todas excepto rechazadas/pending (fallback para local)
+        if ($templates->isEmpty()) {
+            $templates = WhatsappTemplate::whereNotIn('status', ['rejected', 'REJECTED', 'pending', 'PENDING'])
+                                         ->whereNotNull('template_id')
+                                         ->get();
+        }
+
         $contacts = WhatsappContact::where('status', 'active')->orderBy('name')->get();
         $businessProfile = WhatsappBusinessProfile::first();
 
@@ -61,6 +78,8 @@ class MarketingCampaignController extends Controller
             'recipient_filters' => 'nullable|array',
             'selected_contacts' => 'nullable|array',
             'selected_contacts.*' => 'exists:whatsapp_contacts,id',
+            'manual_numbers' => 'nullable|array',
+            'manual_numbers.*' => 'string',
             'scheduled_at' => 'nullable|date|after:now',
         ]);
 
@@ -68,6 +87,40 @@ class MarketingCampaignController extends Controller
         if (!$businessProfile) {
             return redirect()->back()->with('error', 'No se encontró un perfil de negocio configurado');
         }
+
+        // Manejar números manuales - crear contactos temporales si es necesario
+        $selectedContacts = $validated['selected_contacts'] ?? [];
+        if (!empty($validated['manual_numbers'])) {
+            foreach ($validated['manual_numbers'] as $phoneNumber) {
+                $phoneNumber = trim($phoneNumber);
+                if ($phoneNumber) {
+                    // Buscar si el contacto ya existe
+                    $existingContact = WhatsappContact::where('phone_number', $phoneNumber)
+                        ->where('business_profile_id', $businessProfile->id)
+                        ->first();
+
+                    if ($existingContact) {
+                        // Agregar a la lista si no está ya incluido
+                        if (!in_array($existingContact->id, $selectedContacts)) {
+                            $selectedContacts[] = $existingContact->id;
+                        }
+                    } else {
+                        // Crear contacto temporal
+                        $newContact = WhatsappContact::create([
+                            'business_profile_id' => $businessProfile->id,
+                            'name' => 'Contacto ' . substr($phoneNumber, -4),
+                            'phone_number' => $phoneNumber,
+                            'status' => 'active',
+                            'metadata' => ['temporary' => true, 'created_from_campaign' => true]
+                        ]);
+                        $selectedContacts[] = $newContact->id;
+                    }
+                }
+            }
+        }
+
+        // Actualizar validated con los contactos seleccionados (incluidos los nuevos)
+        $validated['selected_contacts'] = array_unique($selectedContacts);
 
         // Calcular total de destinatarios
         $totalRecipients = $this->calculateRecipients($validated);
@@ -113,7 +166,24 @@ class MarketingCampaignController extends Controller
                 ->with('error', 'No se puede editar una campaña que ya está en proceso o completada');
         }
 
-        $templates = WhatsappTemplate::where('status', 'approved')->get();
+        // Buscar plantillas aprobadas o activas (case-insensitive)
+        // Incluye: 'approved', 'active', 'Active - Quality pendin', etc.
+        $templates = WhatsappTemplate::where(function($query) {
+            $query->whereRaw('LOWER(status) LIKE ?', ['approved%'])
+                  ->orWhereRaw('LOWER(status) LIKE ?', ['active%'])
+                  ->orWhere('status', 'APPROVED')
+                  ->orWhere('status', 'approved')
+                  ->orWhere('status', 'ACTIVE')
+                  ->orWhere('status', 'active');
+        })->get();
+
+        // Si no hay resultados, obtener todas excepto rechazadas/pending (fallback para local)
+        if ($templates->isEmpty()) {
+            $templates = WhatsappTemplate::whereNotIn('status', ['rejected', 'REJECTED', 'pending', 'PENDING'])
+                                         ->whereNotNull('template_id')
+                                         ->get();
+        }
+
         $contacts = WhatsappContact::where('status', 'active')->orderBy('name')->get();
         $businessProfile = WhatsappBusinessProfile::first();
 
@@ -209,34 +279,59 @@ class MarketingCampaignController extends Controller
             // Enviar mensajes
             $sent = 0;
             $failed = 0;
+            $errorDetails = [];
 
             foreach ($recipients as $contact) {
                 try {
                     $success = false;
+                    $errorMessage = null;
 
                     if ($campaign->message_type === 'text') {
                         // Personalizar el mensaje con datos del contacto
                         $personalizedMessage = $this->personalizeMessage($campaign->message_content, $contact);
-                        $success = $this->whatsappService->sendTextMessage(
+                        $result = $this->whatsappService->sendTextMessage(
                             $contact,
                             $personalizedMessage,
                             false
                         );
+
+                        if (is_array($result)) {
+                            $success = $result['success'] ?? false;
+                            $errorMessage = $result['error'] ?? null;
+                        } else {
+                            $success = $result;
+                        }
                     } elseif ($campaign->message_type === 'template' && $campaign->template) {
                         $variables = $campaign->template_variables ?? [];
                         // Personalizar variables con datos del contacto
                         $personalizedVars = $this->personalizeVariables($variables, $contact);
-                        $success = $this->whatsappService->sendTemplateMessage(
+                        $result = $this->whatsappService->sendTemplateMessage(
                             $contact,
                             $campaign->template,
                             $personalizedVars
                         );
+
+                        if (is_array($result)) {
+                            $success = $result['success'] ?? false;
+                            $errorMessage = $result['error'] ?? null;
+                        } else {
+                            $success = $result;
+                        }
                     }
 
                     if ($success) {
                         $sent++;
                     } else {
                         $failed++;
+                        if ($errorMessage) {
+                            $errorDetails[] = [
+                                'contact_id' => $contact->id,
+                                'contact_name' => $contact->name,
+                                'phone_number' => $contact->phone_number,
+                                'error' => $errorMessage,
+                                'timestamp' => now()->toIso8601String()
+                            ];
+                        }
                     }
 
                     // Pequeña pausa para evitar rate limiting
@@ -248,18 +343,27 @@ class MarketingCampaignController extends Controller
                         'error' => $e->getMessage()
                     ]);
                     $failed++;
+                    $errorDetails[] = [
+                        'contact_id' => $contact->id,
+                        'contact_name' => $contact->name ?? 'Desconocido',
+                        'phone_number' => $contact->phone_number ?? 'N/A',
+                        'error' => $e->getMessage(),
+                        'timestamp' => now()->toIso8601String()
+                    ];
                 }
 
                 // Actualizar contadores en tiempo real
                 $campaign->update([
                     'sent_count' => $sent,
-                    'failed_count' => $failed
+                    'failed_count' => $failed,
+                    'error_details' => !empty($errorDetails) ? $errorDetails : null
                 ]);
             }
 
             $campaign->update([
                 'status' => 'completed',
-                'sent_at' => now()
+                'sent_at' => now(),
+                'error_details' => !empty($errorDetails) ? $errorDetails : null
             ]);
 
             return redirect()->route('admin.marketing.show', $campaign)
@@ -374,6 +478,33 @@ class MarketingCampaignController extends Controller
             $personalized[] = $var;
         }
         return $personalized;
+    }
+
+    /**
+     * Reprograma una campaña completada o fallida
+     */
+    public function reschedule(Request $request, $id)
+    {
+        $campaign = WhatsappCampaign::findOrFail($id);
+
+        $validated = $request->validate([
+            'scheduled_at' => 'required|date|after:now',
+        ]);
+
+        // Resetear estadísticas y estado
+        $campaign->update([
+            'status' => 'scheduled',
+            'scheduled_at' => $validated['scheduled_at'],
+            'sent_at' => null,
+            'sent_count' => 0,
+            'failed_count' => 0,
+            'delivered_count' => 0,
+            'read_count' => 0,
+            'error_details' => null
+        ]);
+
+        return redirect()->route('admin.marketing.show', $campaign)
+            ->with('success', 'Campaña reprogramada correctamente');
     }
 
     /**

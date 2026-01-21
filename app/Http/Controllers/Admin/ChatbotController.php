@@ -22,6 +22,14 @@ class ChatbotController extends Controller
     }
 
     /**
+     * Devuelve un menú en JSON (para edición vía AJAX)
+     */
+    public function showMenu(WhatsappMenu $menu)
+    {
+        return response()->json($menu->load('items'));
+    }
+
+    /**
      * Muestra la vista de gestión de productos
      */
     public function products()

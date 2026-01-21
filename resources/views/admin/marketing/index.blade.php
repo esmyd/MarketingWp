@@ -13,108 +13,132 @@
 <div class="bg-white shadow-sm rounded-lg overflow-hidden">
     <div class="p-3 p-md-4 p-lg-6">
         <div class="table-responsive">
-            <table class="table table-hover table-sm">
-                <thead class="d-none d-md-table-header-group">
-                    <tr>
-                        <th>Nombre</th>
-                        <th class="d-none d-lg-table-cell">Tipo</th>
-                        <th class="d-none d-md-table-cell">Destinatarios</th>
-                        <th>Estado</th>
-                        <th class="d-none d-lg-table-cell">Progreso</th>
-                        <th class="d-none d-xl-table-cell">Fecha</th>
-                        <th>Acciones</th>
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr class="table-light">
+                        <th class="fw-semibold">Nombre</th>
+                        <th class="d-none d-lg-table-cell fw-semibold">Tipo</th>
+                        <th class="d-none d-md-table-cell fw-semibold">Destinatarios</th>
+                        <th class="fw-semibold">Estado</th>
+                        <th class="d-none d-lg-table-cell fw-semibold">Progreso</th>
+                        <th class="d-none d-xl-table-cell fw-semibold">Fecha</th>
+                        <th class="fw-semibold text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($campaigns as $campaign)
-                        <tr>
+                        <tr class="{{ $campaign->status === 'completed' && $campaign->failed_count > 0 ? 'table-warning' : '' }}">
                             <td>
-                                <strong>{{ $campaign->name }}</strong>
-                                @if($campaign->description)
-                                    <br><small class="text-muted d-none d-md-inline">{{ \Illuminate\Support\Str::limit($campaign->description, 50) }}</small>
-                                @endif
-                                <div class="d-md-none mt-2">
-                                    <span class="badge bg-info me-1">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-2">
                                         @if($campaign->message_type === 'text')
-                                            <i class="fas fa-comment"></i>
+                                            <span class="badge bg-primary-subtle text-primary rounded-pill px-2 py-1">
+                                                <i class="fas fa-comment me-1"></i>
+                                            </span>
                                         @elseif($campaign->message_type === 'template')
-                                            <i class="fas fa-file-alt"></i>
+                                            <span class="badge bg-info-subtle text-info rounded-pill px-2 py-1">
+                                                <i class="fas fa-file-alt me-1"></i>
+                                            </span>
                                         @elseif($campaign->message_type === 'image')
-                                            <i class="fas fa-image"></i>
+                                            <span class="badge bg-success-subtle text-success rounded-pill px-2 py-1">
+                                                <i class="fas fa-image me-1"></i>
+                                            </span>
                                         @else
-                                            <i class="fas fa-mouse-pointer"></i>
+                                            <span class="badge bg-warning-subtle text-warning rounded-pill px-2 py-1">
+                                                <i class="fas fa-mouse-pointer me-1"></i>
+                                            </span>
                                         @endif
-                                    </span>
-                                    <span class="badge bg-secondary">{{ $campaign->total_recipients }} destinatarios</span>
+                                    </div>
+                                    <div>
+                                        <strong class="d-block">{{ $campaign->name }}</strong>
+                                        @if($campaign->description)
+                                            <small class="text-muted d-none d-md-inline-block">{{ \Illuminate\Support\Str::limit($campaign->description, 50) }}</small>
+                                        @endif
+                                    </div>
                                 </div>
                             </td>
                             <td class="d-none d-lg-table-cell">
-                                <span class="badge bg-info">
-                                    @if($campaign->message_type === 'text')
-                                        <i class="fas fa-comment"></i> Texto
-                                    @elseif($campaign->message_type === 'template')
-                                        <i class="fas fa-file-alt"></i> Plantilla
-                                    @elseif($campaign->message_type === 'image')
-                                        <i class="fas fa-image"></i> Imagen
-                                    @else
-                                        <i class="fas fa-mouse-pointer"></i> Interactivo
-                                    @endif
-                                </span>
+                                @if($campaign->message_type === 'template')
+                                    <button class="btn btn-sm btn-outline-info rounded-pill px-3" title="Ver plantilla">
+                                        <i class="fas fa-file-alt me-1"></i> Plantilla
+                                    </button>
+                                @else
+                                    <span class="badge bg-secondary rounded-pill px-3">
+                                        @if($campaign->message_type === 'text')
+                                            <i class="fas fa-comment me-1"></i> Texto
+                                        @elseif($campaign->message_type === 'image')
+                                            <i class="fas fa-image me-1"></i> Imagen
+                                        @else
+                                            <i class="fas fa-mouse-pointer me-1"></i> Interactivo
+                                        @endif
+                                    </span>
+                                @endif
+                                <span class="badge bg-secondary rounded-circle ms-1">{{ $campaign->template_id ? '1' : '0' }}</span>
                             </td>
                             <td class="d-none d-md-table-cell">
-                                <span class="badge bg-secondary">{{ $campaign->total_recipients }}</span>
+                                <span class="badge bg-secondary rounded-pill px-3">{{ $campaign->total_recipients }}</span>
                             </td>
                             <td>
                                 @if($campaign->status === 'draft')
-                                    <span class="badge bg-secondary">Borrador</span>
+                                    <span class="badge bg-secondary rounded-pill px-3 py-1">Borrador</span>
                                 @elseif($campaign->status === 'scheduled')
-                                    <span class="badge bg-warning">Programada</span>
+                                    <span class="badge bg-warning rounded-pill px-3 py-1">Programada</span>
                                 @elseif($campaign->status === 'sending')
-                                    <span class="badge bg-info">Enviando...</span>
+                                    <span class="badge bg-info rounded-pill px-3 py-1">
+                                        <i class="fas fa-spinner fa-spin me-1"></i> Enviando...
+                                    </span>
                                 @elseif($campaign->status === 'completed')
-                                    <span class="badge bg-success">Completada</span>
+                                    <span class="badge bg-success rounded-pill px-3 py-1">Completada</span>
                                 @elseif($campaign->status === 'paused')
-                                    <span class="badge bg-warning">Pausada</span>
+                                    <span class="badge bg-warning rounded-pill px-3 py-1">Pausada</span>
                                 @else
-                                    <span class="badge bg-danger">Cancelada</span>
+                                    <span class="badge bg-danger rounded-pill px-3 py-1">Cancelada</span>
                                 @endif
                             </td>
                             <td class="d-none d-lg-table-cell">
                                 @if($campaign->status === 'completed' || $campaign->status === 'sending')
-                                    <div class="progress" style="height: 20px;">
-                                        <div class="progress-bar" role="progressbar"
-                                             style="width: {{ $campaign->total_recipients > 0 ? ($campaign->sent_count / $campaign->total_recipients * 100) : 0 }}%">
+                                    <div class="progress mb-2" style="height: 24px; border-radius: 12px;">
+                                        <div class="progress-bar {{ $campaign->failed_count > 0 ? 'bg-danger' : 'bg-success' }}" 
+                                             role="progressbar"
+                                             style="width: {{ $campaign->total_recipients > 0 ? ($campaign->sent_count / $campaign->total_recipients * 100) : 0 }}%; border-radius: 12px; font-size: 0.85rem; font-weight: 500;"
+                                             aria-valuenow="{{ $campaign->sent_count }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="{{ $campaign->total_recipients }}">
                                             {{ $campaign->sent_count }}/{{ $campaign->total_recipients }}
                                         </div>
                                     </div>
-                                    <small class="text-muted">
-                                        Enviados: {{ $campaign->sent_count }} |
-                                        Fallidos: {{ $campaign->failed_count }}
-                                    </small>
+                                    <div class="small text-muted">
+                                        <span class="me-2"><i class="fas fa-check-circle text-success"></i> {{ $campaign->sent_count }}</span>
+                                        <span><i class="fas fa-times-circle text-danger"></i> {{ $campaign->failed_count }}</span>
+                                    </div>
                                 @else
                                     <span class="text-muted">-</span>
                                 @endif
                             </td>
                             <td class="d-none d-xl-table-cell">
-                                <small>
-                                    {{ $campaign->created_at->format('d/m/Y') }}<br>
+                                <div class="small">
+                                    <div class="text-muted">
+                                        <i class="far fa-calendar me-1"></i>{{ $campaign->created_at->format('d/m/Y') }}
+                                    </div>
                                     @if($campaign->sent_at)
-                                        {{ $campaign->sent_at->format('d/m/Y') }}
+                                        <div class="text-muted mt-1">
+                                            <i class="far fa-clock me-1"></i>{{ $campaign->sent_at->format('d/m/Y') }}
+                                        </div>
                                     @endif
-                                </small>
+                                </div>
                             </td>
                             <td>
-                                <div class="btn-group btn-group-sm" role="group">
+                                <div class="d-flex justify-content-end gap-2 flex-wrap">
                                     <a href="{{ route('admin.marketing.show', $campaign) }}"
-                                       class="btn btn-info" title="Ver detalles">
-                                        <i class="fas fa-eye"></i>
-                                        <span class="d-none d-lg-inline ms-1">Ver</span>
+                                       class="btn btn-sm btn-outline-primary rounded-pill px-3" title="Ver detalles">
+                                        <i class="fas fa-eye me-1"></i>
+                                        <span class="d-none d-lg-inline">Ver</span>
                                     </a>
                                     @if($campaign->status === 'draft' || $campaign->status === 'scheduled')
                                         <a href="{{ route('admin.marketing.edit', $campaign) }}"
-                                           class="btn btn-warning" title="Editar">
-                                            <i class="fas fa-edit"></i>
-                                            <span class="d-none d-lg-inline ms-1">Editar</span>
+                                           class="btn btn-sm btn-outline-warning rounded-pill px-3" title="Editar">
+                                            <i class="fas fa-edit me-1"></i>
+                                            <span class="d-none d-lg-inline">Editar</span>
                                         </a>
                                     @endif
                                     @if($campaign->status === 'draft' || $campaign->status === 'scheduled')
@@ -122,9 +146,9 @@
                                               method="POST" class="d-inline"
                                               onsubmit="return confirm('¿Estás seguro de enviar esta campaña?')">
                                             @csrf
-                                            <button type="submit" class="btn btn-success" title="Enviar">
-                                                <i class="fas fa-paper-plane"></i>
-                                                <span class="d-none d-lg-inline ms-1">Enviar</span>
+                                            <button type="submit" class="btn btn-sm btn-success rounded-pill px-3" title="Enviar">
+                                                <i class="fas fa-paper-plane me-1"></i>
+                                                <span class="d-none d-lg-inline">Enviar</span>
                                             </button>
                                         </form>
                                     @endif
@@ -134,8 +158,9 @@
                                               onsubmit="return confirm('¿Estás seguro de eliminar esta campaña?')">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-danger" title="Eliminar">
-                                                <i class="fas fa-trash"></i>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3" title="Eliminar">
+                                                <i class="fas fa-trash me-1"></i>
+                                                <span class="d-none d-lg-inline">Eliminar</span>
                                             </button>
                                         </form>
                                     @endif
@@ -144,8 +169,12 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">
-                                No hay campañas creadas. <a href="{{ route('admin.marketing.create') }}">Crear primera campaña</a>
+                            <td colspan="7" class="text-center text-muted py-5">
+                                <i class="fas fa-inbox fa-3x mb-3 d-block opacity-50"></i>
+                                <p>No hay campañas creadas.</p>
+                                <a href="{{ route('admin.marketing.create') }}" class="btn btn-primary rounded-pill px-4">
+                                    <i class="fas fa-plus me-2"></i> Crear primera campaña
+                                </a>
                             </td>
                         </tr>
                     @endforelse
@@ -153,7 +182,7 @@
             </table>
         </div>
 
-        <div class="mt-4">
+        <div class="mt-4 d-flex justify-content-center">
             {{ $campaigns->links() }}
         </div>
     </div>
