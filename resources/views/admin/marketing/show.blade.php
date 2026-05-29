@@ -29,6 +29,22 @@
                                 <i class="fas fa-calendar-alt me-1"></i> Reprogramar
                             </button>
                         @endif
+                        @if($campaign->status !== 'sending')
+                            <form action="{{ route('admin.marketing.destroy', $campaign) }}" method="POST" class="d-inline"
+                                  onsubmit="return confirm(@json(
+                                      $campaign->status === 'completed'
+                                          ? '¿Eliminar esta campaña completada? El historial de envío se perderá.'
+                                          : ($campaign->status === 'scheduled'
+                                              ? '¿Cancelar y eliminar esta campaña programada?'
+                                              : '¿Estás seguro de eliminar esta campaña?')
+                                  ))">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                                    <i class="fas fa-trash me-1"></i> Eliminar
+                                </button>
+                            </form>
+                        @endif
                         <a href="{{ route('admin.marketing.index') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
                             <i class="fas fa-arrow-left me-1"></i> Volver
                         </a>

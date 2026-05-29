@@ -157,10 +157,16 @@
                                             </button>
                                         </form>
                                     @endif
-                                    @if($campaign->status === 'draft')
+                                    @if($campaign->status !== 'sending')
                                         <form action="{{ route('admin.marketing.destroy', $campaign) }}"
                                               method="POST" class="d-inline"
-                                              onsubmit="return confirm('¿Estás seguro de eliminar esta campaña?')">
+                                              onsubmit="return confirm(@json(
+                                                  $campaign->status === 'completed'
+                                                      ? '¿Eliminar esta campaña completada? El historial de envío se perderá.'
+                                                      : ($campaign->status === 'scheduled'
+                                                          ? '¿Cancelar y eliminar esta campaña programada?'
+                                                          : '¿Estás seguro de eliminar esta campaña?')
+                                              ))">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3" title="Eliminar">

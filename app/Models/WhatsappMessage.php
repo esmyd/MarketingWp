@@ -28,7 +28,7 @@ class WhatsappMessage extends Model
 
     public function contact()
     {
-        return $this->belongsTo(WhatsappContact::class);
+        return $this->belongsTo(WhatsappContact::class, 'contact_id');
     }
 
     public function businessProfile()

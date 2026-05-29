@@ -77,11 +77,13 @@
     .wa-bubble-in {
         background: #202c33;
         color: #e9edef;
-        border-radius: 7.5px 7.5px 7.5px 0;
-        box-shadow: 0 1px 0.5px rgba(0,0,0,0.3);
+        border-radius: 7.5px;
+        border-top-left-radius: 0;
+        box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
         position: relative;
         padding: 6px 7px 8px 9px;
         max-width: 65%;
+        min-width: 60px;
         word-wrap: break-word;
     }
 
@@ -89,22 +91,24 @@
         content: '';
         position: absolute;
         left: -8px;
-        bottom: 0;
+        top: 0;
         width: 0;
         height: 0;
         border-style: solid;
-        border-width: 0 8px 13px 0;
+        border-width: 0 8px 8px 0;
         border-color: transparent #202c33 transparent transparent;
     }
 
     .wa-bubble-out {
         background: #005c4b;
         color: #e9edef;
-        border-radius: 7.5px 7.5px 0 7.5px;
-        box-shadow: 0 1px 0.5px rgba(0,0,0,0.3);
+        border-radius: 7.5px;
+        border-top-right-radius: 0;
+        box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
         position: relative;
         padding: 6px 7px 8px 9px;
         max-width: 65%;
+        min-width: 60px;
         word-wrap: break-word;
         margin-left: auto;
     }
@@ -113,34 +117,29 @@
         content: '';
         position: absolute;
         right: -8px;
-        bottom: 0;
+        top: 0;
         width: 0;
         height: 0;
         border-style: solid;
-        border-width: 0 0 13px 8px;
-        border-color: transparent transparent #005c4b transparent;
-    }
-
-    .wa-btn-reply {
-        display: inline-block;
-        background: #25d366;
-        color: #fff;
-        font-weight: 500;
-        border-radius: 18px;
-        padding: 8px 12px;
-        margin: 4px 0;
-        font-size: 14px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        border: none;
-        cursor: pointer;
-        white-space: pre-line;
+        border-width: 8px 0 0 8px;
+        border-color: #005c4b transparent transparent transparent;
     }
 
     .wa-badge {
-        display: none; /* Ocultar badges para estilo más limpio */
+        display: none;
     }
 
     .wa-bubble-content {
+        word-break: break-word;
+        overflow-wrap: break-word;
+        white-space: pre-wrap;
+        font-size: 14.2px;
+        line-height: 19px;
+        color: #e9edef;
+        display: inline;
+    }
+
+    .wa-bubble-content-block {
         word-break: break-word;
         overflow-wrap: break-word;
         white-space: pre-wrap;
@@ -654,22 +653,27 @@
     }
 
     .wa-message-time {
-        font-size: 11px;
-        color: rgba(233, 237, 239, 0.55);
-        margin-top: 4px;
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 4px;
-        justify-content: flex-end;
+        gap: 3px;
         float: right;
-        margin-left: 12px;
-        line-height: 1;
+        margin: 4px 0 -4px 8px;
+        font-size: 11px;
+        color: rgba(233, 237, 239, 0.6);
+        line-height: 15px;
+        vertical-align: bottom;
+        position: relative;
+        top: 4px;
+        white-space: nowrap;
+        user-select: none;
     }
 
     .wa-message-time.incoming {
-        justify-content: flex-start;
-        float: none;
-        margin-left: 0;
+        color: rgba(233, 237, 239, 0.55);
+    }
+
+    .wa-message-time.outgoing {
+        color: rgba(233, 237, 239, 0.6);
     }
 
     .wa-message-status {
@@ -1278,9 +1282,9 @@
                                     </button>
                                 </div>
                             @elseif($isInteractiveReply)
-                                <span class="wa-btn-reply wa-bubble-content">{{ $displayText }}</span>
+                                <span class="wa-bubble-content">{{ $displayText }}</span>
                                 @if($displayDesc)
-                                    <div style="font-size: 12px; color: #8696a0; margin-bottom: 4px;" class="wa-bubble-content">{{ \Illuminate\Support\Str::limit($displayDesc, 120) }}</div>
+                                    <div class="wa-bubble-content-block" style="font-size: 12px; color: #8696a0; margin-top: 2px;">{{ \Illuminate\Support\Str::limit($displayDesc, 120) }}</div>
                                 @endif
                             @else
                                 <span class="wa-bubble-content">{!! nl2br(e($displayText ?: $content)) !!}</span>
@@ -2085,6 +2089,8 @@
 
                 // Scroll al final si hay mensajes nuevos y el usuario está cerca del final
                 if (hasNewMessages) {
+                    updateContactsList();
+
                     setTimeout(() => {
                         const chatMessages = document.getElementById('chat-messages');
                         if (chatMessages) {
@@ -2311,6 +2317,8 @@
                     } else {
                         console.warn('17. ⚠️ No hay mensaje en la respuesta para mostrar');
                     }
+
+                    updateContactsList();
                 } else {
                     console.error('16. ❌ Respuesta indica fallo:', data);
                     alert('Error al enviar el mensaje: ' + (data.message || 'Error desconocido'));
@@ -2926,9 +2934,9 @@
                     </button>
                 </div>`;
             } else if (display.isInteractive) {
-                contentHtml += `<span class="wa-btn-reply wa-bubble-content">${escapeHtml(display.text)}</span>`;
+                contentHtml += `<span class="wa-bubble-content">${escapeHtml(display.text)}</span>`;
                 if (display.description) {
-                    contentHtml += `<div style="font-size: 12px; color: #8696a0; margin-bottom: 4px;" class="wa-bubble-content">${escapeHtml(display.description)}</div>`;
+                    contentHtml += `<div class="wa-bubble-content-block" style="font-size: 12px; color: #8696a0; margin-top: 2px;">${escapeHtml(display.description)}</div>`;
                 }
             } else if (display.text) {
                 contentHtml += `<span class="wa-bubble-content">${escapeHtml(display.text)}</span>`;
@@ -3475,9 +3483,15 @@
                     const currentContactIdInput = document.getElementById('current-contact-id');
                     const actualCurrentContactId = currentContactIdInput ? parseInt(currentContactIdInput.value) : currentContactId;
 
-                    // Reconstruir la lista de contactos
+                    // Reconstruir la lista de contactos (más reciente primero)
                     contactsContainer.innerHTML = '';
-                    data.contacts.forEach(contact => {
+                    const sortedContacts = [...data.contacts].sort((a, b) => {
+                        const timeA = new Date(a.last_message_timestamp || a.last_message_date || 0).getTime();
+                        const timeB = new Date(b.last_message_timestamp || b.last_message_date || 0).getTime();
+                        return timeB - timeA;
+                    });
+
+                    sortedContacts.forEach(contact => {
                         const isActive = contact.id == actualCurrentContactId;
                         const contactElement = document.createElement('a');
                         contactElement.href = 'javascript:void(0)';

@@ -60,11 +60,7 @@ class AdminController extends Controller
 
     public function chats()
     {
-        // Obtener contactos que tengan mensajes usando consultas directas
-        $contacts = \App\Models\WhatsappContact::whereIn('id', function($query) {
-            $query->select('contact_id')->from('whatsapp_messages')->distinct();
-        })->get();
-        $contacts = $this->enrichContactsForSidebar($contacts);
+        $contacts = $this->getSidebarContacts();
         // Si hay al menos un contacto, redirigir al primer chat
         if ($contacts->count() > 0) {
             return redirect()->route('admin.chat', $contacts->first()->id);
@@ -75,10 +71,7 @@ class AdminController extends Controller
 
     public function chat($contactId)
     {
-        $contacts = \App\Models\WhatsappContact::whereIn('id', function($query) {
-            $query->select('contact_id')->from('whatsapp_messages')->distinct();
-        })->get();
-        $contacts = $this->enrichContactsForSidebar($contacts, (int) $contactId);
+        $contacts = $this->getSidebarContacts((int) $contactId);
         $contact = \App\Models\WhatsappContact::findOrFail($contactId);
         $messages = \App\Models\WhatsappMessage::where('contact_id', $contactId)->orderBy('created_at')->get();
 
@@ -951,11 +944,7 @@ class AdminController extends Controller
     {
         $currentContactId = $request->input('current_contact_id');
 
-        $contacts = \App\Models\WhatsappContact::whereIn('id', function($query) {
-            $query->select('contact_id')->from('whatsapp_messages')->distinct();
-        })->get();
-
-        $contacts = $this->enrichContactsForSidebar($contacts, $currentContactId ? (int) $currentContactId : null);
+        $contacts = $this->getSidebarContacts($currentContactId ? (int) $currentContactId : null);
 
         return response()->json([
             'success' => true,
@@ -976,6 +965,23 @@ class AdminController extends Controller
     }
 
     /**
+     * Contactos del sidebar ordenados por último mensaje (más reciente primero).
+     */
+    private function getSidebarContacts(?int $currentContactId = null)
+    {
+        $contacts = WhatsappContact::query()
+            ->whereIn('id', function ($query) {
+                $query->select('contact_id')->from('whatsapp_messages')->distinct();
+            })
+            ->with(['latestMessage'])
+            ->withMax('messages as last_message_at', 'created_at')
+            ->orderByDesc('last_message_at')
+            ->get();
+
+        return $this->enrichContactsForSidebar($contacts, $currentContactId);
+    }
+
+    /**
      * Datos de sidebar: último mensaje (cualquier emisor), preview y fecha.
      */
     private function enrichContactsForSidebar($contacts, ?int $currentContactId = null)
@@ -984,16 +990,8 @@ class AdminController extends Controller
             return $contacts;
         }
 
-        $contactIds = $contacts->pluck('id');
-
-        $lastMessages = WhatsappMessage::whereIn('contact_id', $contactIds)
-            ->orderByDesc('created_at')
-            ->get()
-            ->unique('contact_id')
-            ->keyBy('contact_id');
-
         foreach ($contacts as $contact) {
-            $lastMsg = $lastMessages->get($contact->id);
+            $lastMsg = $contact->latestMessage;
 
             $contact->last_message_date = $lastMsg?->created_at;
             $contact->last_message_timestamp = $lastMsg?->created_at?->toIso8601String();
@@ -1010,7 +1008,7 @@ class AdminController extends Controller
         }
 
         return $contacts->sortByDesc(function ($contact) {
-            return $contact->last_message_date ? $contact->last_message_date->timestamp : 0;
+            return $contact->last_message_date ? $contact->last_message_date->getTimestamp() : 0;
         })->values();
     }
 

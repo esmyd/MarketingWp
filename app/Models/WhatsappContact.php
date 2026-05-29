@@ -33,7 +33,12 @@ class WhatsappContact extends Model
 
     public function messages()
     {
-        return $this->hasMany(WhatsappMessage::class);
+        return $this->hasMany(WhatsappMessage::class, 'contact_id');
+    }
+
+    public function latestMessage()
+    {
+        return $this->hasOne(WhatsappMessage::class, 'contact_id')->latestOfMany();
     }
 
     public function conversations()
