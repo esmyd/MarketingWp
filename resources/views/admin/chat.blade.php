@@ -3486,8 +3486,8 @@
                     // Reconstruir la lista de contactos (más reciente primero)
                     contactsContainer.innerHTML = '';
                     const sortedContacts = [...data.contacts].sort((a, b) => {
-                        const timeA = new Date(a.last_message_timestamp || a.last_message_date || 0).getTime();
-                        const timeB = new Date(b.last_message_timestamp || b.last_message_date || 0).getTime();
+                        const timeA = Number(a.last_message_sort) || new Date(a.last_message_timestamp || a.last_message_date || 0).getTime();
+                        const timeB = Number(b.last_message_sort) || new Date(b.last_message_timestamp || b.last_message_date || 0).getTime();
                         return timeB - timeA;
                     });
 

@@ -957,6 +957,7 @@ class AdminController extends Controller
                     'last_message_preview' => $contact->last_message_preview,
                     'last_message_date' => $contact->last_message_date ? $contact->last_message_date->toIso8601String() : null,
                     'last_message_timestamp' => $contact->last_message_timestamp ?? null,
+                    'last_message_sort' => $contact->last_message_sort ?? 0,
                     'last_message_label' => $contact->last_message_label ?? '',
                     'has_new_message' => $contact->has_new_message ?? false,
                 ];
@@ -992,10 +993,12 @@ class AdminController extends Controller
 
         foreach ($contacts as $contact) {
             $lastMsg = $contact->latestMessage;
+            $lastAt = $contact->last_message_at ?? $lastMsg?->created_at;
 
-            $contact->last_message_date = $lastMsg?->created_at;
-            $contact->last_message_timestamp = $lastMsg?->created_at?->toIso8601String();
-            $contact->last_message_label = WhatsappMessageFormatter::formatSidebarDateTime($lastMsg?->created_at);
+            $contact->last_message_date = $lastAt ? \Carbon\Carbon::parse($lastAt) : null;
+            $contact->last_message_timestamp = $contact->last_message_date?->toIso8601String();
+            $contact->last_message_sort = $contact->last_message_date?->getTimestamp() ?? 0;
+            $contact->last_message_label = WhatsappMessageFormatter::formatSidebarDateTime($contact->last_message_date);
             $contact->last_message_preview = $lastMsg
                 ? WhatsappMessageFormatter::displayText($lastMsg->content, $lastMsg->type, $lastMsg->metadata ?? [])
                 : null;
@@ -1007,9 +1010,7 @@ class AdminController extends Controller
             }
         }
 
-        return $contacts->sortByDesc(function ($contact) {
-            return $contact->last_message_date ? $contact->last_message_date->getTimestamp() : 0;
-        })->values();
+        return $contacts->sortByDesc('last_message_sort')->values();
     }
 
     public function getNewMessages($contactId, Request $request)

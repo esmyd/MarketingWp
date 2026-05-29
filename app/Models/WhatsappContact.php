@@ -38,7 +38,7 @@ class WhatsappContact extends Model
 
     public function latestMessage()
     {
-        return $this->hasOne(WhatsappMessage::class, 'contact_id')->latestOfMany();
+        return $this->hasOne(WhatsappMessage::class, 'contact_id')->latestOfMany('created_at');
     }
 
     public function conversations()
