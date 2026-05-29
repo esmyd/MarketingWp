@@ -79,4 +79,144 @@ class WhatsappMessageFormatter
 
         return $message;
     }
+
+    /**
+     * Intenta decodificar contenido JSON de respuestas interactivas.
+     */
+    public static function parseJsonContent(?string $content): ?array
+    {
+        if ($content === null || $content === '') {
+            return null;
+        }
+
+        $content = trim($content);
+        if ($content === '' || !in_array($content[0], ['{', '['], true)) {
+            return null;
+        }
+
+        $decoded = json_decode($content, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * Texto legible para mostrar en el panel de chat (no JSON crudo).
+     */
+    public static function displayText(?string $content, ?string $type = null, ?array $metadata = null): string
+    {
+        if ($content === null || $content === '') {
+            return '';
+        }
+
+        if (!empty($metadata['interactive']) && is_array($metadata['interactive'])) {
+            $interactive = $metadata['interactive'];
+            if (!empty($interactive['button_reply']['title'])) {
+                return (string) $interactive['button_reply']['title'];
+            }
+            if (!empty($interactive['list_reply']['title'])) {
+                return (string) $interactive['list_reply']['title'];
+            }
+        }
+
+        $parsed = self::parseJsonContent($content);
+        if ($parsed) {
+            if (($parsed['type'] ?? null) === 'button_reply' && !empty($parsed['button_reply']['title'])) {
+                return (string) $parsed['button_reply']['title'];
+            }
+            if (($parsed['type'] ?? null) === 'list_reply' && !empty($parsed['list_reply']['title'])) {
+                return (string) $parsed['list_reply']['title'];
+            }
+            if (!empty($parsed['button_reply']['title'])) {
+                return (string) $parsed['button_reply']['title'];
+            }
+            if (!empty($parsed['list_reply']['title'])) {
+                return (string) $parsed['list_reply']['title'];
+            }
+            if (!empty($parsed['title'])) {
+                return (string) $parsed['title'];
+            }
+        }
+
+        if ($type === 'interactive' && !str_starts_with(trim($content), '{')) {
+            return $content;
+        }
+
+        return $content;
+    }
+
+    /**
+     * Descripción secundaria (listas / botones con detalle).
+     */
+    public static function displayDescription(?string $content, ?array $metadata = null): ?string
+    {
+        if (!empty($metadata['interactive']['list_reply']['description'])) {
+            return (string) $metadata['interactive']['list_reply']['description'];
+        }
+        if (!empty($metadata['interactive']['button_reply']['description'])) {
+            return (string) $metadata['interactive']['button_reply']['description'];
+        }
+
+        $parsed = self::parseJsonContent($content);
+        if (!$parsed) {
+            return null;
+        }
+
+        if (!empty($parsed['list_reply']['description'])) {
+            return (string) $parsed['list_reply']['description'];
+        }
+        if (!empty($parsed['button_reply']['description'])) {
+            return (string) $parsed['button_reply']['description'];
+        }
+        if (!empty($parsed['description'])) {
+            return (string) $parsed['description'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Indica si el mensaje es una respuesta de botón o lista del cliente.
+     */
+    public static function isInteractiveReply(?string $content, ?string $type = null, ?array $metadata = null): bool
+    {
+        if ($type === 'interactive') {
+            return true;
+        }
+
+        if (!empty($metadata['interactive'])) {
+            return true;
+        }
+
+        $parsed = self::parseJsonContent($content);
+
+        return $parsed && (
+            isset($parsed['button_reply']) ||
+            isset($parsed['list_reply']) ||
+            in_array($parsed['type'] ?? null, ['button_reply', 'list_reply'], true)
+        );
+    }
+
+    /**
+     * Fecha/hora compacta para la lista de chats (estilo WhatsApp).
+     */
+    public static function formatSidebarDateTime(?\Carbon\Carbon $date): string
+    {
+        if (!$date) {
+            return '';
+        }
+
+        if ($date->isToday()) {
+            return $date->format('H:i');
+        }
+
+        if ($date->isYesterday()) {
+            return 'Ayer ' . $date->format('H:i');
+        }
+
+        if ($date->isSameYear(now())) {
+            return $date->format('d/m H:i');
+        }
+
+        return $date->format('d/m/Y H:i');
+    }
 }

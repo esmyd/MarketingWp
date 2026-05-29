@@ -42,4 +42,18 @@ class WhatsappMenuItem extends Model
     {
         return $this->hasMany(WhatsappPrice::class, 'menu_item_id');
     }
+
+    /**
+     * Categorías del catálogo de productos (menú prices_menu del bot).
+     */
+    public function scopeCatalogCategories($query)
+    {
+        $menuId = WhatsappMenu::where('action_id', 'prices_menu')->value('id');
+
+        if (!$menuId) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where('menu_id', $menuId);
+    }
 }

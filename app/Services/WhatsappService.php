@@ -1908,15 +1908,27 @@ class WhatsappService
             }
 
             // Guardar el mensaje
+            $type = $interactive['type'] ?? 'button_reply';
+            $content = $type === 'button_reply'
+                ? ($interactive['button_reply'] ?? [])
+                : ($interactive['list_reply'] ?? []);
+            $buttonId = $content['id'] ?? null;
+            $buttonTitle = $content['title'] ?? 'Respuesta interactiva';
+
             $whatsappMessage = WhatsappMessage::create([
                 'contact_id' => $contact->id,
                 'business_profile_id' => $this->businessProfile->id,
                     'message_id' => $messageId,
-                'content' => json_encode($interactive),
+                'content' => $buttonTitle,
                 'type' => 'interactive',
                 'status' => 'received',
                 'sender_type' => 'client',
-                'receiver_type' => 'system'
+                'receiver_type' => 'system',
+                'metadata' => [
+                    'interactive' => $interactive,
+                    'reply_id' => $buttonId,
+                    'reply_type' => $type,
+                ],
             ]);
 
             $this->lastMessage = $whatsappMessage;
@@ -1940,10 +1952,12 @@ class WhatsappService
             // El bot funcionará inmediatamente cuando esté activado
 
             // Determinar el tipo de respuesta interactiva
-            $type = $interactive['type'];
-            $content = $type === 'button_reply' ? $interactive['button_reply'] : $interactive['list_reply'];
-            $buttonId = $content['id'];
-            $buttonTitle = $content['title'];
+            $type = $interactive['type'] ?? 'button_reply';
+            $content = $type === 'button_reply'
+                ? ($interactive['button_reply'] ?? [])
+                : ($interactive['list_reply'] ?? []);
+            $buttonId = $content['id'] ?? null;
+            $buttonTitle = $content['title'] ?? '';
 
             Log::info('[handleInteractiveMessage] Botón presionado', [
                 'id' => $buttonId,

@@ -93,4 +93,39 @@ class WhatsappPrice extends Model
     {
         return $quantity >= $this->min_quantity && $quantity <= $this->max_quantity;
     }
+
+    /**
+     * Estadísticas globales del catálogo (misma fuente en productos y categorías).
+     */
+    public static function summaryStats(): array
+    {
+        return [
+            'total' => static::query()->count(),
+            'active' => static::query()->where('is_active', true)->count(),
+            'promo' => static::query()->where('is_promo', true)->count(),
+            'no_stock' => static::query()->where('stock', '<=', 0)->count(),
+        ];
+    }
+
+    /**
+     * Productos vinculados a categorías del menú prices_menu del bot.
+     */
+    public static function inCatalogCategoriesCount(bool $activeOnly = false): int
+    {
+        $menuId = WhatsappMenu::where('action_id', 'prices_menu')->value('id');
+
+        if (!$menuId) {
+            return 0;
+        }
+
+        $categoryIds = WhatsappMenuItem::where('menu_id', $menuId)->pluck('id');
+
+        $query = static::query()->whereIn('menu_item_id', $categoryIds);
+
+        if ($activeOnly) {
+            $query->where('is_active', true);
+        }
+
+        return $query->count();
+    }
 }

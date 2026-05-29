@@ -17,18 +17,13 @@ class ProductController extends Controller
             ->orderBy('name')
             ->get();
 
-        $categories = WhatsappMenuItem::where('is_active', true)
-            ->whereNull('parent_id')
+        $categories = WhatsappMenuItem::catalogCategories()
+            ->where('is_active', true)
             ->select('id', 'title', 'description', 'icon')
             ->orderBy('order')
             ->get();
 
-        $stats = [
-            'total' => $products->count(),
-            'active' => $products->where('is_active', true)->count(),
-            'promo' => $products->where('is_promo', true)->count(),
-            'no_stock' => $products->where('stock', '<=', 0)->count(),
-        ];
+        $stats = WhatsappPrice::summaryStats();
 
         return view('admin.products.index', compact('products', 'categories', 'stats'));
     }
@@ -93,8 +88,8 @@ class ProductController extends Controller
 
     private function getCategories()
     {
-        return WhatsappMenuItem::where('is_active', true)
-            ->whereNull('parent_id')
+        return WhatsappMenuItem::catalogCategories()
+            ->where('is_active', true)
             ->orderBy('order')
             ->get();
     }

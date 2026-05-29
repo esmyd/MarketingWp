@@ -371,22 +371,31 @@
         min-width: 0;
     }
 
+    .wa-sidebar-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 2px;
+    }
+
     .wa-sidebar-name {
         font-weight: 400;
         font-size: 17px;
         color: #e9edef;
-        margin-bottom: 2px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        flex: 1;
+        min-width: 0;
     }
 
     .wa-sidebar-phone {
-        font-size: 14px;
-        color: #8696a0;
-        display: flex;
-        align-items: center;
-        gap: 4px;
+        font-size: 13px;
+        color: #667781;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .wa-sidebar-last-message {
@@ -396,24 +405,22 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        display: flex;
+        align-items: center;
+        gap: 4px;
     }
 
     .wa-sidebar-time {
         font-size: 12px;
         color: #667781;
         white-space: nowrap;
-        margin-left: auto;
-        padding-left: 8px;
+        flex-shrink: 0;
+        line-height: 1.3;
+        text-align: right;
     }
 
-    .wa-message-count-badge {
-        background: #34B7F1;
-        color: white;
-        border-radius: 10px;
-        padding: 0 6px;
-        font-size: 11px;
-        font-weight: 500;
-        margin-left: 4px;
+    .wa-sidebar-contact.active .wa-sidebar-time {
+        color: #aebac1;
     }
 
     .wa-new-message-indicator {
@@ -1151,42 +1158,25 @@
                 <a href="javascript:void(0)" data-contact-id="{{ $c->id }}" class="wa-sidebar-contact{{ $contact->id === $c->id ? ' active' : '' }}">
                     <div class="wa-sidebar-avatar">{{ strtoupper(mb_substr($c->name ?? 'C', 0, 1)) }}</div>
                         <div class="wa-sidebar-contact-info">
-                        <div class="wa-sidebar-name">{{ $c->name ?? 'Cliente' }}</div>
-                            <div class="wa-sidebar-phone">
-                            <span>{{ $c->phone_number }}</span>
-                            @if(isset($c->messages_count) && $c->messages_count > 0)
-                                    <span class="wa-message-count-badge" data-contact-id="{{ $c->id }}">{{ $c->messages_count }}</span>
-                            @endif
-                            @if(isset($c->has_new_message) && $c->has_new_message)
-                                    <span class="wa-new-message-indicator" data-contact-id="{{ $c->id }}">●</span>
+                            <div class="wa-sidebar-top">
+                                <div class="wa-sidebar-name">{{ $c->name ?? 'Cliente' }}</div>
+                                @if(!empty($c->last_message_date))
+                                    <div class="wa-sidebar-time" title="{{ $c->last_message_date->format('d/m/Y H:i') }}">
+                                        {{ \App\Helpers\WhatsappMessageFormatter::formatSidebarDateTime($c->last_message_date) }}
+                                    </div>
+                                @endif
+                            </div>
+                            @if(!empty($c->last_message_preview))
+                                <div class="wa-sidebar-last-message">
+                                    @if(!empty($c->has_new_message))
+                                        <span class="wa-new-message-indicator" data-contact-id="{{ $c->id }}">●</span>
+                                    @endif
+                                    <span>{{ $c->last_message_preview }}</span>
+                                </div>
+                            @else
+                                <div class="wa-sidebar-phone">{{ $c->phone_number }}</div>
                             @endif
                         </div>
-                        @if(!empty($c->last_client_message))
-                                <div class="wa-sidebar-last-message">
-                                @php
-                                    $lastMessage = $c->last_client_message;
-                                    try {
-                                        $decoded = json_decode($lastMessage, true);
-                                        if (is_array($decoded)) {
-                                            if (isset($decoded['type']) && $decoded['type'] === 'button_reply' && isset($decoded['button_reply']['title'])) {
-                                                echo $decoded['button_reply']['title'];
-                                            } elseif (isset($decoded['type']) && $decoded['type'] === 'list_reply' && isset($decoded['list_reply']['title'])) {
-                                                echo $decoded['list_reply']['title'];
-                                            } elseif (isset($decoded['title'])) {
-                                                echo $decoded['title'];
-                                            } else {
-                                                echo strip_tags($lastMessage);
-                                            }
-                                        } else {
-                                            echo strip_tags($lastMessage);
-                                        }
-                                    } catch (\Throwable $e) {
-                                        echo strip_tags($lastMessage);
-                                    }
-                                @endphp
-                            </div>
-                        @endif
-                    </div>
                 </a>
             @endforeach
             </div>
@@ -1227,14 +1217,11 @@
                     @php
                         $isIncoming = $msg->sender_type === 'client';
                         $bubbleClass = $isIncoming ? 'wa-bubble-in' : 'wa-bubble-out';
-                        $align = $isIncoming ? 'justify-start' : 'justify-end';
                         $content = $msg->content;
-                        $decoded = null;
-                        try {
-                            $decoded = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
-                        } catch (\Throwable $e) {
-                            $decoded = null;
-                        }
+                        $metadata = $msg->metadata ?? [];
+                        $displayText = \App\Helpers\WhatsappMessageFormatter::displayText($content, $msg->type, $metadata);
+                        $displayDesc = \App\Helpers\WhatsappMessageFormatter::displayDescription($content, $metadata);
+                        $isInteractiveReply = \App\Helpers\WhatsappMessageFormatter::isInteractiveReply($content, $msg->type, $metadata);
                     @endphp
                     <div class="wa-message-wrapper {{ $isIncoming ? 'incoming' : 'outgoing' }}" data-message-id="{{ $msg->id }}" @if($isIncoming && $msg->message_id) data-whatsapp-message-id="{{ $msg->message_id }}" @endif>
                         <div class="{{ $bubbleClass }}">
@@ -1290,23 +1277,13 @@
                                         </svg>
                                     </button>
                                 </div>
-                            @elseif(is_array($decoded) && isset($decoded['type']) && $decoded['type'] === 'button_reply' && isset($decoded['button_reply']['title']))
-                                <span class="wa-btn-reply wa-bubble-content">{{ $decoded['button_reply']['title'] }}</span>
-                                @if(isset($decoded['button_reply']['description']))
-                                    <div style="font-size: 12px; color: #8696a0; margin-bottom: 4px;" class="wa-bubble-content">{{ \Illuminate\Support\Str::limit($decoded['button_reply']['description'], 120) }}</div>
-                                @endif
-                            @elseif(is_array($decoded) && isset($decoded['type']) && $decoded['type'] === 'list_reply' && isset($decoded['list_reply']['title']))
-                                <div class="font-semibold mb-1 wa-bubble-content">{{ $decoded['list_reply']['title'] }}</div>
-                                @if(isset($decoded['list_reply']['description']))
-                                    <div style="font-size: 12px; color: #8696a0; margin-bottom: 4px;" class="wa-bubble-content">{{ \Illuminate\Support\Str::limit($decoded['list_reply']['description'], 120) }}</div>
-                                @endif
-                            @elseif(is_array($decoded) && isset($decoded['title']))
-                                <div class="font-semibold mb-1 wa-bubble-content">{{ $decoded['title'] }}</div>
-                                @if(isset($decoded['description']))
-                                    <div style="font-size: 12px; color: #8696a0; margin-bottom: 4px;" class="wa-bubble-content">{{ \Illuminate\Support\Str::limit($decoded['description'], 120) }}</div>
+                            @elseif($isInteractiveReply)
+                                <span class="wa-btn-reply wa-bubble-content">{{ $displayText }}</span>
+                                @if($displayDesc)
+                                    <div style="font-size: 12px; color: #8696a0; margin-bottom: 4px;" class="wa-bubble-content">{{ \Illuminate\Support\Str::limit($displayDesc, 120) }}</div>
                                 @endif
                             @else
-                                <span class="wa-bubble-content">{{ $content }}</span>
+                                <span class="wa-bubble-content">{!! nl2br(e($displayText ?: $content)) !!}</span>
                             @endif
                             <div class="wa-message-time {{ $isIncoming ? 'incoming' : 'outgoing' }}">
                                 <span>{{ $msg->created_at->format('H:i') }}</span>
@@ -2823,6 +2800,95 @@
             attachContactListeners();
         }
 
+        function formatSidebarDateTime(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            if (Number.isNaN(date.getTime())) return '';
+
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+
+            const isSameDay = (a, b) =>
+                a.getFullYear() === b.getFullYear() &&
+                a.getMonth() === b.getMonth() &&
+                a.getDate() === b.getDate();
+
+            const yesterday = new Date(now);
+            yesterday.setDate(now.getDate() - 1);
+
+            if (isSameDay(date, now)) return time;
+            if (isSameDay(date, yesterday)) return `Ayer ${time}`;
+            if (date.getFullYear() === now.getFullYear()) {
+                return `${pad(date.getDate())}/${pad(date.getMonth() + 1)} ${time}`;
+            }
+            return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${time}`;
+        }
+
+        function parseMessageJson(content) {
+            if (!content || typeof content !== 'string') return null;
+            const trimmed = content.trim();
+            if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null;
+            try {
+                const parsed = JSON.parse(trimmed);
+                return parsed && typeof parsed === 'object' ? parsed : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function formatMessageDisplay(msg) {
+            const content = msg.content || '';
+            const metadata = msg.metadata || {};
+
+            if (msg.display_text) {
+                return {
+                    text: msg.display_text,
+                    description: msg.display_description || null,
+                    isInteractive: !!msg.is_interactive_reply,
+                };
+            }
+
+            if (metadata.interactive) {
+                const interactive = metadata.interactive;
+                if (interactive.button_reply?.title) {
+                    return { text: interactive.button_reply.title, description: interactive.button_reply.description || null, isInteractive: true };
+                }
+                if (interactive.list_reply?.title) {
+                    return { text: interactive.list_reply.title, description: interactive.list_reply.description || null, isInteractive: true };
+                }
+            }
+
+            const parsed = parseMessageJson(content);
+            if (parsed) {
+                if (parsed.type === 'button_reply' && parsed.button_reply?.title) {
+                    return { text: parsed.button_reply.title, description: parsed.button_reply.description || null, isInteractive: true };
+                }
+                if (parsed.type === 'list_reply' && parsed.list_reply?.title) {
+                    return { text: parsed.list_reply.title, description: parsed.list_reply.description || null, isInteractive: true };
+                }
+                if (parsed.button_reply?.title) {
+                    return { text: parsed.button_reply.title, description: parsed.button_reply.description || null, isInteractive: true };
+                }
+                if (parsed.list_reply?.title) {
+                    return { text: parsed.list_reply.title, description: parsed.list_reply.description || null, isInteractive: true };
+                }
+                if (parsed.title) {
+                    return { text: parsed.title, description: parsed.description || null, isInteractive: true };
+                }
+            }
+
+            if (msg.type === 'interactive' && !trimmedStartsWithJson(content)) {
+                return { text: content, description: null, isInteractive: true };
+            }
+
+            return { text: content, description: null, isInteractive: false };
+        }
+
+        function trimmedStartsWithJson(content) {
+            return typeof content === 'string' && (content.trim().startsWith('{') || content.trim().startsWith('['));
+        }
+
         function renderMessage(msg) {
             const chatMessages = document.getElementById('chat-messages');
             const isIncoming = msg.sender_type === 'client';
@@ -2830,20 +2896,13 @@
             const wrapperClass = isIncoming ? 'incoming' : 'outgoing';
 
             let contentHtml = '';
-            const content = msg.content || '';
-            let decoded = null;
-
-            try {
-                decoded = JSON.parse(content);
-            } catch (e) {
-                decoded = null;
-            }
+            const display = formatMessageDisplay(msg);
 
             if (msg.type === 'image') {
                 const imageUrl = `/admin/messages/${msg.id}/image`;
                 contentHtml += `<img src="${imageUrl}" alt="Imagen" class="max-w-full h-auto rounded-lg mb-2" style="max-height: 300px; cursor: pointer;" onclick="window.open(this.src, '_blank')" onerror="handleImageError(this, ${msg.id})">`;
-                if (content && !decoded) {
-                    contentHtml += `<div class="wa-bubble-content break-all mt-2">${escapeHtml(content)}</div>`;
+                if (display.text && !parseMessageJson(display.text)) {
+                    contentHtml += `<div class="wa-bubble-content break-all mt-2">${escapeHtml(display.text)}</div>`;
                 }
             } else if (msg.type === 'document') {
                 const metadata = msg.metadata || {};
@@ -2866,12 +2925,13 @@
                         </svg>
                     </button>
                 </div>`;
-            } else if (decoded && decoded.type === 'button_reply' && decoded.button_reply) {
-                contentHtml += `<span class="wa-btn-reply wa-bubble-content">${escapeHtml(decoded.button_reply.title)}</span>`;
-            } else if (decoded && decoded.type === 'list_reply' && decoded.list_reply) {
-                contentHtml += `<div class="font-semibold mb-1 wa-bubble-content">${escapeHtml(decoded.list_reply.title)}</div>`;
-            } else if (content) {
-                contentHtml += `<span class="wa-bubble-content">${escapeHtml(content)}</span>`;
+            } else if (display.isInteractive) {
+                contentHtml += `<span class="wa-btn-reply wa-bubble-content">${escapeHtml(display.text)}</span>`;
+                if (display.description) {
+                    contentHtml += `<div style="font-size: 12px; color: #8696a0; margin-bottom: 4px;" class="wa-bubble-content">${escapeHtml(display.description)}</div>`;
+                }
+            } else if (display.text) {
+                contentHtml += `<span class="wa-bubble-content">${escapeHtml(display.text)}</span>`;
             }
 
             const time = new Date(msg.created_at).toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
@@ -3434,75 +3494,66 @@
                         const info = document.createElement('div');
                         info.className = 'wa-sidebar-contact-info';
 
+                        const top = document.createElement('div');
+                        top.className = 'wa-sidebar-top';
+
                         const name = document.createElement('div');
                         name.className = 'wa-sidebar-name';
                         name.textContent = contact.name || 'Cliente';
-                        info.appendChild(name);
+                        top.appendChild(name);
 
-                        const phone = document.createElement('div');
-                        phone.className = 'wa-sidebar-phone';
-                        const phoneSpan = document.createElement('span');
-                        phoneSpan.textContent = contact.phone_number;
-                        phone.appendChild(phoneSpan);
-
-                        if (contact.messages_count > 0) {
-                            const badge = document.createElement('span');
-                            badge.className = 'wa-message-count-badge';
-                            badge.setAttribute('data-contact-id', contact.id);
-                            badge.textContent = contact.messages_count;
-                            phone.appendChild(badge);
+                        if (contact.last_message_timestamp || contact.last_message_date) {
+                            const time = document.createElement('div');
+                            time.className = 'wa-sidebar-time';
+                            const iso = contact.last_message_timestamp || contact.last_message_date;
+                            time.textContent = contact.last_message_label || formatSidebarDateTime(iso);
+                            time.title = new Date(iso).toLocaleString('es-CO');
+                            top.appendChild(time);
                         }
 
-                        // Verificar si hay mensajes nuevos comparando con el último mensaje visto
-                        const lastSeen = localStorage.getItem(`last_seen_${contact.id}`);
-                        let shouldShowIndicator = false;
+                        info.appendChild(top);
 
-                        if (contact.last_message_timestamp && contact.id != actualCurrentContactId) {
-                            if (!lastSeen) {
-                                // Si nunca se ha visto, mostrar indicador si es reciente (últimas 24 horas)
-                                const messageDate = new Date(contact.last_message_timestamp);
-                                const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-                                shouldShowIndicator = messageDate > twentyFourHoursAgo;
-                            } else {
-                                // Comparar el último mensaje con el último visto
-                                const lastSeenDate = new Date(lastSeen);
-                                const lastMessageDate = new Date(contact.last_message_timestamp);
-                                shouldShowIndicator = lastMessageDate > lastSeenDate;
+                        const previewText = contact.last_message_preview || contact.last_client_message;
+
+                        if (previewText) {
+                            const lastSeen = localStorage.getItem(`last_seen_${contact.id}`);
+                            let shouldShowIndicator = false;
+
+                            if (contact.last_message_timestamp && contact.id != actualCurrentContactId) {
+                                if (!lastSeen) {
+                                    const messageDate = new Date(contact.last_message_timestamp);
+                                    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                                    shouldShowIndicator = messageDate > twentyFourHoursAgo;
+                                } else {
+                                    const lastSeenDate = new Date(lastSeen);
+                                    const lastMessageDate = new Date(contact.last_message_timestamp);
+                                    shouldShowIndicator = lastMessageDate > lastSeenDate;
+                                }
                             }
-                        }
 
-                        if (shouldShowIndicator) {
-                            const indicator = document.createElement('span');
-                            indicator.className = 'wa-new-message-indicator';
-                            indicator.setAttribute('data-contact-id', contact.id);
-                            indicator.textContent = '●';
-                            phone.appendChild(indicator);
-                        }
-
-                        info.appendChild(phone);
-
-                        if (contact.last_client_message) {
                             const lastMsg = document.createElement('div');
                             lastMsg.className = 'wa-sidebar-last-message';
-                            try {
-                                const decoded = JSON.parse(contact.last_client_message);
-                                if (decoded && typeof decoded === 'object') {
-                                    if (decoded.type === 'button_reply' && decoded.button_reply) {
-                                        lastMsg.textContent = decoded.button_reply.title;
-                                    } else if (decoded.type === 'list_reply' && decoded.list_reply) {
-                                        lastMsg.textContent = decoded.list_reply.title;
-                                    } else if (decoded.title) {
-                                        lastMsg.textContent = decoded.title;
-                                    } else {
-                                        lastMsg.textContent = contact.last_client_message.replace(/<[^>]*>/g, '');
-                                    }
-                                } else {
-                                    lastMsg.textContent = contact.last_client_message.replace(/<[^>]*>/g, '');
-                                }
-                            } catch (e) {
-                                lastMsg.textContent = contact.last_client_message.replace(/<[^>]*>/g, '');
+
+                            if (shouldShowIndicator || contact.has_new_message) {
+                                const indicator = document.createElement('span');
+                                indicator.className = 'wa-new-message-indicator';
+                                indicator.setAttribute('data-contact-id', contact.id);
+                                indicator.textContent = '●';
+                                lastMsg.appendChild(indicator);
                             }
+
+                            const previewSpan = document.createElement('span');
+                            previewSpan.textContent = formatMessageDisplay({
+                                content: previewText,
+                                type: 'interactive',
+                            }).text;
+                            lastMsg.appendChild(previewSpan);
                             info.appendChild(lastMsg);
+                        } else {
+                            const phone = document.createElement('div');
+                            phone.className = 'wa-sidebar-phone';
+                            phone.textContent = contact.phone_number;
+                            info.appendChild(phone);
                         }
 
                         contactElement.appendChild(info);

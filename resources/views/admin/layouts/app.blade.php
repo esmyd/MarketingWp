@@ -17,11 +17,16 @@
     <!-- Custom CSS -->
     <style>
         :root {
-            --sidebar-width: 250px;
-            --sidebar-collapsed-width: 70px;
-            --sidebar-bg: #343a40;
-            --sidebar-hover: rgba(255,255,255,.1);
-            --sidebar-active: rgba(255,255,255,.2);
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 72px;
+            --sidebar-bg: #111b21;
+            --sidebar-config-bg: rgba(0, 0, 0, 0.22);
+            --sidebar-footer-bg: #0b141a;
+            --sidebar-hover: rgba(255, 255, 255, 0.08);
+            --sidebar-active: rgba(37, 211, 102, 0.18);
+            --sidebar-active-border: #25d366;
+            --wa-green: #25d366;
+            --wa-teal: #128c7e;
         }
 
         * {
@@ -39,35 +44,39 @@
 
         /* Sidebar Styles */
         .sidebar {
-            background-color: var(--sidebar-bg);
+            background: linear-gradient(180deg, var(--sidebar-bg) 0%, #0b141a 100%);
+            height: 100vh;
             min-height: 100vh;
             color: white;
             padding: 0;
-            padding-bottom: 120px;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
             position: fixed;
             left: 0;
             top: 0;
             z-index: 1000;
             width: var(--sidebar-width);
             transition: all 0.3s ease;
-            overflow-y: auto;
-            overflow-x: hidden;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
         }
 
-        .sidebar::-webkit-scrollbar {
-            width: 6px;
+        .sidebar-inner-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
-        .sidebar::-webkit-scrollbar-track {
-            background: transparent;
+        .sidebar-inner-scroll::-webkit-scrollbar {
+            width: 5px;
         }
 
-        .sidebar::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,.2);
-            border-radius: 3px;
+        .sidebar-inner-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
         }
 
         .sidebar.collapsed {
@@ -82,14 +91,35 @@
             overflow: hidden;
         }
 
+        .sidebar.collapsed .nav-link {
+            justify-content: center;
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+
+        .sidebar.collapsed .nav-link i {
+            margin-right: 0;
+        }
+
+        .sidebar.collapsed .sidebar-user-info {
+            justify-content: center;
+            padding: 0.5rem;
+        }
+
+        .sidebar.collapsed .sidebar-user-details {
+            display: none;
+        }
+
         .sidebar-header {
-            padding: 1rem;
+            padding: 1rem 1rem 0.85rem;
             margin-bottom: 0;
-            border-bottom: 1px solid rgba(255,255,255,.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            min-height: 60px;
+            min-height: 62px;
+            flex-shrink: 0;
+            background: rgba(0, 0, 0, 0.15);
         }
 
         .sidebar-header-content {
@@ -131,32 +161,61 @@
             color: white;
         }
 
+        .sidebar-header span {
+            font-size: 1rem;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #e9edef;
+        }
+
+        .sidebar-header .brand-accent {
+            color: var(--wa-green);
+        }
+
         .sidebar-nav {
-            padding: 0.5rem 0;
-            flex: 1;
+            padding: 0.65rem 0.5rem;
+        }
+
+        .sidebar-nav-main {
+            flex: 1 1 auto;
+            padding-top: 0.75rem;
+        }
+
+        .sidebar-nav-config {
+            flex-shrink: 0;
+            margin-top: auto;
+            padding-top: 0.5rem;
+            padding-bottom: 0.75rem;
+            background: var(--sidebar-config-bg);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
         }
 
         .sidebar .nav-link {
-            color: rgba(255,255,255,.8);
-            padding: 0.75rem 1rem;
-            margin: 0.1rem 0.5rem;
-            border-radius: 0.5rem;
-            font-size: 0.9rem;
+            color: #aebac1;
+            padding: 0.7rem 0.85rem;
+            margin: 0.12rem 0.35rem;
+            border-radius: 0.55rem;
+            font-size: 0.875rem;
             transition: all 0.2s ease;
             display: flex;
             align-items: center;
             text-decoration: none;
             white-space: nowrap;
+            border-left: 3px solid transparent;
         }
 
         .sidebar .nav-link:hover {
-            color: white;
+            color: #fff;
             background-color: var(--sidebar-hover);
         }
 
         .sidebar .nav-link.active {
             background-color: var(--sidebar-active);
-            color: white;
+            color: #fff;
+            border-left-color: var(--sidebar-active-border);
+            font-weight: 500;
         }
 
         .sidebar .nav-link i {
@@ -173,33 +232,35 @@
         }
 
         .sidebar-section {
-            font-size: 0.75rem;
-            color: rgba(255,255,255,.5);
+            font-size: 0.68rem;
+            color: #667781;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin: 1rem 0 0.5rem 0;
-            padding: 0.5rem 1rem;
+            letter-spacing: 0.08em;
+            margin: 0.35rem 0 0.5rem;
+            padding: 0.35rem 0.85rem 0.15rem;
+            font-weight: 600;
             transition: all 0.2s ease;
         }
 
-        /* Sidebar Footer */
+        /* Sidebar Footer — perfil pegado al fondo */
         .sidebar-footer {
-            margin-top: auto;
-            padding: 1rem;
-            border-top: 1px solid rgba(255,255,255,.1);
-            background-color: rgba(0,0,0,.1);
+            flex-shrink: 0;
+            padding: 0.85rem 0.75rem 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            background: var(--sidebar-footer-bg);
         }
 
         .sidebar-user-info {
             display: flex;
             align-items: center;
-            padding: 0.75rem;
-            margin-bottom: 0.75rem;
-            background-color: rgba(255,255,255,.05);
-            border-radius: 0.5rem;
-            color: rgba(255,255,255,.9);
-            font-size: 0.9rem;
-            gap: 0.75rem;
+            padding: 0.65rem 0.7rem;
+            margin-bottom: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 0.65rem;
+            color: #e9edef;
+            font-size: 0.875rem;
+            gap: 0.65rem;
         }
 
         .sidebar-user-avatar {
@@ -230,12 +291,41 @@
         }
 
         .sidebar-user-role {
-            font-size: 0.75rem;
-            color: rgba(255,255,255,.6);
+            font-size: 0.72rem;
+            color: #8696a0;
             display: block;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        .sidebar-profile-link {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            padding: 0.6rem 0.85rem;
+            margin: 0 0.35rem 0.5rem;
+            border-radius: 0.55rem;
+            color: #aebac1;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-profile-link:hover {
+            color: #fff;
+            background: var(--sidebar-hover);
+        }
+
+        .sidebar-profile-link i {
+            width: 24px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-profile-link.active {
+            color: #fff;
+            background: var(--sidebar-active);
         }
 
         .sidebar-logout-form {
@@ -245,22 +335,26 @@
 
         .sidebar-logout-btn {
             width: 100%;
-            color: rgba(255,255,255,.9) !important;
-            background-color: rgba(220, 53, 69, 0.15) !important;
-            border: 1px solid rgba(220, 53, 69, 0.3) !important;
-            padding: 0.75rem 1rem;
+            color: #ff8a8a !important;
+            background-color: rgba(220, 53, 69, 0.12) !important;
+            border: 1px solid rgba(220, 53, 69, 0.35) !important;
+            padding: 0.65rem 0.85rem;
             margin: 0;
-            border-radius: 0.5rem;
+            border-radius: 0.55rem;
             cursor: pointer;
             transition: all 0.2s ease;
             font-weight: 500;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
 
         .sidebar-logout-btn:hover {
-            background-color: rgba(220, 53, 69, 0.3) !important;
-            border-color: rgba(220, 53, 69, 0.5) !important;
-            color: #ff6b6b !important;
-            transform: translateX(2px);
+            background-color: rgba(220, 53, 69, 0.22) !important;
+            border-color: rgba(220, 53, 69, 0.55) !important;
+            color: #ffb4b4 !important;
         }
 
         .sidebar-logout-btn i {
@@ -272,11 +366,18 @@
         }
 
         .sidebar.collapsed .sidebar-user-info span,
-        .sidebar.collapsed .sidebar-logout-btn .sidebar-text {
+        .sidebar.collapsed .sidebar-logout-btn .sidebar-text,
+        .sidebar.collapsed .sidebar-profile-link .sidebar-text {
             opacity: 0;
             visibility: hidden;
             width: 0;
             overflow: hidden;
+        }
+
+        .sidebar.collapsed .sidebar-profile-link {
+            justify-content: center;
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
         }
 
         /* Main Content */
@@ -619,47 +720,51 @@
         <div class="sidebar-header">
             <div class="sidebar-header-content">
                 <i class="fab fa-whatsapp"></i>
-                <span class="sidebar-text">Admin Panel</span>
+                <span class="sidebar-text"><span class="brand-accent">WhatsApp</span> Admin</span>
             </div>
             <button class="sidebar-toggle-btn d-none d-lg-block" id="sidebarToggle" title="Minimizar/Maximizar">
                 <i class="fas fa-chevron-left"></i>
             </button>
         </div>
-        <nav class="sidebar-nav">
-            <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
-                <i class="fas fa-home"></i>
-                <span class="sidebar-text">Dashboard</span>
-            </a>
-            <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chats') ? 'active' : '' }}">
-                <i class="fas fa-comments"></i>
-                <span class="sidebar-text">Chats</span>
-            </a>
-            <a href="{{ route('admin.marketing.index') }}" class="nav-link {{ request()->routeIs('admin.marketing.*') ? 'active' : '' }}">
-                <i class="fas fa-bullhorn"></i>
-                <span class="sidebar-text">Campañas</span>
-            </a>
-            <a href="{{ route('admin.orders') }}" class="nav-link {{ request()->routeIs('admin.orders') ? 'active' : '' }}">
-                <i class="fas fa-shopping-cart"></i>
-                <span class="sidebar-text">Pedidos</span>
-            </a>
-            <div class="sidebar-section">
-                <span class="sidebar-text">Gestión del Chatbot</span>
-            </div>
-            <a href="{{ route('admin.menus.index') }}" class="nav-link {{ request()->routeIs('admin.menus.*') ? 'active' : '' }}">
-                <i class="fas fa-list"></i>
-                <span class="sidebar-text">Menús y Categorías</span>
-            </a>
-            <a href="{{ route('admin.products.index') }}" class="nav-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
-                <i class="fas fa-box"></i>
-                <span class="sidebar-text">Productos</span>
-            </a>
-            <a href="{{ route('admin.chatbot.config') }}" class="nav-link {{ request()->routeIs('admin.chatbot.*') ? 'active' : '' }}">
-                <i class="fas fa-cog"></i>
-                <span class="sidebar-text">Configuración</span>
-            </a>
-        </nav>
 
-        <!-- Sidebar Footer with User Profile -->
+        <div class="sidebar-inner-scroll">
+            <nav class="sidebar-nav sidebar-nav-main">
+                <div class="sidebar-section sidebar-text">Principal</div>
+                <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+                    <i class="fas fa-home"></i>
+                    <span class="sidebar-text">Dashboard</span>
+                </a>
+                <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chat*') ? 'active' : '' }}">
+                    <i class="fas fa-comments"></i>
+                    <span class="sidebar-text">Chats</span>
+                </a>
+                <a href="{{ route('admin.orders') }}" class="nav-link {{ request()->routeIs('admin.orders*') ? 'active' : '' }}">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span class="sidebar-text">Pedidos</span>
+                </a>
+            </nav>
+
+            <nav class="sidebar-nav sidebar-nav-config">
+                <div class="sidebar-section sidebar-text">Catálogo y configuración</div>
+                <a href="{{ route('admin.marketing.index') }}" class="nav-link {{ request()->routeIs('admin.marketing.*') ? 'active' : '' }}">
+                    <i class="fas fa-bullhorn"></i>
+                    <span class="sidebar-text">Campañas</span>
+                </a>
+                <a href="{{ route('admin.menus.index') }}" class="nav-link {{ request()->routeIs('admin.menus.*') ? 'active' : '' }}">
+                    <i class="fas fa-folder-open"></i>
+                    <span class="sidebar-text">Categorías</span>
+                </a>
+                <a href="{{ route('admin.products.index') }}" class="nav-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
+                    <i class="fas fa-box-open"></i>
+                    <span class="sidebar-text">Productos</span>
+                </a>
+                <a href="{{ route('admin.chatbot.config') }}" class="nav-link {{ request()->routeIs('admin.chatbot.config*') ? 'active' : '' }}">
+                    <i class="fas fa-sliders-h"></i>
+                    <span class="sidebar-text">Configuración</span>
+                </a>
+            </nav>
+        </div>
+
         <div class="sidebar-footer">
             <div class="sidebar-user-info">
                 <div class="sidebar-user-avatar">
@@ -667,14 +772,18 @@
                 </div>
                 <div class="sidebar-user-details">
                     <span class="sidebar-text sidebar-user-name">{{ Auth::user()->name ?? 'Administrador' }}</span>
-                    <span class="sidebar-text sidebar-user-role">Administrador</span>
+                    <span class="sidebar-text sidebar-user-role">Administrador del sistema</span>
                 </div>
             </div>
+            <a href="{{ route('admin.profile.show') }}" class="sidebar-profile-link {{ request()->routeIs('admin.profile.*') ? 'active' : '' }}">
+                <i class="fas fa-user-circle"></i>
+                <span class="sidebar-text">Mi perfil</span>
+            </a>
             <form action="{{ route('logout') }}" method="POST" class="sidebar-logout-form">
                 @csrf
                 <button type="submit" class="sidebar-logout-btn" onclick="return confirm('¿Estás seguro de que deseas cerrar sesión?');">
                     <i class="fas fa-sign-out-alt"></i>
-                    <span class="sidebar-text">Cerrar Sesión</span>
+                    <span class="sidebar-text">Cerrar sesión</span>
                 </button>
             </form>
         </div>
@@ -832,7 +941,7 @@
             }
 
             // Close sidebar when clicking a link on mobile
-            const navLinks = sidebar.querySelectorAll('.nav-link');
+            const navLinks = sidebar.querySelectorAll('.nav-link, .sidebar-profile-link');
             navLinks.forEach(link => {
                 link.addEventListener('click', function() {
                     if (window.innerWidth < 992) {

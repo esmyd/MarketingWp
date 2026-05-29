@@ -43,8 +43,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::put('/menus/{menu}', [App\Http\Controllers\Admin\ChatbotController::class, 'updateMenu'])->name('menus.update');
     Route::delete('/menus/{menu}', [App\Http\Controllers\Admin\ChatbotController::class, 'deleteMenu'])->name('menus.delete');
 
-    // Items de Menú
+    // Items de Menú (categorías del catálogo)
     Route::post('/menu-items', [App\Http\Controllers\Admin\ChatbotController::class, 'storeMenuItem'])->name('menu-items.store');
+    Route::get('/menu-items/{item}', [App\Http\Controllers\Admin\ChatbotController::class, 'showMenuItem'])->name('menu-items.show');
     Route::put('/menu-items/{item}', [App\Http\Controllers\Admin\ChatbotController::class, 'updateMenuItem'])->name('menu-items.update');
     Route::delete('/menu-items/{item}', [App\Http\Controllers\Admin\ChatbotController::class, 'deleteMenuItem'])->name('menu-items.delete');
 
