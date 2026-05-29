@@ -10,6 +10,12 @@
     </a>
 </div>
 
+<div class="alert alert-info mb-4">
+    <strong>Importante:</strong> Las campañas de <strong>texto libre</strong> solo llegan si el cliente escribió en las últimas 24 h.
+    Para envíos masivos o de marketing use <strong>plantillas aprobadas</strong> por Meta.
+    Las campañas <strong>programadas</strong> requieren el programador de Laravel activo (<code>php artisan schedule:work</code> o cron).
+</div>
+
 <div class="bg-white shadow-sm rounded-lg overflow-hidden">
     <div class="p-3 p-md-4 p-lg-6">
         <div class="table-responsive">
@@ -73,7 +79,6 @@
                                         @endif
                                     </span>
                                 @endif
-                                <span class="badge bg-secondary rounded-circle ms-1">{{ $campaign->template_id ? '1' : '0' }}</span>
                             </td>
                             <td class="d-none d-md-table-cell">
                                 <span class="badge bg-secondary rounded-pill px-3">{{ $campaign->total_recipients }}</span>

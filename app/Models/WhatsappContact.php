@@ -15,12 +15,15 @@ class WhatsappContact extends Model
         'name',
         'status',
         'bot_enabled',
+        'last_inbound_message_id',
+        'last_inbound_at',
         'metadata'
     ];
 
     protected $casts = [
         'metadata' => 'array',
-        'bot_enabled' => 'boolean'
+        'bot_enabled' => 'boolean',
+        'last_inbound_at' => 'datetime',
     ];
 
     public function businessProfile()

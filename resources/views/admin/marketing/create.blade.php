@@ -127,6 +127,10 @@
                     <textarea class="form-control" id="message_content" name="message_content" rows="5"
                               placeholder="Escribe el mensaje que se enviará a los destinatarios...">{{ old('message_content') }}</textarea>
                     <small class="form-text text-muted">Puedes usar @{{name}} para personalizar con el nombre del contacto</small>
+                    <div class="alert alert-warning mt-2 mb-0 py-2 small">
+                        El texto libre solo funciona si el destinatario te escribió en las últimas 24 horas.
+                        Para campañas masivas, elige <strong>Plantilla Aprobada</strong>.
+                    </div>
                     @error('message_content')
                         <div class="text-danger small">{{ $message }}</div>
                     @enderror
@@ -257,6 +261,17 @@
                     @error('scheduled_at')
                         <div class="text-danger small">{{ $message }}</div>
                     @enderror
+                </div>
+            </div>
+
+            <!-- Envío inmediato -->
+            <div class="mb-4">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="send_immediately" name="send_immediately" value="1"
+                           {{ old('send_immediately') ? 'checked' : '' }}>
+                    <label class="form-check-label" for="send_immediately">
+                        Enviar inmediatamente al guardar (si no está programada)
+                    </label>
                 </div>
             </div>
 

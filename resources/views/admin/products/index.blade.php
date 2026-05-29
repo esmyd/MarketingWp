@@ -1,443 +1,693 @@
 @extends('admin.layouts.app')
 
-@section('header', 'Gestión de Productos')
+@section('header', 'Productos')
 
 @section('content')
-<div class="min-h-screen bg-gray-100">
-    <!-- Notificaciones -->
-    <div id="notification" class="fixed top-4 right-4 z-50 hidden">
-        <div class="rounded-md p-4">
-            <div class="flex">
-                <div class="flex-shrink-0">
-                    <svg id="notification-icon" class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                    </svg>
-                </div>
-                <div class="ml-3">
-                    <p id="notification-message" class="text-sm font-medium"></p>
-                </div>
-                <div class="ml-auto pl-3">
-                    <div class="-mx-1.5 -my-1.5">
-                        <button onclick="hideNotification()" class="inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2">
-                            <span class="sr-only">Cerrar</span>
-                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
+<style>
+    .products-page {
+        --wa-green: #25d366;
+        --wa-dark: #128c7e;
+        --wa-teal: #075e54;
+    }
+
+    .products-hero {
+        background: linear-gradient(135deg, var(--wa-dark) 0%, var(--wa-teal) 100%);
+        color: #fff;
+        border-radius: 14px;
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 4px 14px rgba(7, 94, 84, 0.2);
+    }
+
+    .products-hero h2 {
+        font-size: 1.35rem;
+        font-weight: 600;
+        margin: 0 0 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .products-hero p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 0.9rem;
+    }
+
+    .products-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .products-stat-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1rem 1.1rem;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    .products-stat-card .label {
+        font-size: 0.75rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin-bottom: 0.25rem;
+    }
+
+    .products-stat-card .value {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #212529;
+    }
+
+    .products-toolbar {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .products-toolbar .search-wrap {
+        flex: 1;
+        min-width: 200px;
+        position: relative;
+    }
+
+    .products-toolbar .search-wrap i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #adb5bd;
+    }
+
+    .products-toolbar .search-wrap input {
+        padding-left: 2.25rem;
+        border-radius: 8px;
+    }
+
+    .products-table-wrap {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    .products-table {
+        margin: 0;
+    }
+
+    .products-table thead th {
+        background: #f8f9fa;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #6c757d;
+        border-bottom: 1px solid #e9ecef;
+        white-space: nowrap;
+    }
+
+    .products-table tbody td {
+        vertical-align: middle;
+        font-size: 0.875rem;
+    }
+
+    .product-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .product-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        background: #f0fdf4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35rem;
+        flex-shrink: 0;
+    }
+
+    .product-name {
+        font-weight: 600;
+        color: #212529;
+        line-height: 1.2;
+    }
+
+    .product-desc {
+        color: #6c757d;
+        font-size: 0.78rem;
+        margin-top: 0.15rem;
+    }
+
+    .price-regular {
+        font-weight: 600;
+        color: #212529;
+    }
+
+    .price-promo {
+        color: #dc3545;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .badge-product {
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 0.35em 0.65em;
+        border-radius: 6px;
+    }
+
+    .badge-active { background: #dcfce7; color: #166534; }
+    .badge-inactive { background: #fee2e2; color: #991b1b; }
+    .badge-promo { background: #fef3c7; color: #92400e; }
+    .badge-stock-ok { background: #e0f2fe; color: #0369a1; }
+    .badge-stock-low { background: #ffedd5; color: #c2410c; }
+    .badge-stock-out { background: #f3f4f6; color: #6b7280; }
+
+    .btn-wa {
+        background: var(--wa-dark);
+        border-color: var(--wa-dark);
+        color: #fff;
+    }
+
+    .btn-wa:hover {
+        background: var(--wa-teal);
+        border-color: var(--wa-teal);
+        color: #fff;
+    }
+
+    .btn-wa:focus,
+    .btn-wa:active {
+        background: var(--wa-teal) !important;
+        border-color: var(--wa-teal) !important;
+        color: #fff !important;
+        box-shadow: 0 0 0 0.2rem rgba(18, 140, 126, 0.35);
+    }
+
+    .btn-action {
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+    }
+
+    .modal-product {
+        --wa-green: #25d366;
+        --wa-dark: #128c7e;
+        --wa-teal: #075e54;
+    }
+
+    .modal-product .modal-content {
+        max-height: calc(100vh - 2rem);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-product .modal-product-form {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex: 1 1 auto;
+    }
+
+    .modal-product .modal-body {
+        overflow-y: auto;
+        flex: 1 1 auto;
+    }
+
+    .modal-product .modal-footer {
+        flex-shrink: 0;
+        background: #fff;
+        border-top: 1px solid #dee2e6;
+        position: sticky;
+        bottom: 0;
+        z-index: 5;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        padding: 0.85rem 1rem;
+    }
+
+    .modal-product .modal-header {
+        background: linear-gradient(135deg, var(--wa-dark), var(--wa-teal));
+        color: #fff;
+    }
+
+    .modal-product .modal-header .btn-close {
+        filter: brightness(0) invert(1);
+    }
+
+    .form-hint {
+        font-size: 0.78rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1.5rem;
+        color: #6c757d;
+    }
+
+    .empty-state i {
+        font-size: 2.5rem;
+        color: #dee2e6;
+        margin-bottom: 0.75rem;
+    }
+
+    #productToast {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 1090;
+        min-width: 280px;
+    }
+</style>
+
+<div class="products-page">
+    <div id="productToast" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="productToastBody"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
         </div>
     </div>
 
-    <div class="py-10">
-        <header>
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="md:flex md:items-center md:justify-between">
-                    <div class="flex-1 min-w-0">
-                        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-                            Productos
-                        </h2>
-                    </div>
-                    <div class="mt-4 flex md:mt-0 md:ml-4">
-                        <button type="button" onclick="openCreateModal()" class="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                            <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                            </svg>
-                            Nuevo Producto
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </header>
+    <div class="products-hero d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h2><i class="fas fa-box-open"></i> Catálogo de productos</h2>
+            <p>Gestiona precios, stock y categorías del chatbot de WhatsApp</p>
+        </div>
+        <button type="button" class="btn btn-light btn-sm px-3" onclick="openCreateModal()">
+            <i class="fas fa-plus me-1"></i> Nuevo producto
+        </button>
+    </div>
 
-        <main class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <!-- Filtros y búsqueda -->
-            <div class="mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex-1 min-w-0">
-                    <div class="relative rounded-md shadow-sm">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-                        <input type="text" id="search" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md" placeholder="Buscar productos...">
-                    </div>
-                </div>
-                <div class="mt-4 sm:mt-0 sm:ml-4 flex space-x-4">
-                    <select id="category-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                        <option value="">Todas las categorías</option>
-                        @foreach($categories as $category)
-                            <option value="{{ $category->title }}">{{ $category->title }}</option>
+    <div class="products-stats">
+        <div class="products-stat-card">
+            <div class="label">Total</div>
+            <div class="value">{{ $stats['total'] }}</div>
+        </div>
+        <div class="products-stat-card">
+            <div class="label">Activos</div>
+            <div class="value" style="color:#128c7e">{{ $stats['active'] }}</div>
+        </div>
+        <div class="products-stat-card">
+            <div class="label">En promo</div>
+            <div class="value" style="color:#d97706">{{ $stats['promo'] }}</div>
+        </div>
+        <div class="products-stat-card">
+            <div class="label">Sin stock</div>
+            <div class="value" style="color:#6c757d">{{ $stats['no_stock'] }}</div>
+        </div>
+    </div>
+
+    <div class="products-toolbar">
+        <div class="search-wrap">
+            <i class="fas fa-search"></i>
+            <input type="text" id="search" class="form-control form-control-sm" placeholder="Buscar por nombre, SKU o categoría...">
+        </div>
+        <select id="category-filter" class="form-select form-select-sm" style="width:auto;min-width:160px">
+            <option value="">Todas las categorías</option>
+            @foreach($categories as $category)
+                <option value="{{ $category->title }}">{{ $category->icon }} {{ $category->title }}</option>
+            @endforeach
+        </select>
+        <select id="status-filter" class="form-select form-select-sm" style="width:auto;min-width:130px">
+            <option value="">Todos</option>
+            <option value="1">Activos</option>
+            <option value="0">Inactivos</option>
+        </select>
+    </div>
+
+    <div class="products-table-wrap">
+        @if($products->isEmpty())
+            <div class="empty-state">
+                <div><i class="fas fa-box-open"></i></div>
+                <h5>No hay productos</h5>
+                <p class="mb-3">Crea el primer producto para el catálogo del bot.</p>
+                <button type="button" class="btn btn-wa btn-sm" onclick="openCreateModal()">
+                    <i class="fas fa-plus me-1"></i> Crear producto
+                </button>
+            </div>
+        @else
+            <div class="table-responsive">
+                <table class="table products-table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-3">Producto</th>
+                            <th>SKU</th>
+                            <th>Categoría</th>
+                            <th>Precio</th>
+                            <th>Stock</th>
+                            <th>Estado</th>
+                            <th class="text-end pe-3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody">
+                        @foreach($products as $product)
+                        <tr class="product-row"
+                            data-search="{{ strtolower($product->sku . ' ' . $product->name . ' ' . ($product->menuCategory?->title ?? $product->category)) }}"
+                            data-category="{{ $product->menuCategory?->title ?? $product->category }}"
+                            data-status="{{ $product->is_active ? '1' : '0' }}">
+                            <td class="ps-3">
+                                <div class="product-cell">
+                                    <div class="product-icon">{{ $product->icon }}</div>
+                                    <div>
+                                        <div class="product-name">{{ $product->name }}</div>
+                                        @if($product->description)
+                                            <div class="product-desc">{{ Str::limit($product->description, 55) }}</div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </td>
+                            <td><code>{{ $product->sku }}</code></td>
+                            <td>{{ $product->menuCategory?->title ?? $product->category ?? '—' }}</td>
+                            <td>
+                                @if($product->is_promo && $product->promo_price)
+                                    <div class="price-promo">${{ number_format($product->promo_price, 2) }}</div>
+                                    <div class="text-muted text-decoration-line-through" style="font-size:0.78rem">${{ number_format($product->price, 2) }}</div>
+                                @else
+                                    <div class="price-regular">${{ number_format($product->price, 2) }}</div>
+                                @endif
+                            </td>
+                            <td>
+                                @if($product->stock <= 0)
+                                    <span class="badge badge-product badge-stock-out">Agotado</span>
+                                @elseif($product->stock <= 5)
+                                    <span class="badge badge-product badge-stock-low">{{ $product->stock }} uds.</span>
+                                @else
+                                    <span class="badge badge-product badge-stock-ok">{{ $product->stock }} uds.</span>
+                                @endif
+                            </td>
+                            <td>
+                                <span class="badge badge-product {{ $product->is_active ? 'badge-active' : 'badge-inactive' }}">
+                                    {{ $product->is_active ? 'Activo' : 'Inactivo' }}
+                                </span>
+                                @if($product->is_promo)
+                                    <span class="badge badge-product badge-promo ms-1">Promo</span>
+                                @endif
+                            </td>
+                            <td class="text-end pe-3">
+                                <button type="button" class="btn btn-outline-secondary btn-action me-1" title="Editar" onclick="openEditModal({{ $product->id }})">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-action" title="Eliminar" onclick="deleteProduct({{ $product->id }})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
                         @endforeach
-                    </select>
-                    <select id="status-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                        <option value="">Todos los estados</option>
-                        <option value="1">Activos</option>
-                        <option value="0">Inactivos</option>
-                    </select>
-                </div>
+                    </tbody>
+                </table>
             </div>
-
-            <!-- Lista de productos -->
-            <div class="mt-8 flex flex-col">
-                <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-                    <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-                        <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                            <table class="min-w-full divide-y divide-gray-300">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">SKU</th>
-                                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Producto</th>
-                                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Categoría</th>
-                                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Precio</th>
-                                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Estado</th>
-                                        <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                                            <span class="sr-only">Acciones</span>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-200 bg-white">
-                                    @foreach($products as $product)
-                                    <tr>
-                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                                            {{ $product->sku }}
-                                        </td>
-                                        <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                            <div class="flex items-center">
-                                                <div class="h-10 w-10 flex-shrink-0">
-                                                    <span class="text-2xl">{{ $product->icon }}</span>
-                                                </div>
-                                                <div class="ml-4">
-                                                    <div class="font-medium text-gray-900">{{ $product->name }}</div>
-                                                    <div class="text-gray-500">{{ Str::limit($product->description, 50) }}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                            @if(is_object($product->category))
-                                                {{ $product->category->title }}
-                                            @elseif(is_string($product->category))
-                                                {{ $product->category }}
-                                            @else
-                                                Sin categoría
-                                            @endif
-                                        </td>
-                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                            <div class="flex flex-col">
-                                                <span class="font-medium text-gray-900">${{ number_format($product->price, 2) }}</span>
-                                                @if($product->promo_price)
-                                                    <span class="text-red-600">${{ number_format($product->promo_price, 2) }}</span>
-                                                @endif
-                                            </div>
-                                        </td>
-                                        <td class="whitespace-nowrap px-3 py-4 text-sm">
-                                            <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 {{ $product->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                                {{ $product->is_active ? 'Activo' : 'Inactivo' }}
-                                            </span>
-                                        </td>
-                                        <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                            <div class="flex justify-end space-x-3">
-                                                <button onclick="openEditModal({{ $product->id }})" class="text-indigo-600 hover:text-indigo-900">
-                                                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>
-                                                </button>
-                                                <button onclick="deleteProduct({{ $product->id }})" class="text-red-600 hover:text-red-900">
-                                                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
+        @endif
     </div>
 </div>
 
-<!-- Modal para crear/editar producto -->
-<div id="productModal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-            <form id="productForm" method="POST">
-                @csrf
-                <div id="methodField"></div>
-                <div>
-                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modalTitle">
-                        Nuevo Producto
-                    </h3>
-                    <div class="mt-2">
-                        <p class="text-sm text-gray-500">
-                            Complete los detalles del producto.
-                        </p>
-                    </div>
+<div class="modal fade modal-product" id="productModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <form id="productForm" class="modal-product-form">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle"><i class="fas fa-box me-2"></i>Nuevo producto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="mt-6 space-y-6">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label for="sku" class="block text-sm font-medium text-gray-700">SKU</label>
-                            <div class="mt-1">
-                                <input type="text" name="sku" id="sku" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required>
+                <div class="modal-body">
+                    <div id="formErrors" class="alert alert-danger d-none"></div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="sku" class="form-label">SKU <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm" name="sku" id="sku" required maxlength="4" pattern="[A-Za-z0-9]{1,4}" title="Hasta 4 caracteres alfanuméricos">
+                            <div class="form-hint">Máximo 4 caracteres (ej: 1001, A01)</div>
+                        </div>
+                        <div class="col-md-8">
+                            <label for="menu_item_id" class="form-label">Categoría <span class="text-danger">*</span></label>
+                            <select name="menu_item_id" id="menu_item_id" class="form-select form-select-sm" required>
+                                <option value="">Seleccione categoría</option>
+                                @foreach($categories as $category)
+                                    <option value="{{ $category->id }}">{{ $category->icon }} {{ $category->title }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label for="name" class="form-label">Nombre <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm" name="name" id="name" required maxlength="255">
+                        </div>
+                        <div class="col-12">
+                            <label for="description" class="form-label">Descripción</label>
+                            <textarea id="description" name="description" rows="2" class="form-control form-control-sm"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="price" class="form-label">Precio <span class="text-danger">*</span></label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">$</span>
+                                <input type="number" step="0.01" min="0" name="price" id="price" class="form-control" required>
                             </div>
                         </div>
-                        <div>
-                            <label for="menu_item_id" class="block text-sm font-medium text-gray-700">Categoría</label>
-                            <div class="mt-1">
-                                <select name="menu_item_id" id="menu_item_id" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required>
-                                    <option value="">Seleccione una categoría</option>
-                                    @foreach($categories as $category)
-                                        <option value="{{ $category->id }}">{{ $category->title }}</option>
-                                    @endforeach
-                                </select>
+                        <div class="col-md-6">
+                            <label for="promo_price" class="form-label">Precio promocional</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">$</span>
+                                <input type="number" step="0.01" min="0" name="promo_price" id="promo_price" class="form-control">
+                            </div>
+                            <div class="form-hint">Debe ser menor al precio regular</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="stock" class="form-label">Stock</label>
+                            <input type="number" min="0" name="stock" id="stock" class="form-control form-control-sm" value="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="min_quantity" class="form-label">Cant. mínima</label>
+                            <input type="number" min="1" name="min_quantity" id="min_quantity" class="form-control form-control-sm" value="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="max_quantity" class="form-label">Cant. máxima</label>
+                            <input type="number" min="1" name="max_quantity" id="max_quantity" class="form-control form-control-sm" value="999">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="benefits" class="form-label">Beneficios</label>
+                            <textarea id="benefits" name="benefits" rows="3" class="form-control form-control-sm"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="characteristics" class="form-label">Características</label>
+                            <textarea id="characteristics" name="characteristics" rows="3" class="form-control form-control-sm" placeholder="Una característica por línea"></textarea>
+                            <div class="form-hint">Se muestran en el detalle del producto en WhatsApp</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
+                                <label class="form-check-label" for="is_active">Producto activo en el catálogo</label>
                             </div>
                         </div>
-                    </div>
-
-                    <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700">Nombre</label>
-                        <div class="mt-1">
-                            <input type="text" name="name" id="name" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label for="description" class="block text-sm font-medium text-gray-700">Descripción</label>
-                        <div class="mt-1">
-                            <textarea id="description" name="description" rows="3" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"></textarea>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label for="benefits" class="block text-sm font-medium text-gray-700">Beneficios</label>
-                        <div class="mt-1">
-                            <textarea id="benefits" name="benefits" rows="3" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"></textarea>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label for="nutritional_info" class="block text-sm font-medium text-gray-700">Información Nutricional</label>
-                        <div class="mt-1">
-                            <textarea id="nutritional_info" name="nutritional_info" rows="3" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"></textarea>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label for="price" class="block text-sm font-medium text-gray-700">Precio</label>
-                            <div class="mt-1">
-                                <input type="number" step="0.01" name="price" id="price" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" required>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="allow_quantity_selection" name="allow_quantity_selection" checked>
+                                <label class="form-check-label" for="allow_quantity_selection">Permitir elegir cantidad</label>
                             </div>
-                        </div>
-                        <div>
-                            <label for="promo_price" class="block text-sm font-medium text-gray-700">Precio Promocional</label>
-                            <div class="mt-1">
-                                <input type="number" step="0.01" name="promo_price" id="promo_price" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label for="icon" class="block text-sm font-medium text-gray-700">Icono</label>
-                        <div class="mt-1">
-                            <input type="text" name="icon" id="icon" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md" placeholder="Ej: 🛍️">
-                        </div>
-                    </div>
-
-                    <div class="relative flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="is_active" name="is_active" type="checkbox" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded" checked>
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="is_active" class="font-medium text-gray-700">Activo</label>
                         </div>
                     </div>
                 </div>
-                <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-                    <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:col-start-2 sm:text-sm">
-                        Guardar
-                    </button>
-                    <button type="button" onclick="closeModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm">
-                        Cancelar
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-wa btn-sm px-4" id="saveProductBtn">
+                        <i class="fas fa-save me-1"></i> Guardar
                     </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-
 @endsection
 
 @push('scripts')
 <script>
 let currentProductId = null;
+let productModal = null;
+let productToast = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    productModal = new bootstrap.Modal(document.getElementById('productModal'));
+    productToast = new bootstrap.Toast(document.getElementById('productToast'), { delay: 4500 });
+
+    document.getElementById('search')?.addEventListener('input', filterTable);
+    document.getElementById('category-filter')?.addEventListener('change', filterTable);
+    document.getElementById('status-filter')?.addEventListener('change', filterTable);
+    document.getElementById('productForm')?.addEventListener('submit', submitProductForm);
+});
 
 function openCreateModal() {
-    document.getElementById('modalTitle').textContent = 'Nuevo Producto';
+    currentProductId = null;
+    document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus me-2"></i>Nuevo producto';
     document.getElementById('productForm').reset();
-    document.getElementById('productForm').action = '{{ route("admin.products.store") }}';
-    document.getElementById('methodField').innerHTML = '';
-    document.getElementById('productModal').classList.remove('hidden');
+    document.getElementById('is_active').checked = true;
+    document.getElementById('allow_quantity_selection').checked = true;
+    document.getElementById('min_quantity').value = 1;
+    document.getElementById('max_quantity').value = 999;
+    document.getElementById('stock').value = 0;
+    hideFormErrors();
+    productModal.show();
 }
 
 function openEditModal(id) {
     currentProductId = id;
-    document.getElementById('modalTitle').textContent = 'Editar Producto';
-    document.getElementById('productForm').action = `/admin/products/${id}`;
-    document.getElementById('methodField').innerHTML = '@method("PUT")';
+    document.getElementById('modalTitle').innerHTML = '<i class="fas fa-pen me-2"></i>Editar producto';
+    hideFormErrors();
 
-    fetch(`/admin/products/${id}`)
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('sku').value = data.sku;
-            document.getElementById('name').value = data.name;
-            document.getElementById('description').value = data.description || '';
-            document.getElementById('menu_item_id').value = data.menu_item_id;
-            document.getElementById('price').value = data.price;
-            document.getElementById('promo_price').value = data.promo_price || '';
-            document.getElementById('benefits').value = data.benefits || '';
-            document.getElementById('nutritional_info').value = data.nutritional_info || '';
-            document.getElementById('icon').value = data.icon || '';
-            document.getElementById('is_active').checked = data.is_active;
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Ha ocurrido un error al cargar los datos del producto', 'error');
-        });
-
-    document.getElementById('productModal').classList.remove('hidden');
-}
-
-function closeModal() {
-    document.getElementById('productModal').classList.add('hidden');
-    currentProductId = null;
-}
-
-function deleteProduct(id) {
-    if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
-        fetch(`/admin/products/${id}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            showNotification('Producto eliminado correctamente');
-            setTimeout(() => window.location.reload(), 1000);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Ha ocurrido un error al eliminar el producto', 'error');
-        });
-    }
-}
-
-function showNotification(message, type = 'success') {
-    const notification = document.getElementById('notification');
-    const notificationMessage = document.getElementById('notification-message');
-    const notificationIcon = document.getElementById('notification-icon');
-
-    notificationMessage.textContent = message;
-
-    if (type === 'success') {
-        notification.classList.remove('bg-red-50', 'text-red-800');
-        notification.classList.add('bg-green-50', 'text-green-800');
-        notificationIcon.classList.remove('text-red-400');
-        notificationIcon.classList.add('text-green-400');
-    } else {
-        notification.classList.remove('bg-green-50', 'text-green-800');
-        notification.classList.add('bg-red-50', 'text-red-800');
-        notificationIcon.classList.remove('text-green-400');
-        notificationIcon.classList.add('text-red-400');
-    }
-
-    notification.classList.remove('hidden');
-    setTimeout(hideNotification, 5000);
-}
-
-function hideNotification() {
-    document.getElementById('notification').classList.add('hidden');
-}
-
-// Filtrado y búsqueda
-document.getElementById('search').addEventListener('input', filterTable);
-document.getElementById('category-filter').addEventListener('change', filterTable);
-document.getElementById('status-filter').addEventListener('change', filterTable);
-
-function filterTable() {
-    const searchTerm = document.getElementById('search').value.toLowerCase();
-    const categoryFilter = document.getElementById('category-filter').value;
-    const statusFilter = document.getElementById('status-filter').value;
-    const rows = document.querySelectorAll('tbody tr');
-
-    rows.forEach(row => {
-        const name = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
-        const category = row.querySelector('td:nth-child(3)').textContent;
-        const status = row.querySelector('td:nth-child(5)').textContent.trim();
-
-        const matchesSearch = name.includes(searchTerm);
-        const matchesCategory = !categoryFilter || category.includes(categoryFilter);
-        const matchesStatus = !statusFilter || (statusFilter === '1' && status === 'Activo') || (statusFilter === '0' && status === 'Inactivo');
-
-        row.style.display = matchesSearch && matchesCategory && matchesStatus ? '' : 'none';
+    fetch(`/admin/products/${id}`, {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('No se pudo cargar el producto');
+        return r.json();
+    })
+    .then(data => {
+        document.getElementById('sku').value = data.sku || '';
+        document.getElementById('name').value = data.name || '';
+        document.getElementById('description').value = data.description || '';
+        document.getElementById('menu_item_id').value = data.menu_item_id || '';
+        document.getElementById('price').value = data.price ?? '';
+        document.getElementById('promo_price').value = data.promo_price ?? '';
+        document.getElementById('benefits').value = data.benefits || '';
+        document.getElementById('characteristics').value = data.characteristics || '';
+        document.getElementById('stock').value = data.stock ?? 0;
+        document.getElementById('min_quantity').value = data.min_quantity ?? 1;
+        document.getElementById('max_quantity').value = data.max_quantity ?? 999;
+        document.getElementById('is_active').checked = !!data.is_active;
+        document.getElementById('allow_quantity_selection').checked = data.allow_quantity_selection !== false;
+        productModal.show();
+    })
+    .catch(err => {
+        showToast(err.message || 'Error al cargar el producto', 'danger');
     });
 }
 
-// Actualizar el manejo del formulario
-document.getElementById('productForm').addEventListener('submit', function(e) {
+function submitProductForm(e) {
     e.preventDefault();
+    hideFormErrors();
 
-    const formData = new FormData(this);
+    const btn = document.getElementById('saveProductBtn');
+    btn.disabled = true;
+
+    const payload = {
+        sku: document.getElementById('sku').value.trim(),
+        name: document.getElementById('name').value.trim(),
+        menu_item_id: document.getElementById('menu_item_id').value,
+        price: document.getElementById('price').value,
+        promo_price: document.getElementById('promo_price').value,
+        description: document.getElementById('description').value,
+        benefits: document.getElementById('benefits').value,
+        characteristics: document.getElementById('characteristics').value,
+        stock: document.getElementById('stock').value,
+        min_quantity: document.getElementById('min_quantity').value,
+        max_quantity: document.getElementById('max_quantity').value,
+        is_active: document.getElementById('is_active').checked,
+        allow_quantity_selection: document.getElementById('allow_quantity_selection').checked,
+    };
+
     const isEdit = currentProductId !== null;
     const url = isEdit ? `/admin/products/${currentProductId}` : '{{ route("admin.products.store") }}';
     const method = isEdit ? 'PUT' : 'POST';
 
-    // Convertir FormData a objeto
-    const data = {};
-    formData.forEach((value, key) => {
-        if (key === 'is_active') {
-            data[key] = value === 'on';
-        } else {
-            data[key] = value;
-        }
-    });
-
     fetch(url, {
-        method: method,
+        method,
         headers: {
             'X-CSRF-TOKEN': '{{ csrf_token() }}',
             'Accept': 'application/json',
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(payload),
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.errors) {
-            const errorMessages = Object.values(data.errors).flat();
-            showNotification(errorMessages.join('\n'), 'error');
-        } else {
-            showNotification(isEdit ? 'Producto actualizado correctamente' : 'Producto creado correctamente');
-            setTimeout(() => window.location.reload(), 1000);
+    .then(async r => {
+        const data = await r.json();
+        if (!r.ok) {
+            if (data.errors) {
+                showFormErrors(data.errors);
+            }
+            throw new Error(data.message || 'Error al guardar');
         }
+        return data;
     })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Ha ocurrido un error al guardar el producto', 'error');
+    .then(data => {
+        productModal.hide();
+        showToast(data.message || 'Guardado correctamente', 'success');
+        setTimeout(() => window.location.reload(), 800);
+    })
+    .catch(err => {
+        if (!document.getElementById('formErrors').classList.contains('d-none')) return;
+        showToast(err.message || 'Error al guardar el producto', 'danger');
+    })
+    .finally(() => {
+        btn.disabled = false;
     });
-});
+}
+
+function deleteProduct(id) {
+    if (!confirm('¿Eliminar este producto? Esta acción no se puede deshacer.')) return;
+
+    fetch(`/admin/products/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json',
+        },
+    })
+    .then(r => r.json().then(data => ({ ok: r.ok, data })))
+    .then(({ ok, data }) => {
+        if (!ok) throw new Error(data.message || 'Error al eliminar');
+        showToast(data.message || 'Producto eliminado', 'success');
+        setTimeout(() => window.location.reload(), 800);
+    })
+    .catch(err => showToast(err.message || 'Error al eliminar', 'danger'));
+}
+
+function filterTable() {
+    const search = (document.getElementById('search')?.value || '').toLowerCase();
+    const category = document.getElementById('category-filter')?.value || '';
+    const status = document.getElementById('status-filter')?.value || '';
+
+    document.querySelectorAll('.product-row').forEach(row => {
+        const matchesSearch = !search || row.dataset.search.includes(search);
+        const matchesCategory = !category || row.dataset.category === category;
+        const matchesStatus = !status || row.dataset.status === status;
+        row.style.display = matchesSearch && matchesCategory && matchesStatus ? '' : 'none';
+    });
+}
+
+function showFormErrors(errors) {
+    const el = document.getElementById('formErrors');
+    const messages = Object.values(errors).flat();
+    el.innerHTML = messages.map(m => `<div>${m}</div>`).join('');
+    el.classList.remove('d-none');
+}
+
+function hideFormErrors() {
+    const el = document.getElementById('formErrors');
+    el.classList.add('d-none');
+    el.innerHTML = '';
+}
+
+function showToast(message, type = 'success') {
+    const toastEl = document.getElementById('productToast');
+    const body = document.getElementById('productToastBody');
+    toastEl.className = `toast align-items-center border-0 text-white bg-${type === 'success' ? 'success' : 'danger'}`;
+    body.textContent = message;
+    productToast.show();
+}
 </script>
 @endpush
-
-

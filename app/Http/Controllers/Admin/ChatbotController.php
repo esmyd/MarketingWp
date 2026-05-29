@@ -67,7 +67,6 @@ class ChatbotController extends Controller
             'order_confirmation_message' => 'nullable|string',
             'order_status_message' => 'nullable|string',
             'payment_confirmation_message' => 'nullable|string',
-            'monitoring_enabled' => 'nullable|boolean',
             'monitoring_phone_number' => 'nullable|string|max:20',
             'monitoring_email' => 'nullable|email|max:255',
         ]);
@@ -83,6 +82,9 @@ class ChatbotController extends Controller
         }
 
         $config->fill($validated);
+        // Checkbox: si no viene en el POST, debe guardarse como false (no dejar el valor anterior)
+        $config->monitoring_enabled = $request->has('monitoring_enabled')
+            && $request->input('monitoring_enabled') == '1';
         $config->save();
 
         return redirect()->back()->with('success', 'Configuración actualizada correctamente');

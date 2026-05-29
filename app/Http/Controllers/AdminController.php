@@ -22,11 +22,24 @@ class AdminController extends Controller
 
     public function orders()
     {
-        $orders = WhatsappCart::with(['items', 'contact'])
+        $orders = WhatsappCart::reportable()
+            ->with(['items', 'contact'])
             ->latest()
             ->paginate(10);
 
-        return view('admin.orders', compact('orders'));
+        $stats = [
+            'total' => WhatsappCart::reportable()->count(),
+            'pending' => WhatsappCart::reportable()->where('status', WhatsappCart::STATUS_PENDING)->count(),
+            'confirmed' => WhatsappCart::reportable()->where('status', WhatsappCart::STATUS_CONFIRMED)->count(),
+            'completed' => WhatsappCart::reportable()->where('status', WhatsappCart::STATUS_COMPLETED)->count(),
+            'revenue' => WhatsappCart::reportable()->whereIn('status', [
+                WhatsappCart::STATUS_CONFIRMED,
+                WhatsappCart::STATUS_COMPLETED,
+                WhatsappCart::STATUS_PAID,
+            ])->sum('total'),
+        ];
+
+        return view('admin.orders', compact('orders', 'stats'));
     }
 
     public function messages()
@@ -454,7 +467,11 @@ class AdminController extends Controller
         // Calcular estadísticas globales (todos los chats)
         $globalStats = $this->calculateGlobalStats($now, $thirtyDaysAgo, $sixtyDaysAgo);
 
-        return view('admin.chat', compact('contacts', 'contact', 'messages', 'stats', 'globalStats'));
+        $whatsappService = new \App\Services\WhatsappService();
+        $lastInboundWamid = $whatsappService->syncContactLastInbound($contact);
+        $typingAvailable = !empty($lastInboundWamid);
+
+        return view('admin.chat', compact('contacts', 'contact', 'messages', 'stats', 'globalStats', 'lastInboundWamid', 'typingAvailable'));
     }
 
     /**
@@ -660,6 +677,40 @@ class AdminController extends Controller
     {
         $contact = \App\Models\WhatsappContact::findOrFail($id);
         return response()->json($contact);
+    }
+
+    public function typingIndicator(Request $request)
+    {
+        $request->validate([
+            'contact_id' => 'required|exists:whatsapp_contacts,id',
+            'whatsapp_message_id' => 'nullable|string|max:255',
+        ]);
+
+        $contact = WhatsappContact::findOrFail($request->contact_id);
+        $whatsappService = new WhatsappService();
+
+        $wamid = $request->input('whatsapp_message_id');
+        if (!$wamid) {
+            $wamid = $whatsappService->syncContactLastInbound($contact);
+        }
+
+        if (!$wamid) {
+            return response()->json([
+                'success' => false,
+                'typing_available' => false,
+                'message' => 'El cliente debe escribir primero por WhatsApp (ventana de 24 h) para mostrar "escribiendo...".',
+            ]);
+        }
+
+        $sent = $whatsappService->sendTypingIndicator($wamid);
+
+        return response()->json([
+            'success' => $sent,
+            'typing_available' => true,
+            'message' => $sent
+                ? 'Indicador de escritura enviado'
+                : 'No se pudo enviar el indicador (wamid expirado o inválido)',
+        ]);
     }
 
     public function sendMessage(Request $request)
@@ -1005,6 +1056,7 @@ class AdminController extends Controller
                         'content' => $msg->content,
                         'type' => $msg->type,
                         'sender_type' => $msg->sender_type,
+                        'whatsapp_message_id' => $msg->message_id,
                         'metadata' => $msg->metadata,
                         'created_at' => $msg->created_at->toDateTimeString(),
                         'created_at_formatted' => $msg->created_at->format('H:i')

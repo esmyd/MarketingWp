@@ -1,933 +1,557 @@
 @extends('admin.layouts.app')
 
 @section('header')
-<!-- Include Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-    :root {
-        --whatsapp-green: #25d366;
-        --whatsapp-dark-green: #128C7E;
-        --whatsapp-teal: #075E54;
-        --whatsapp-light-green: #dcf8c6;
-        --whatsapp-blue: #34B7F1;
-        --whatsapp-gray: #8696a0;
-        --whatsapp-dark-gray: #202c33;
-    }
+    body.dashboard-page { background: #f4f6f9 !important; }
 
-    body {
-        background: linear-gradient(135deg, #e0f2e9 0%, #f0f9f5 100%) !important;
-    }
+    .dash-wrap { max-width: 1400px; margin: 0 auto; }
 
-    .dashboard-header {
-        background: linear-gradient(135deg, var(--whatsapp-dark-green) 0%, var(--whatsapp-teal) 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    .dashboard-header h1 {
-        font-size: 2rem;
-        font-weight: 600;
-        margin: 0;
+    .dash-top {
         display: flex;
-        align-items: center;
-        gap: 0.75rem;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
     }
 
-    .dashboard-header .subtitle {
-        font-size: 0.95rem;
-        opacity: 0.9;
-        margin-top: 0.5rem;
-    }
-
-    .stat-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        transition: all 0.3s ease;
-        border-left: 4px solid var(--whatsapp-green);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-    }
-
-    .stat-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 100px;
-        height: 100px;
-        background: linear-gradient(135deg, rgba(37, 211, 102, 0.1) 0%, rgba(18, 140, 126, 0.05) 100%);
-        border-radius: 50%;
-        transform: translate(30px, -30px);
-    }
-
-    .stat-card.primary { border-left-color: var(--whatsapp-green); }
-    .stat-card.success { border-left-color: #10b981; }
-    .stat-card.info { border-left-color: var(--whatsapp-blue); }
-    .stat-card.warning { border-left-color: #f59e0b; }
-    .stat-card.danger { border-left-color: #ef4444; }
-    .stat-card.purple { border-left-color: #8b5cf6; }
-
-    .stat-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    .dash-top h1 {
         font-size: 1.5rem;
-        margin-bottom: 1rem;
+        font-weight: 700;
+        color: #1a1d21;
+        margin: 0 0 0.2rem;
     }
 
-    .stat-card.primary .stat-icon { background: rgba(37, 211, 102, 0.1); color: var(--whatsapp-green); }
-    .stat-card.success .stat-icon { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-    .stat-card.info .stat-icon { background: rgba(52, 183, 241, 0.1); color: var(--whatsapp-blue); }
-    .stat-card.warning .stat-icon { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-    .stat-card.danger .stat-icon { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-    .stat-card.purple .stat-icon { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+    .dash-top p { margin: 0; color: #6c757d; font-size: 0.9rem; }
 
-    .stat-label {
-        font-size: 0.875rem;
-        color: #6b7280;
-        font-weight: 500;
-        margin-bottom: 0.5rem;
+    .dash-filter {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 0.5rem;
+        background: #fff;
+        border: 1px solid #e3e7ee;
+        border-radius: 10px;
+        padding: 0.5rem 0.75rem;
     }
 
-    .stat-value {
-        font-size: 2rem;
+    .dash-filter input {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+    }
+
+    .dash-filter button {
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 0.45rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .dash-filter button:hover { background: #1d4ed8; }
+
+    .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.85rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .kpi-row-6 { grid-template-columns: repeat(6, 1fr); }
+
+    @media (max-width: 1200px) {
+        .kpi-row { grid-template-columns: repeat(3, 1fr); }
+        .kpi-row-6 { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+        .kpi-row, .kpi-row-6 { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .kpi-card {
+        background: #fff;
+        border: 1px solid #e8ecf1;
+        border-radius: 12px;
+        padding: 1rem 1.1rem;
+        position: relative;
+        min-height: 108px;
+    }
+
+    .kpi-card .kpi-label {
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #6c757d;
+        margin-bottom: 0.35rem;
+    }
+
+    .kpi-card .kpi-value {
+        font-size: 1.5rem;
         font-weight: 700;
         color: #111827;
-        margin-bottom: 0.5rem;
         line-height: 1.2;
     }
 
-    .stat-change {
-        font-size: 0.875rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
+    .kpi-card .kpi-sub {
+        font-size: 0.78rem;
+        color: #6c757d;
+        margin-top: 0.35rem;
     }
 
-    .stat-change.positive { color: #10b981; }
-    .stat-change.negative { color: #ef4444; }
+    .kpi-card .kpi-trend {
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 0.25rem;
+    }
 
-    .chart-card {
-        background: white;
+    .kpi-trend.up { color: #16a34a; }
+    .kpi-trend.down { color: #dc2626; }
+    .kpi-trend.neutral { color: #6c757d; }
+
+    .kpi-icon {
+        position: absolute;
+        top: 0.85rem;
+        right: 0.85rem;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.95rem;
+    }
+
+    .kpi-icon.green { background: #dcfce7; color: #16a34a; }
+    .kpi-icon.blue { background: #dbeafe; color: #2563eb; }
+    .kpi-icon.amber { background: #fef3c7; color: #d97706; }
+    .kpi-icon.purple { background: #ede9fe; color: #7c3aed; }
+    .kpi-icon.rose { background: #ffe4e6; color: #e11d48; }
+    .kpi-icon.teal { background: #ccfbf1; color: #0d9488; }
+
+    .dash-panels {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 0.85rem;
+        margin-bottom: 0.85rem;
+    }
+
+    @media (max-width: 992px) {
+        .dash-panels { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+        background: #fff;
+        border: 1px solid #e8ecf1;
         border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        margin-bottom: 1.5rem;
+        padding: 1.1rem 1.25rem;
     }
 
-    .chart-card h3 {
-        font-size: 1.25rem;
+    .panel h3 {
+        font-size: 0.95rem;
         font-weight: 600;
-        color: #111827;
-        margin-bottom: 1.5rem;
+        color: #1a1d21;
+        margin: 0 0 1rem;
+    }
+
+    .panel-chart { height: 260px; position: relative; }
+
+    .portfolio-bar {
         display: flex;
-        align-items: center;
+        height: 14px;
+        border-radius: 7px;
+        overflow: hidden;
+        background: #f1f3f5;
+        margin-bottom: 0.75rem;
+    }
+
+    .portfolio-bar span { display: block; height: 100%; }
+
+    .pipeline-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
         gap: 0.5rem;
     }
 
-    .chart-card h3 i {
-        color: var(--whatsapp-green);
+    .pipeline-item {
+        background: #f8fafc;
+        border: 1px solid #eef2f7;
+        border-radius: 8px;
+        padding: 0.65rem 0.75rem;
+        text-align: center;
     }
 
-    .info-tooltip {
-        cursor: help;
-        color: var(--whatsapp-gray);
-        font-size: 0.875rem;
-    }
-
-    .metric-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
-
-    .section-title {
-        font-size: 1.5rem;
+    .pipeline-item .num {
+        font-size: 1.25rem;
         font-weight: 700;
         color: #111827;
-        margin: 2rem 0 1.5rem 0;
-        display: flex;
+    }
+
+    .pipeline-item .lbl {
+        font-size: 0.7rem;
+        color: #6c757d;
+        text-transform: capitalize;
+    }
+
+    .sender-bars { display: flex; flex-direction: column; gap: 0.65rem; }
+
+    .sender-row {
+        display: grid;
+        grid-template-columns: 80px 1fr 48px;
         align-items: center;
-        gap: 0.75rem;
+        gap: 0.5rem;
+        font-size: 0.8rem;
     }
 
-    .section-title::before {
-        content: '';
-        width: 4px;
-        height: 24px;
-        background: var(--whatsapp-green);
-        border-radius: 2px;
+    .sender-track {
+        height: 8px;
+        background: #eef2f7;
+        border-radius: 4px;
+        overflow: hidden;
     }
 
-    .list-item {
+    .sender-fill { height: 100%; border-radius: 4px; }
+
+    .list-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 1rem;
-        border-bottom: 1px solid #e5e7eb;
-        transition: background 0.2s;
+        padding: 0.65rem 0;
+        border-bottom: 1px solid #f1f3f5;
+        font-size: 0.85rem;
     }
 
-    .list-item:hover {
-        background: #f9fafb;
-    }
+    .list-row:last-child { border-bottom: none; }
 
-    .list-item:last-child {
-        border-bottom: none;
-    }
-
-    .badge {
-        padding: 0.375rem 0.75rem;
-        border-radius: 6px;
+    .badge-status {
+        font-size: 0.7rem;
         font-weight: 600;
-        font-size: 0.875rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+        text-transform: capitalize;
     }
 
-    .badge-success { background: #d1fae5; color: #065f46; }
-    .badge-info { background: #dbeafe; color: #1e40af; }
-    .badge-warning { background: #fef3c7; color: #92400e; }
+    .badge-status.confirmed, .badge-status.completed, .badge-status.paid { background: #dcfce7; color: #166534; }
+    .badge-status.pending, .badge-status.payment_pending { background: #fef3c7; color: #92400e; }
+    .badge-status.cancelled { background: #fee2e2; color: #991b1b; }
 
-    .progress-bar-container {
-        background: #e5e7eb;
-        border-radius: 8px;
-        height: 8px;
-        overflow: hidden;
+    .dash-footnote {
+        font-size: 0.75rem;
+        color: #9ca3af;
         margin-top: 0.5rem;
     }
 
-    .progress-bar {
-        height: 100%;
-        background: linear-gradient(90deg, var(--whatsapp-green) 0%, var(--whatsapp-dark-green) 100%);
-        border-radius: 8px;
-        transition: width 0.3s ease;
+    .dash-bottom {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.85rem;
     }
 
-    .insight-card {
-        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-        border: 1px solid #bbf7d0;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .insight-card h4 {
-        color: #166534;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .insight-card p {
-        color: #15803d;
-        font-size: 0.875rem;
-        margin: 0;
+    @media (max-width: 768px) {
+        .dash-bottom { grid-template-columns: 1fr; }
     }
 </style>
+<script>document.body.classList.add('dashboard-page');</script>
 @endsection
 
 @section('content')
-<!-- Dashboard Header -->
-<div class="dashboard-header">
-    <h1>
-        <i class="fab fa-whatsapp"></i>
-        Dashboard de Marketing WhatsApp
-    </h1>
-    <div class="subtitle">
-        <i class="fas fa-calendar-alt"></i>
-        Período: Últimos 30 días |
-        <i class="fas fa-clock"></i>
-        Actualizado: {{ now()->format('d/m/Y H:i') }}
-    </div>
-</div>
+@php
+    $m = $metrics;
+    $statusLabels = [
+        'pending' => 'Pendiente',
+        'confirmed' => 'Confirmado',
+        'completed' => 'Completado',
+        'cancelled' => 'Cancelado',
+        'payment_pending' => 'Pago pend.',
+        'paid' => 'Pagado',
+        'active' => 'Activo',
+    ];
+    $senderTotal = max(1, array_sum($m['messages_by_sender']));
+@endphp
 
-<!-- KPIs Principales -->
-<div class="section-title">
-    <i class="fas fa-chart-line"></i>
-    Indicadores Clave de Rendimiento (KPIs)
-</div>
-
-<div class="metric-grid">
-    <!-- Total Mensajes -->
-    <div class="stat-card primary">
-        <div class="stat-icon">
-            <i class="fas fa-comments"></i>
+<div class="dash-wrap">
+    <div class="dash-top">
+        <div>
+            <h1>Dashboard Ejecutivo</h1>
+            <p>Resumen de WhatsApp · {{ $from->format('d/m/Y') }} — {{ $to->format('d/m/Y') }}</p>
         </div>
-        <div class="stat-label">
-            Total Mensajes
-            <span class="info-tooltip" title="Cantidad total de mensajes enviados y recibidos en el sistema">ℹ️</span>
-        </div>
-        <div class="stat-value">
-            {{ $totalMessages > 0 ? number_format($totalMessages) : '0' }}
-        </div>
-        <div class="stat-change {{ $messageGrowth >= 0 ? 'positive' : 'negative' }}">
-            <i class="fas fa-arrow-{{ $messageGrowth >= 0 ? 'up' : 'down' }}"></i>
-            {{ $messageGrowth >= 0 ? '+' : '' }}{{ number_format($messageGrowth, 1) }}% vs mes anterior
-        </div>
+        <form class="dash-filter" method="get" action="{{ route('admin.dashboard') }}">
+            <input type="hidden" name="period" id="period-preset" value="{{ $periodPreset ?? 'all' }}">
+            <div class="btn-group btn-group-sm me-1" role="group" aria-label="Período rápido">
+                @foreach(['7d' => '7 días', '30d' => '30 días', '90d' => '90 días', 'all' => 'Todo'] as $key => $label)
+                    <button type="button"
+                        class="btn {{ ($periodPreset ?? 'all') === $key ? 'btn-primary' : 'btn-outline-secondary' }} period-preset-btn"
+                        data-period="{{ $key }}">{{ $label }}</button>
+                @endforeach
+            </div>
+            <input type="date" name="from" value="{{ $from->format('Y-m-d') }}" aria-label="Desde">
+            <span style="color:#adb5bd">—</span>
+            <input type="date" name="to" value="{{ $to->format('Y-m-d') }}" aria-label="Hasta">
+            <button type="submit"><i class="fas fa-filter me-1"></i> Filtrar</button>
+        </form>
     </div>
 
-    <!-- Tasa de Respuesta -->
-    <div class="stat-card success">
-        <div class="stat-icon">
-            <i class="fas fa-reply"></i>
+    @if(($totalOrdersAllTime ?? 0) > 0 && ($metrics['orders_count'] ?? 0) === 0)
+        <div class="alert alert-warning py-2 px-3 mb-3" style="font-size:0.88rem;border-radius:10px;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            Hay <strong>{{ $totalOrdersAllTime }}</strong> pedido(s) en el sistema, pero ninguno en el período
+            <strong>{{ $from->format('d/m/Y') }} — {{ $to->format('d/m/Y') }}</strong>.
+            Usa el botón <strong>Todo</strong> o amplía las fechas.
         </div>
-        <div class="stat-label">
-            Tasa de Respuesta
-            <span class="info-tooltip" title="Porcentaje de mensajes de clientes que recibieron respuesta del sistema">ℹ️</span>
-        </div>
-        <div class="stat-value">
-            {{ $responseRate > 0 ? number_format(min($responseRate, 100), 1) : '0' }}<span style="font-size: 1.25rem;">%</span>
-        </div>
-        <div class="stat-change {{ $responseRateGrowth >= 0 ? 'positive' : 'negative' }}">
-            <i class="fas fa-arrow-{{ $responseRateGrowth >= 0 ? 'up' : 'down' }}"></i>
-            {{ $responseRateGrowth >= 0 ? '+' : '' }}{{ number_format($responseRateGrowth, 1) }}% vs mes anterior
-        </div>
-        <div class="progress-bar-container">
-            <div class="progress-bar" style="width: {{ min($responseRate, 100) }}%"></div>
-        </div>
-    </div>
+    @endif
 
-    <!-- Tiempo Promedio Respuesta -->
-    <div class="stat-card info">
-        <div class="stat-icon">
-            <i class="fas fa-stopwatch"></i>
+    {{-- Fila principal KPIs --}}
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-icon green"><i class="fas fa-comments"></i></div>
+            <div class="kpi-label">Mensajes en período</div>
+            <div class="kpi-value">{{ number_format($m['period_messages']) }}</div>
+            <div class="kpi-sub">Recibidos: {{ number_format($m['received']) }} · Enviados: {{ number_format($m['sent']) }}</div>
+            <div class="kpi-trend {{ $m['message_growth'] >= 0 ? 'up' : 'down' }}">
+                {{ $m['message_growth'] >= 0 ? '+' : '' }}{{ $m['message_growth'] }}% vs período anterior
+            </div>
         </div>
-        <div class="stat-label">
-            Tiempo Promedio Respuesta
-            <span class="info-tooltip" title="Promedio de minutos que tarda el sistema en responder a un mensaje de cliente">ℹ️</span>
+        <div class="kpi-card">
+            <div class="kpi-icon blue"><i class="fas fa-reply"></i></div>
+            <div class="kpi-label">Tasa de respuesta</div>
+            <div class="kpi-value">{{ number_format($m['response_rate'], 1) }}%</div>
+            <div class="kpi-sub">Clientes atendidos en 24 h</div>
+            <div class="kpi-trend {{ $m['response_rate_growth'] >= 0 ? 'up' : 'down' }}">
+                {{ $m['response_rate_growth'] >= 0 ? '+' : '' }}{{ $m['response_rate_growth'] }}% vs anterior
+            </div>
         </div>
-        <div class="stat-value">
-            @php
-                $min = $avgResponseTime;
-                if($min > 0) {
-                    $h = floor($min / 60);
-                    $m = round($min % 60);
-                    echo $h > 0 ? "$h h $m m" : "$m m";
-                } else {
-                    echo '0 m';
-                }
-            @endphp
+        <div class="kpi-card">
+            <div class="kpi-icon teal"><i class="fas fa-stopwatch"></i></div>
+            <div class="kpi-label">Tiempo prom. respuesta</div>
+            <div class="kpi-value">{{ $m['avg_response_time_formatted'] }}</div>
+            <div class="kpi-sub">Desde mensaje del cliente</div>
+            <div class="kpi-trend {{ $m['response_time_growth'] <= 0 ? 'up' : 'down' }}">
+                {{ $m['response_time_growth'] >= 0 ? '+' : '' }}{{ $m['response_time_growth'] }}% vs anterior
+            </div>
         </div>
-        <div class="stat-change {{ $responseTimeGrowth <= 0 ? 'positive' : 'negative' }}">
-            <i class="fas fa-arrow-{{ $responseTimeGrowth <= 0 ? 'down' : 'up' }}"></i>
-            {{ $responseTimeGrowth >= 0 ? '+' : '' }}{{ number_format($responseTimeGrowth, 1) }}% vs mes anterior
+        <div class="kpi-card">
+            <div class="kpi-icon purple"><i class="fas fa-users"></i></div>
+            <div class="kpi-label">Clientes activos</div>
+            <div class="kpi-value">{{ number_format($m['active_clients']) }}</div>
+            <div class="kpi-sub">{{ number_format($m['new_contacts']) }} nuevos en período</div>
+            <div class="kpi-trend {{ $m['active_clients_growth'] >= 0 ? 'up' : 'down' }}">
+                {{ $m['active_clients_growth'] >= 0 ? '+' : '' }}{{ $m['active_clients_growth'] }}% vs anterior
+            </div>
         </div>
-    </div>
-
-    <!-- Clientes Activos -->
-    <div class="stat-card warning">
-        <div class="stat-icon">
-            <i class="fas fa-users"></i>
-        </div>
-        <div class="stat-label">
-            Clientes Activos
-            <span class="info-tooltip" title="Cantidad de contactos únicos que han enviado o recibido al menos un mensaje en los últimos 30 días">ℹ️</span>
-        </div>
-        <div class="stat-value">
-            {{ $activeClients > 0 ? number_format($activeClients) : '0' }}
-        </div>
-        <div class="stat-change {{ $activeClientsGrowth >= 0 ? 'positive' : 'negative' }}">
-            <i class="fas fa-arrow-{{ $activeClientsGrowth >= 0 ? 'up' : 'down' }}"></i>
-            {{ $activeClientsGrowth >= 0 ? '+' : '' }}{{ number_format($activeClientsGrowth, 1) }}% vs mes anterior
+        <div class="kpi-card">
+            <div class="kpi-icon green"><i class="fas fa-dollar-sign"></i></div>
+            <div class="kpi-label">Ingresos pedidos</div>
+            <div class="kpi-value">${{ number_format($m['total_revenue'], 0) }}</div>
+            <div class="kpi-sub">{{ $m['orders_count'] }} pedidos · Ticket ${{ number_format($m['avg_order_value'], 0) }}</div>
+            <div class="kpi-trend {{ $m['revenue_growth'] >= 0 ? 'up' : 'down' }}">
+                {{ $m['revenue_growth'] >= 0 ? '+' : '' }}{{ $m['revenue_growth'] }}% vs anterior
+            </div>
         </div>
     </div>
 
-    <!-- Tasa de Interacción -->
-    <div class="stat-card purple">
-        <div class="stat-icon">
-            <i class="fas fa-hand-pointer"></i>
+    {{-- Segunda fila KPIs secundarios --}}
+    <div class="kpi-row kpi-row-6">
+        <div class="kpi-card" style="min-height:90px">
+            <div class="kpi-icon amber"><i class="fas fa-shopping-cart"></i></div>
+            <div class="kpi-label">Pedidos</div>
+            <div class="kpi-value" style="font-size:1.25rem">{{ number_format($m['orders_count']) }}</div>
         </div>
-        <div class="stat-label">
-            Tasa de Interacción
-            <span class="info-tooltip" title="Porcentaje de mensajes enviados por el sistema que recibieron respuesta del cliente">ℹ️</span>
+        <div class="kpi-card" style="min-height:90px">
+            <div class="kpi-icon green"><i class="fas fa-check-circle"></i></div>
+            <div class="kpi-label">Cobrado</div>
+            <div class="kpi-value" style="font-size:1.25rem">${{ number_format($m['collected_revenue'], 0) }}</div>
+            <div class="kpi-sub">{{ $m['collection_rate'] }}% del total</div>
         </div>
-        <div class="stat-value">
-            {{ $interactionRate > 0 ? number_format(min($interactionRate, 100), 1) : '0' }}<span style="font-size: 1.25rem;">%</span>
+        <div class="kpi-card" style="min-height:90px">
+            <div class="kpi-icon rose"><i class="fas fa-clock"></i></div>
+            <div class="kpi-label">Pendiente</div>
+            <div class="kpi-value" style="font-size:1.25rem">${{ number_format($m['pending_revenue'], 0) }}</div>
         </div>
-        <div class="stat-change {{ $interactionRateGrowth >= 0 ? 'positive' : 'negative' }}">
-            <i class="fas fa-arrow-{{ $interactionRateGrowth >= 0 ? 'up' : 'down' }}"></i>
-            {{ $interactionRateGrowth >= 0 ? '+' : '' }}{{ number_format($interactionRateGrowth, 1) }}% vs mes anterior
+        <div class="kpi-card" style="min-height:90px">
+            <div class="kpi-icon blue"><i class="fas fa-percentage"></i></div>
+            <div class="kpi-label">Conversión</div>
+            <div class="kpi-value" style="font-size:1.25rem">{{ number_format($m['conversion_rate'], 1) }}%</div>
+            <div class="kpi-sub">Pedidos / mensajes cliente</div>
         </div>
-        <div class="progress-bar-container">
-            <div class="progress-bar" style="width: {{ min($interactionRate, 100) }}%"></div>
+        <div class="kpi-card" style="min-height:90px">
+            <div class="kpi-icon purple"><i class="fas fa-robot"></i></div>
+            <div class="kpi-label">Bot / Humano</div>
+            <div class="kpi-value" style="font-size:1.25rem">{{ number_format($m['bot_messages']) }} / {{ number_format($m['human_messages']) }}</div>
         </div>
-    </div>
-
-    <!-- Tasa de Respuesta del Cliente -->
-    <div class="stat-card success">
-        <div class="stat-icon">
-            <i class="fas fa-user-check"></i>
-        </div>
-        <div class="stat-label">
-            Tasa de Respuesta del Cliente
-            <span class="info-tooltip" title="Porcentaje de mensajes del sistema que recibieron respuesta del cliente en 24 horas">ℹ️</span>
-        </div>
-        <div class="stat-value">
-            {{ isset($clientResponseRate) && $clientResponseRate > 0 ? number_format(min($clientResponseRate, 100), 1) : '0' }}<span style="font-size: 1.25rem;">%</span>
-        </div>
-        <div class="progress-bar-container">
-            <div class="progress-bar" style="width: {{ min(isset($clientResponseRate) ? $clientResponseRate : 0, 100) }}%"></div>
-        </div>
-    </div>
-</div>
-
-<!-- Métricas de Negocio -->
-<div class="section-title">
-    <i class="fas fa-briefcase"></i>
-    Métricas de Negocio
-</div>
-
-<div class="metric-grid">
-    <!-- Clientes Nuevos -->
-    <div class="stat-card info">
-        <div class="stat-icon">
-            <i class="fas fa-user-plus"></i>
-        </div>
-        <div class="stat-label">
-            Clientes Nuevos (Este Mes)
-        </div>
-        <div class="stat-value">
-            {{ $newClientsThisMonth > 0 ? number_format($newClientsThisMonth) : '0' }}
+        <div class="kpi-card" style="min-height:90px">
+            <div class="kpi-icon teal"><i class="fas fa-clock"></i></div>
+            <div class="kpi-label">Hora pico</div>
+            <div class="kpi-value" style="font-size:1.25rem">{{ $m['peak_hour'] ?? '—' }}</div>
         </div>
     </div>
 
-    <!-- Pedidos Este Mes -->
-    <div class="stat-card warning">
-        <div class="stat-icon">
-            <i class="fas fa-shopping-cart"></i>
+    <div class="dash-panels">
+        <div class="panel">
+            <h3>Actividad de mensajes</h3>
+            <div class="panel-chart">
+                <canvas id="messagesChart"></canvas>
+            </div>
         </div>
-        <div class="stat-label">
-            Pedidos (Este Mes)
-        </div>
-        <div class="stat-value">
-            {{ $ordersThisMonth > 0 ? number_format($ordersThisMonth) : '0' }}
-        </div>
-    </div>
-
-    <!-- Tasa de Conversión -->
-    <div class="stat-card success">
-        <div class="stat-icon">
-            <i class="fas fa-percentage"></i>
-        </div>
-        <div class="stat-label">
-            Tasa de Conversión
-            <span class="info-tooltip" title="Porcentaje de mensajes de clientes que resultaron en pedidos">ℹ️</span>
-        </div>
-        <div class="stat-value">
-            {{ isset($conversionRate) && $conversionRate > 0 ? number_format(min($conversionRate, 100), 2) : '0' }}<span style="font-size: 1.25rem;">%</span>
-        </div>
-        <div class="progress-bar-container">
-            <div class="progress-bar" style="width: {{ min(isset($conversionRate) ? $conversionRate : 0, 100) }}%"></div>
-        </div>
-    </div>
-
-    <!-- Ingresos Totales -->
-    <div class="stat-card primary">
-        <div class="stat-icon">
-            <i class="fas fa-dollar-sign"></i>
-        </div>
-        <div class="stat-label">
-            Ingresos Totales (Este Mes)
-        </div>
-        <div class="stat-value">
-            ${{ isset($totalRevenue) && $totalRevenue > 0 ? number_format($totalRevenue, 2) : '0.00' }}
-        </div>
-    </div>
-
-    <!-- Valor Promedio Pedido -->
-    <div class="stat-card purple">
-        <div class="stat-icon">
-            <i class="fas fa-receipt"></i>
-        </div>
-        <div class="stat-label">
-            Valor Promedio Pedido
-        </div>
-        <div class="stat-value">
-            ${{ isset($avgOrderValue) && $avgOrderValue > 0 ? number_format($avgOrderValue, 2) : '0.00' }}
-        </div>
-    </div>
-
-    <!-- Mensajes Enviados vs Recibidos -->
-    <div class="stat-card info">
-        <div class="stat-icon">
-            <i class="fas fa-exchange-alt"></i>
-        </div>
-        <div class="stat-label">
-            Ratio Enviados/Recibidos
-            <span class="info-tooltip" title="Relación entre mensajes enviados y recibidos">ℹ️</span>
-        </div>
-        <div class="stat-value">
-            {{ isset($sentReceivedRatio) && $sentReceivedRatio > 0 ? number_format($sentReceivedRatio, 2) : '0' }}:1
-        </div>
-        <div style="font-size: 0.875rem; color: #6b7280; margin-top: 0.5rem;">
-            Enviados: {{ isset($sentMessages) ? number_format($sentMessages) : '0' }} |
-            Recibidos: {{ isset($receivedMessages) ? number_format($receivedMessages) : '0' }}
-        </div>
-    </div>
-</div>
-
-<!-- Métricas de Iteraciones -->
-<div class="section-title">
-    <i class="fas fa-sync-alt"></i>
-    Métricas de Iteraciones
-</div>
-
-<div class="metric-grid">
-    <!-- Iteraciones por Cliente -->
-    <div class="stat-card primary">
-        <div class="stat-icon">
-            <i class="fas fa-user-friends"></i>
-        </div>
-        <div class="stat-label">
-            Iteraciones por Cliente
-            <span class="info-tooltip" title="Promedio de mensajes recibidos por cliente activo">ℹ️</span>
-        </div>
-        <div class="stat-value">
-            {{ isset($iterationsPerClient) && $iterationsPerClient > 0 ? number_format($iterationsPerClient, 2) : '0' }}
-        </div>
-        <div style="font-size: 0.875rem; color: #6b7280; margin-top: 0.5rem;">
-            {{ isset($receivedMessages) ? number_format($receivedMessages) : '0' }} mensajes /
-            {{ $activeClients > 0 ? number_format($activeClients) : '0' }} clientes
-        </div>
-    </div>
-
-    <!-- Iteraciones por Humano -->
-    <div class="stat-card warning">
-        <div class="stat-icon">
-            <i class="fas fa-user-tie"></i>
-        </div>
-        <div class="stat-label">
-            Iteraciones por Humano
-            <span class="info-tooltip" title="Promedio de mensajes enviados por humano por cliente atendido">ℹ️</span>
-        </div>
-        <div class="stat-value">
-            {{ isset($iterationsPerHuman) && $iterationsPerHuman > 0 ? number_format($iterationsPerHuman, 2) : '0' }}
-        </div>
-        <div style="font-size: 0.875rem; color: #6b7280; margin-top: 0.5rem;">
-            {{ isset($humanMessages) ? number_format($humanMessages) : '0' }} mensajes /
-            {{ isset($clientsWithHumanMessages) && $clientsWithHumanMessages > 0 ? number_format($clientsWithHumanMessages) : '0' }} clientes
-        </div>
-    </div>
-
-    <!-- Distribución de Mensajes por Tipo -->
-    <div class="stat-card purple">
-        <div class="stat-icon">
-            <i class="fas fa-chart-pie"></i>
-        </div>
-        <div class="stat-label">
-            Distribución de Mensajes
-            <span class="info-tooltip" title="Distribución de mensajes por tipo de remitente">ℹ️</span>
-        </div>
-        <div style="margin-top: 1rem;">
-            @if(isset($messagesBySenderType))
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                    <span style="font-size: 0.875rem; color: #6b7280;">Clientes:</span>
-                    <span style="font-weight: 600;">{{ number_format($messagesBySenderType['client'] ?? 0) }}</span>
+        <div class="panel">
+            <h3>Estado de ingresos</h3>
+            @if($m['total_revenue'] > 0)
+                <div class="portfolio-bar">
+                    <span style="width:{{ $m['collection_rate'] }}%;background:#22c55e"></span>
+                    <span style="width:{{ 100 - $m['collection_rate'] }}%;background:#f59e0b"></span>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                    <span style="font-size: 0.875rem; color: #6b7280;">Sistema:</span>
-                    <span style="font-weight: 600;">{{ number_format($messagesBySenderType['system'] ?? 0) }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span style="font-size: 0.875rem; color: #6b7280;">Humanos:</span>
-                    <span style="font-weight: 600;">{{ number_format($messagesBySenderType['humano'] ?? 0) }}</span>
+                <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:1rem">
+                    <span><span style="color:#22c55e">●</span> Cobrado ${{ number_format($m['collected_revenue'], 0) }} ({{ $m['collection_rate'] }}%)</span>
+                    <span><span style="color:#f59e0b">●</span> Pendiente ${{ number_format($m['pending_revenue'], 0) }}</span>
                 </div>
             @else
-                <span style="font-size: 0.875rem; color: #9ca3af;">Sin datos</span>
+                <p class="text-muted small mb-3">Sin ingresos en este período.</p>
             @endif
-        </div>
-    </div>
-</div>
 
-<!-- Gráficos -->
-<div class="section-title">
-    <i class="fas fa-chart-bar"></i>
-    Análisis Visual
-</div>
-
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-    <!-- Actividad de Mensajes -->
-    <div class="chart-card">
-        <h3>
-            <i class="fas fa-chart-line"></i>
-            Actividad de Mensajes (Últimos 30 días)
-        </h3>
-        <div style="height: 300px; position: relative;">
-            <canvas id="messagesChart"></canvas>
-        </div>
-    </div>
-
-    <!-- Tiempo de Respuesta -->
-    <div class="chart-card">
-        <h3>
-            <i class="fas fa-clock"></i>
-            Tiempo de Respuesta Promedio
-        </h3>
-        <div style="height: 300px; position: relative;">
-            <canvas id="responseTimeChart"></canvas>
-        </div>
-    </div>
-
-    <!-- Distribución de Tipos de Mensajes -->
-    <div class="chart-card">
-        <h3>
-            <i class="fas fa-pie-chart"></i>
-            Distribución de Tipos de Mensajes
-        </h3>
-        <div style="height: 300px; position: relative;">
-            <canvas id="messageTypesChart"></canvas>
-        </div>
-    </div>
-
-    <!-- Mensajes por Día de la Semana -->
-    <div class="chart-card">
-        <h3>
-            <i class="fas fa-calendar-week"></i>
-            Actividad por Día de la Semana
-        </h3>
-        <div style="height: 300px; position: relative;">
-            <canvas id="weekdayChart"></canvas>
-        </div>
-    </div>
-
-    <!-- Mensajes por Hora -->
-    <div class="chart-card" style="grid-column: 1 / -1;">
-        <h3>
-            <i class="fas fa-clock"></i>
-            Mensajes por Hora del Día (Este Mes)
-        </h3>
-        <div style="height: 300px; position: relative;">
-            <canvas id="messagesByHourChart"></canvas>
-        </div>
-    </div>
-</div>
-
-<!-- Insights y Recomendaciones -->
-@if(isset($peakHour) && $peakHour !== 'N/A')
-<div class="insight-card">
-    <h4>
-        <i class="fas fa-lightbulb"></i>
-        Insight de Actividad
-    </h4>
-    <p>
-        <strong>Hora pico:</strong> {{ $peakHour }} |
-        <strong>Día más activo:</strong> {{ isset($peakDay) ? $peakDay : 'N/A' }} |
-        <strong>Recomendación:</strong> Programar campañas y respuestas automáticas durante estos períodos para maximizar el engagement.
-    </p>
-</div>
-@endif
-
-<!-- Top Rankings -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-    <!-- Productos más pedidos -->
-    <div class="chart-card">
-        <h3>
-            <i class="fas fa-box"></i>
-            Top 5 Productos Más Pedidos (Este Mes)
-        </h3>
-        <div>
-            @forelse($topProducts as $index => $prod)
-                <div class="list-item">
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <span class="badge badge-info" style="min-width: 32px; text-align: center;">{{ $index + 1 }}</span>
-                        <span style="font-weight: 500;">{{ $prod->name }}</span>
+            <h3 style="margin-top:0.5rem">Pipeline de pedidos</h3>
+            <div class="pipeline-grid">
+                @forelse($ordersByStatus as $row)
+                    <div class="pipeline-item">
+                        <div class="num">{{ $row->total }}</div>
+                        <div class="lbl">{{ $statusLabels[$row->status] ?? $row->status }}</div>
                     </div>
-                    <span class="badge badge-success">{{ $prod->total }} unidades</span>
-                </div>
-            @empty
-                <div class="list-item">
-                    <span class="text-gray-500">Sin datos disponibles</span>
-                </div>
-            @endforelse
-        </div>
-    </div>
-
-    <!-- Opciones más consultadas -->
-    <div class="chart-card">
-        <h3>
-            <i class="fas fa-list"></i>
-            Top 5 Opciones Más Consultadas (Este Mes)
-        </h3>
-        <div>
-            @forelse($topOptions as $index => $opt)
-                <div class="list-item">
-                    <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <span class="badge badge-info" style="min-width: 32px; text-align: center;">{{ $index + 1 }}</span>
-                        <span style="font-weight: 500;">{{ $opt->type }}</span>
+                @empty
+                    <div class="pipeline-item" style="grid-column:1/-1">
+                        <div class="lbl">Sin pedidos en el período</div>
                     </div>
-                    <span class="badge badge-warning">{{ $opt->total }} consultas</span>
-                </div>
-            @empty
-                <div class="list-item">
-                    <span class="text-gray-500">Sin datos disponibles</span>
-                </div>
-            @endforelse
+                @endforelse
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Actividad Reciente -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <!-- Últimos Pedidos -->
-    <div class="chart-card">
-        <h3>
-            <i class="fas fa-shopping-bag"></i>
-            Últimos Pedidos
-        </h3>
-        <div>
+    <div class="dash-panels">
+        <div class="panel">
+            <h3>Mensajes por remitente</h3>
+            <div class="sender-bars">
+                @foreach(['client' => ['Cliente', '#2563eb'], 'system' => ['Bot', '#25d366'], 'humano' => ['Humano', '#8b5cf6']] as $key => [$label, $color])
+                    @php $count = $m['messages_by_sender'][$key] ?? 0; $pct = round(($count / $senderTotal) * 100); @endphp
+                    <div class="sender-row">
+                        <span>{{ $label }}</span>
+                        <div class="sender-track">
+                            <div class="sender-fill" style="width:{{ $pct }}%;background:{{ $color }}"></div>
+                        </div>
+                        <strong>{{ number_format($count) }}</strong>
+                    </div>
+                @endforeach
+            </div>
+            <p class="dash-footnote">Total histórico en sistema: {{ number_format($m['total_historical_messages']) }} mensajes · {{ number_format($m['total_contacts']) }} contactos</p>
+        </div>
+        <div class="panel">
+            <h3>Tipos de mensaje</h3>
+            <div class="panel-chart" style="height:220px">
+                <canvas id="messageTypesChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="dash-bottom">
+        <div class="panel">
+            <h3>Últimos pedidos</h3>
             @forelse($orders as $order)
-                <div class="list-item">
+                <div class="list-row">
                     <div>
-                        <div style="font-weight: 600; color: #111827;">{{ $order->contact->name ?? 'Cliente' }}</div>
-                        <div style="font-size: 0.875rem; color: #6b7280;">{{ $order->created_at->format('d/m/Y H:i') }}</div>
+                        <strong>{{ $order->contact->name ?? 'Cliente' }}</strong>
+                        <div class="text-muted" style="font-size:0.75rem">{{ $order->created_at->format('d/m/Y H:i') }}</div>
                     </div>
-                    <span class="badge {{ $order->status === 'completed' ? 'badge-success' : 'badge-warning' }}">
-                        {{ ucfirst($order->status) }}
-                    </span>
+                    <div class="text-end">
+                        <div><strong>${{ number_format($order->total, 2) }}</strong></div>
+                        <span class="badge-status {{ $order->status }}">{{ $statusLabels[$order->status] ?? $order->status }}</span>
+                    </div>
                 </div>
             @empty
-                <div class="list-item">
-                    <span class="text-gray-500">No hay pedidos recientes</span>
-                </div>
+                <p class="text-muted small">No hay pedidos en este período.</p>
             @endforelse
+            <a href="{{ route('admin.orders') }}" class="small text-decoration-none">Ver todos →</a>
         </div>
-        <a href="{{ route('admin.orders') }}" style="display: inline-block; margin-top: 1rem; color: var(--whatsapp-green); font-weight: 600; text-decoration: none;">
-            Ver todos los pedidos <i class="fas fa-arrow-right"></i>
-        </a>
-    </div>
-
-    <!-- Últimos Mensajes -->
-    <div class="chart-card">
-        <h3>
-            <i class="fas fa-comment-dots"></i>
-            Últimos Mensajes
-        </h3>
-        <div>
+        <div class="panel">
+            <h3>Actividad reciente</h3>
             @forelse($messages as $message)
-                <div class="list-item">
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; color: #111827;">{{ $message->contact->name ?? 'Cliente' }}</div>
-                        @php
-                            $content = $message->content;
-                            $decoded = null;
-                            try {
-                                $decoded = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
-                            } catch (\Throwable $e) {
-                                $decoded = null;
-                            }
-                        @endphp
-                        @if(is_array($decoded) && isset($decoded['title']))
-                            <div style="font-size: 0.875rem; color: #374151; font-weight: 500; margin-top: 0.25rem;">{{ $decoded['title'] }}</div>
-                            @if(isset($decoded['description']))
-                                <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">{{ \Illuminate\Support\Str::limit($decoded['description'], 60) }}</div>
-                            @endif
-                        @else
-                            <div style="font-size: 0.875rem; color: #6b7280; margin-top: 0.25rem;">{{ \Illuminate\Support\Str::limit($content, 80) }}</div>
-                        @endif
-                        <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.25rem;">{{ $message->created_at->format('d/m/Y H:i') }}</div>
+                <div class="list-row">
+                    <div style="flex:1;min-width:0">
+                        <strong>{{ $message->contact->name ?? 'Cliente' }}</strong>
+                        <div class="text-muted text-truncate" style="font-size:0.75rem;max-width:280px">
+                            {{ \Illuminate\Support\Str::limit($message->content, 60) }}
+                        </div>
                     </div>
+                    <span class="text-muted" style="font-size:0.75rem;white-space:nowrap">{{ $message->created_at->format('d/m H:i') }}</span>
                 </div>
             @empty
-                <div class="list-item">
-                    <span class="text-gray-500">No hay mensajes recientes</span>
-                </div>
+                <p class="text-muted small">No hay mensajes en este período.</p>
             @endforelse
+            <a href="{{ route('admin.chats') }}" class="small text-decoration-none">Ir a chats →</a>
         </div>
-        <a href="{{ route('admin.messages') }}" style="display: inline-block; margin-top: 1rem; color: var(--whatsapp-green); font-weight: 600; text-decoration: none;">
-            Ver todos los mensajes <i class="fas fa-arrow-right"></i>
-        </a>
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const commonOptions = {
+    const chartOpts = {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'top',
-                labels: {
-                    font: { size: 12 },
-                    padding: 15
-                }
-            },
-            tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                padding: 12,
-                titleFont: { size: 14 },
-                bodyFont: { size: 12 }
-            }
-        }
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
     };
 
-    // Messages Activity Chart
-    const messagesCtx = document.getElementById('messagesChart').getContext('2d');
-    new Chart(messagesCtx, {
+    const msgLabels = {!! json_encode($messagesData->pluck('date')->map(fn($d) => \Carbon\Carbon::parse($d)->format('d/m'))) !!};
+    new Chart(document.getElementById('messagesChart'), {
         type: 'line',
         data: {
-            labels: {!! json_encode($messagesData->pluck('date')->map(function($date) { return \Carbon\Carbon::parse($date)->format('d/m'); })) !!},
+            labels: msgLabels.length ? msgLabels : ['Sin datos'],
             datasets: [{
-                label: 'Mensajes Enviados',
+                label: 'Enviados',
                 data: {!! json_encode($messagesData->pluck('sent')) !!},
                 borderColor: '#25d366',
-                backgroundColor: 'rgba(37, 211, 102, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointRadius: 4,
-                pointHoverRadius: 6
+                backgroundColor: 'rgba(37,211,102,0.08)',
+                tension: 0.35,
+                fill: true
             }, {
-                label: 'Mensajes Recibidos',
+                label: 'Recibidos',
                 data: {!! json_encode($messagesData->pluck('received')) !!},
-                borderColor: '#128C7E',
-                backgroundColor: 'rgba(18, 140, 126, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointRadius: 4,
-                pointHoverRadius: 6
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37,99,235,0.06)',
+                tension: 0.35,
+                fill: true
             }]
         },
-        options: {
-            ...commonOptions,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { precision: 0 }
-                }
-            }
-        }
+        options: { ...chartOpts, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
     });
 
-    // Response Time Chart
-    const responseCtx = document.getElementById('responseTimeChart').getContext('2d');
-    new Chart(responseCtx, {
-        type: 'bar',
-        data: {
-            labels: {!! json_encode($responseTimeData->pluck('date')->map(function($date) { return \Carbon\Carbon::parse($date)->format('d/m'); })) !!},
-            datasets: [{
-                label: 'Tiempo de Respuesta (min)',
-                data: {!! json_encode($responseTimeData->pluck('avg_time')) !!},
-                backgroundColor: 'rgba(37, 211, 102, 0.8)',
-                borderColor: '#25d366',
-                borderWidth: 2
-            }]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { precision: 1 }
-                }
-            }
-        }
-    });
-
-    // Message Types Chart
-    const messageTypesData = {!! json_encode(isset($messageTypesDistribution) ? $messageTypesDistribution : []) !!};
-    const messageTypesLabels = Object.keys(messageTypesData);
-    const messageTypesValues = Object.values(messageTypesData);
-    const totalTypes = messageTypesValues.reduce((a, b) => a + b, 0);
-
-    const messageTypesCtx = document.getElementById('messageTypesChart').getContext('2d');
-    new Chart(messageTypesCtx, {
+    const types = {!! json_encode($messageTypesDistribution) !!};
+    const typeLabels = Object.keys(types).length ? Object.keys(types) : ['Sin datos'];
+    const typeValues = Object.keys(types).length ? Object.values(types) : [1];
+    new Chart(document.getElementById('messageTypesChart'), {
         type: 'doughnut',
         data: {
-            labels: messageTypesLabels.length > 0 ? messageTypesLabels : ['Sin datos'],
+            labels: typeLabels,
             datasets: [{
-                data: messageTypesValues.length > 0 ? messageTypesValues : [1],
-                backgroundColor: [
-                    '#25d366',
-                    '#128C7E',
-                    '#34B7F1',
-                    '#075E54',
-                    '#dcf8c6',
-                    '#8696a0'
-                ]
+                data: typeValues,
+                backgroundColor: ['#25d366','#2563eb','#8b5cf6','#f59e0b','#94a3b8','#e11d48']
             }]
         },
-        options: {
-            ...commonOptions,
-            cutout: '60%',
-            plugins: {
-                ...commonOptions.plugins,
-                legend: {
-                    ...commonOptions.plugins.legend,
-                    position: 'bottom'
-                }
-            }
-        }
+        options: { ...chartOpts, cutout: '55%' }
     });
 
-    // Weekday Chart
-    @if(isset($messagesByWeekday))
-    const weekdayCtx = document.getElementById('weekdayChart').getContext('2d');
-    new Chart(weekdayCtx, {
-        type: 'bar',
-        data: {
-            labels: {!! json_encode(collect($messagesByWeekday)->pluck('day')) !!},
-            datasets: [{
-                label: 'Mensajes',
-                data: {!! json_encode(collect($messagesByWeekday)->pluck('count')) !!},
-                backgroundColor: 'rgba(52, 183, 241, 0.8)',
-                borderColor: '#34B7F1',
-                borderWidth: 2
-            }]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { precision: 0 }
-                }
+    document.querySelectorAll('.period-preset-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const form = this.closest('form');
+            const periodInput = form.querySelector('#period-preset');
+            if (periodInput) {
+                periodInput.value = this.dataset.period;
             }
-        }
-    });
-    @endif
-
-    // Messages By Hour Chart
-    const messagesByHourCtx = document.getElementById('messagesByHourChart').getContext('2d');
-    new Chart(messagesByHourCtx, {
-        type: 'bar',
-        data: {
-            labels: {!! json_encode($messagesByHour->pluck('hour')->map(function($h) { return $h . ':00'; })) !!},
-            datasets: [{
-                label: 'Mensajes',
-                data: {!! json_encode($messagesByHour->pluck('total')) !!},
-                backgroundColor: 'rgba(18, 140, 126, 0.8)',
-                borderColor: '#128C7E',
-                borderWidth: 2
-            }]
-        },
-        options: {
-            ...commonOptions,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { precision: 0 }
-                }
-            }
-        }
+            form.querySelectorAll('input[name="from"], input[name="to"]').forEach(function(el) {
+                el.removeAttribute('name');
+            });
+            form.submit();
+        });
     });
 });
 </script>

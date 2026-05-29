@@ -9,19 +9,25 @@ class WhatsappPrice extends Model
 {
     protected $fillable = [
         'menu_item_id',
+        'category',
         'sku',
         'name',
         'description',
         'benefits',
-        'nutritional_info',
+        'characteristics',
         'price',
         'promo_price',
-        'icon',
+        'currency',
+        'is_promo',
+        'promo_start_date',
+        'promo_end_date',
         'is_active',
         'stock',
         'allow_quantity_selection',
         'min_quantity',
-        'max_quantity'
+        'max_quantity',
+        'image',
+        'metadata',
     ];
 
     protected $casts = [
@@ -34,10 +40,29 @@ class WhatsappPrice extends Model
         'stock' => 'integer',
         'allow_quantity_selection' => 'boolean',
         'min_quantity' => 'integer',
-        'max_quantity' => 'integer'
+        'max_quantity' => 'integer',
+        'promo_start_date' => 'date',
+        'promo_end_date' => 'date',
     ];
 
-    public function category(): BelongsTo
+    protected $appends = ['icon'];
+
+    public function getIconAttribute(): string
+    {
+        if ($this->relationLoaded('menuCategory') && $this->menuCategory?->icon) {
+            return $this->menuCategory->icon;
+        }
+
+        if ($this->menu_item_id) {
+            $icon = WhatsappMenuItem::whereKey($this->menu_item_id)->value('icon');
+
+            return $icon ?: '📦';
+        }
+
+        return '📦';
+    }
+
+    public function menuCategory(): BelongsTo
     {
         return $this->belongsTo(WhatsappMenuItem::class, 'menu_item_id')
             ->withDefault([
@@ -46,6 +71,12 @@ class WhatsappPrice extends Model
                 'description' => null,
                 'icon' => null
             ]);
+    }
+
+    /** @deprecated Use menuCategory() — alias kept for compatibility */
+    public function category(): BelongsTo
+    {
+        return $this->menuCategory();
     }
 
     public function hasStock(): bool

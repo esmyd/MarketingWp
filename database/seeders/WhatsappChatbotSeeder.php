@@ -29,7 +29,7 @@ class WhatsappChatbotSeeder extends Seeder
             'menu_commands' => ['menu', 'opciones', 'ayuda'],
             'metadata' => [
                 'language' => 'es',
-                'timezone' => 'America/Guayaquil'
+                'timezone' => 'America/Bogota'
             ],
             'is_active' => true
         ]);

@@ -80,7 +80,7 @@
 
                 <div class="space-y-4">
                     <div class="flex items-center">
-                        <input type="checkbox" id="monitoring_enabled" name="monitoring_enabled" value="1" 
+                        <input type="checkbox" id="monitoring_enabled" name="monitoring_enabled" value="1"
                             {{ ($config->monitoring_enabled ?? false) ? 'checked' : '' }}
                             class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                         <label for="monitoring_enabled" class="ml-2 block text-sm font-medium text-gray-700">

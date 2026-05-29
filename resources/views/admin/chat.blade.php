@@ -19,7 +19,39 @@
         color: #e9edef;
     }
 
-    /* Ocultar header blanco del layout */
+    /* Pantalla completa dentro del panel admin */
+    body.chat-page {
+        background: #0b141a !important;
+        overflow: hidden;
+    }
+
+    body.chat-page .top-navbar,
+    body.chat-page .mobile-menu-btn {
+        display: none !important;
+    }
+
+    body.chat-page .main-wrapper {
+        min-height: 100vh;
+    }
+
+    body.chat-page .main-content {
+        padding: 0 !important;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    body.chat-page .alert {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 10000;
+        max-width: 380px;
+        margin: 0;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    }
+
     .content-header {
         display: none !important;
     }
@@ -118,11 +150,13 @@
     }
 
     .wa-main-bg {
-        min-height: 100vh;
+        flex: 1;
+        min-height: 0;
+        height: 100%;
         background: #0b141a;
         display: flex;
-        justify-content: center;
-        align-items: center;
+        justify-content: stretch;
+        align-items: stretch;
         padding: 0;
         position: relative;
         z-index: 1;
@@ -130,8 +164,7 @@
 
     .wa-card {
         width: 100%;
-        max-width: 1600px;
-        height: 100vh;
+        height: 100%;
         background: #111b21;
         border-radius: 0;
         box-shadow: none;
@@ -143,9 +176,9 @@
     .wa-sidebar {
         background: #202c33;
         border-right: 1px solid #313d45;
-        min-width: 380px;
-        max-width: 380px;
-        width: 380px;
+        min-width: 340px;
+        max-width: 340px;
+        width: 340px;
         height: 100%;
         overflow: hidden;
         display: flex;
@@ -153,6 +186,43 @@
         position: relative;
         z-index: 10;
         transition: transform 0.3s ease;
+        flex-shrink: 0;
+    }
+
+    .wa-sidebar-search {
+        padding: 8px 12px 10px;
+        background: #111b21;
+        border-bottom: 1px solid #313d45;
+        position: relative;
+    }
+
+    .wa-sidebar-search i {
+        position: absolute;
+        left: 24px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #8696a0;
+        font-size: 14px;
+        pointer-events: none;
+    }
+
+    .wa-sidebar-search input {
+        width: 100%;
+        background: #202c33;
+        border: none;
+        border-radius: 8px;
+        padding: 9px 12px 9px 36px;
+        color: #e9edef;
+        font-size: 14px;
+        outline: none;
+    }
+
+    .wa-sidebar-search input::placeholder {
+        color: #8696a0;
+    }
+
+    .wa-sidebar-search input:focus {
+        box-shadow: 0 0 0 1px #25d366;
     }
 
     /* Mobile sidebar overlay */
@@ -368,6 +438,8 @@
         flex-direction: column;
         background: #0b141a;
         position: relative;
+        min-height: 0;
+        overflow: hidden;
     }
 
     .wa-chat-panel::before {
@@ -392,6 +464,34 @@
         z-index: 1001;
         position: relative;
         min-height: 59px;
+        flex-shrink: 0;
+    }
+
+    .wa-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: auto;
+    }
+
+    .wa-header-action-btn {
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 50%;
+        background: transparent;
+        color: #aebac1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s, color 0.2s;
+    }
+
+    .wa-header-action-btn:hover,
+    .wa-header-action-btn.is-active {
+        background: #2a3942;
+        color: #25d366;
     }
 
     .wa-chat-header .wa-mobile-toggle {
@@ -448,7 +548,6 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-left: auto;
     }
 
     .bot-toggle-switch {
@@ -549,20 +648,21 @@
 
     .wa-message-time {
         font-size: 11px;
-        color: #8696a0;
-        margin-top: 2px;
-        padding: 0 7px;
+        color: rgba(233, 237, 239, 0.55);
+        margin-top: 4px;
         display: flex;
         align-items: center;
-        gap: 3px;
-    }
-
-    .wa-message-time.outgoing {
+        gap: 4px;
         justify-content: flex-end;
+        float: right;
+        margin-left: 12px;
+        line-height: 1;
     }
 
     .wa-message-time.incoming {
         justify-content: flex-start;
+        float: none;
+        margin-left: 0;
     }
 
     .wa-message-status {
@@ -573,48 +673,76 @@
 
     .wa-input-container {
         background: #202c33;
-        padding: 8px 16px;
+        padding: 10px 16px 14px;
         border-top: 1px solid #313d45;
-        z-index: 100;
+        flex-shrink: 0;
+        z-index: 20;
         position: relative;
     }
 
     .wa-chat-input-area {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
         position: relative;
-        z-index: 100;
+    }
+
+    .wa-input-attach-outside {
+        width: 42px;
+        height: 42px;
+        border: none;
+        border-radius: 50%;
+        background: transparent;
+        color: #8696a0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.2s, color 0.2s;
+    }
+
+    .wa-input-attach-outside:hover {
+        background: #2a3942;
+        color: #e9edef;
     }
 
     .wa-input-wrapper {
+        flex: 1;
         background: #2a3942;
-        border-radius: 24px;
+        border-radius: 8px;
         display: flex;
-        align-items: center;
-        padding: 2px 2px 2px 12px;
-        min-height: 52px;
+        align-items: flex-end;
+        padding: 6px 8px 6px 12px;
+        min-height: 42px;
+        max-height: 120px;
     }
 
     .wa-input-button {
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         color: #8696a0;
-        transition: background 0.2s;
+        transition: background 0.2s, color 0.2s;
         flex-shrink: 0;
+        border: none;
+        background: transparent;
     }
 
     .wa-input-button:hover {
         background: #313d45;
+        color: #e9edef;
     }
 
     .wa-input-textarea {
         flex: 1;
         border: none;
         outline: none;
-        padding: 9px 12px;
+        padding: 6px 8px;
         font-size: 15px;
         line-height: 20px;
         color: #e9edef;
@@ -622,6 +750,7 @@
         max-height: 100px;
         font-family: inherit;
         background: transparent;
+        min-height: 24px;
     }
 
     .wa-input-textarea::placeholder {
@@ -629,21 +758,31 @@
     }
 
     .wa-send-button {
-        width: 48px;
-        height: 48px;
+        width: 42px;
+        height: 42px;
         border-radius: 50%;
-        background: #25d366;
+        background: transparent;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        color: #ffffff;
-        transition: background 0.2s;
+        color: #8696a0;
+        transition: background 0.2s, color 0.2s;
         flex-shrink: 0;
         border: none;
     }
 
-    .wa-send-button:hover {
+    .wa-send-button:hover,
+    .wa-send-button.has-text {
+        color: #25d366;
+    }
+
+    .wa-send-button.has-text {
+        background: #25d366;
+        color: #fff;
+    }
+
+    .wa-send-button.has-text:hover {
         background: #20ba5a;
     }
 
@@ -714,15 +853,61 @@
         }
     }
 
-    /* New styles for stats panel */
+    /* Panel de estadísticas (oculto por defecto, se abre con botón) */
     .stats-panel {
-        background: transparent;
-        border-radius: 0;
-        padding: 10px 15px;
-        margin-bottom: 10px;
-        box-shadow: none;
-        position: relative;
-        z-index: 1;
+        display: none;
+        position: fixed;
+        bottom: 0;
+        left: var(--sidebar-width, 250px);
+        right: 0;
+        max-height: 80vh;
+        overflow-y: auto;
+        background: #111b21;
+        border-top: 2px solid #25d366;
+        padding: 16px;
+        z-index: 2000;
+        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
+    }
+
+    body.chat-page .main-wrapper.sidebar-collapsed .stats-panel {
+        left: var(--sidebar-collapsed-width, 70px);
+    }
+
+    .stats-panel.is-open {
+        display: block;
+    }
+
+    .stats-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #313d45;
+    }
+
+    .stats-panel-header h3 {
+        margin: 0;
+        font-size: 1rem;
+        color: #e9edef;
+        font-weight: 500;
+    }
+
+    .stats-panel-close {
+        background: #2a3942;
+        border: none;
+        color: #e9edef;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .stats-panel-close:hover {
+        background: #313d45;
     }
     .stats-grid {
         display: grid;
@@ -901,14 +1086,9 @@
             max-width: 85%;
         }
 
-        /* Ocultar o ajustar stats-panel en móvil para que no tape el input */
         .stats-panel {
-            position: relative;
-            z-index: 1;
-            margin-bottom: 0;
-            padding: 8px 10px;
-            max-height: 200px;
-            overflow-y: auto;
+            left: 0;
+            max-height: 70vh;
         }
 
         .stats-grid {
@@ -962,7 +1142,11 @@
                 </button>
                 <div class="wa-sidebar-header-title">Chats</div>
             </div>
-            <div class="wa-sidebar-contacts">
+            <div class="wa-sidebar-search">
+                <i class="fas fa-search"></i>
+                <input type="text" id="contact-search" placeholder="Buscar o iniciar chat" autocomplete="off">
+            </div>
+            <div class="wa-sidebar-contacts" id="wa-sidebar-contacts">
             @foreach($contacts as $c)
                 <a href="javascript:void(0)" data-contact-id="{{ $c->id }}" class="wa-sidebar-contact{{ $contact->id === $c->id ? ' active' : '' }}">
                     <div class="wa-sidebar-avatar">{{ strtoupper(mb_substr($c->name ?? 'C', 0, 1)) }}</div>
@@ -1019,18 +1203,22 @@
                     <div class="wa-chat-header-name">{{ $contact->name ?? 'Cliente' }}</div>
                     <div class="wa-chat-header-status">{{ $contact->phone_number }}</div>
                 </div>
-                <!-- Control del Bot -->
-                <div class="wa-chat-bot-control">
-                    <span style="font-size: 12px; color: #8696a0;">Bot:</span>
-                    <label class="bot-toggle-switch">
-                        <input type="checkbox" id="bot-enabled-toggle"
-                               {{ ($contact->bot_enabled ?? true) ? 'checked' : '' }}
-                               data-contact-id="{{ $contact->id }}">
-                        <span class="bot-toggle-slider"></span>
-                    </label>
-                    <span id="bot-status-text" style="font-size: 12px; color: #8696a0; min-width: 60px;">
-                        {{ ($contact->bot_enabled ?? true) ? 'Activo' : 'Inactivo' }}
-                    </span>
+                <div class="wa-header-actions">
+                    <div class="wa-chat-bot-control">
+                        <span style="font-size: 12px; color: #8696a0;">Bot</span>
+                        <label class="bot-toggle-switch">
+                            <input type="checkbox" id="bot-enabled-toggle"
+                                   {{ ($contact->bot_enabled ?? true) ? 'checked' : '' }}
+                                   data-contact-id="{{ $contact->id }}">
+                            <span class="bot-toggle-slider"></span>
+                        </label>
+                        <span id="bot-status-text" style="font-size: 12px; color: #8696a0; min-width: 52px;">
+                            {{ ($contact->bot_enabled ?? true) ? 'Activo' : 'Inactivo' }}
+                        </span>
+                    </div>
+                    <button type="button" id="stats-toggle-btn" class="wa-header-action-btn" title="Ver estadísticas">
+                        <i class="fas fa-chart-line"></i>
+                    </button>
                 </div>
             </div>
             <!-- Mensajes -->
@@ -1048,7 +1236,7 @@
                             $decoded = null;
                         }
                     @endphp
-                    <div class="wa-message-wrapper {{ $isIncoming ? 'incoming' : 'outgoing' }}" data-message-id="{{ $msg->id }}">
+                    <div class="wa-message-wrapper {{ $isIncoming ? 'incoming' : 'outgoing' }}" data-message-id="{{ $msg->id }}" @if($isIncoming && $msg->message_id) data-whatsapp-message-id="{{ $msg->message_id }}" @endif>
                         <div class="{{ $bubbleClass }}">
                             @if($msg->type === 'image')
                                 @php
@@ -1138,7 +1326,7 @@
                 @endforelse
             </div>
             <!-- Formulario de envío de mensajes -->
-            <div class="wa-input-container">
+            <div class="wa-input-container" id="wa-input-container">
                 <!-- Vista previa de imagen -->
                 <div id="image-preview-container" class="wa-preview-container hidden">
                     <div class="wa-preview-box">
@@ -1321,32 +1509,20 @@
                     <input type="file" id="image-input" name="image" accept="image/*" class="hidden">
                     <input type="file" id="document-input" name="document" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" class="hidden">
                     <input type="hidden" id="current-contact-id" value="{{ $contact->id }}">
+                    <input type="hidden" id="last-inbound-wamid" value="{{ $lastInboundWamid ?? '' }}">
+                    @if(empty($typingAvailable))
+                    <p id="typing-unavailable-hint" class="text-xs text-amber-600 px-3 py-1 text-center" style="background:#fff8e6;">
+                        Para ver "escribiendo..." en el WhatsApp del cliente, él debe enviar un mensaje primero (últimas 24 h).
+                    </p>
+                    @endif
 
-                    <div class="wa-input-wrapper">
-                    <!-- Botón de emojis -->
-                    <button
-                        type="button"
-                        id="emoji-button"
-                            class="wa-input-button"
-                        title="Agregar emoji"
-                    >
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.418 0-8-3.582-8-8s3.582-8 8-8 8 3.582 8 8-3.582 8-8 8z" fill="currentColor"/>
-                                <path d="M8.5 10.5c-.828 0-1.5-.895-1.5-2s.672-2 1.5-2 1.5.895 1.5 2-.672 2-1.5 2zm7 0c-.828 0-1.5-.895-1.5-2s.672-2 1.5-2 1.5.895 1.5 2-.672 2-1.5 2zM12 18c2.28 0 4.22-1.66 5-4H7c.78 2.34 2.72 4 5 4z" fill="currentColor"/>
-                        </svg>
-                    </button>
-
-                        <!-- Botón de adjuntar (menú) -->
-                    <button
-                        type="button"
-                            id="attach-button"
-                            class="wa-input-button"
-                            title="Adjuntar"
-                        >
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <div class="wa-chat-input-area">
+                        <!-- Botón adjuntar (fuera del campo, estilo WhatsApp) -->
+                        <button type="button" id="attach-button" class="wa-input-attach-outside" title="Adjuntar">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z" fill="currentColor"/>
-                        </svg>
-                    </button>
+                            </svg>
+                        </button>
 
                         <!-- Menú de adjuntar -->
                         <div id="attach-menu" class="hidden absolute bottom-full mb-2 rounded-lg shadow-xl p-2 z-50" style="min-width: 240px; left: 0; background: #233138; border: 1px solid #313d45;">
@@ -1368,36 +1544,42 @@
                     </button>
                         </div>
 
-                        <!-- Textarea -->
-                        <textarea
-                            id="message-input"
-                            name="message"
-                            rows="1"
-                            placeholder="Escribe un mensaje"
-                            class="wa-input-textarea"
-                        ></textarea>
+                        <div class="wa-input-wrapper">
+                            <textarea
+                                id="message-input"
+                                name="message"
+                                rows="1"
+                                placeholder="Escribe un mensaje"
+                                class="wa-input-textarea"
+                            ></textarea>
+                            <button type="button" id="emoji-button" class="wa-input-button" title="Agregar emoji">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.418 0-8-3.582-8-8s3.582-8 8-8 8 3.582 8 8-3.582 8-8 8z" fill="currentColor"/>
+                                    <path d="M8.5 10.5c-.828 0-1.5-.895-1.5-2s.672-2 1.5-2 1.5.895 1.5 2-.672 2-1.5 2zm7 0c-.828 0-1.5-.895-1.5-2s.672-2 1.5-2 1.5.895 1.5 2-.672 2-1.5 2zM12 18c2.28 0 4.22-1.66 5-4H7c.78 2.34 2.72 4 5 4z" fill="currentColor"/>
+                                </svg>
+                            </button>
+                        </div>
 
-                        <!-- Botón de enviar -->
-                    <button
-                        type="submit"
-                        id="send-button"
-                            class="wa-send-button"
-                            title="Enviar"
-                            onclick="console.log('🔘 Botón de enviar clickeado'); return true;"
-                    >
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <button type="submit" id="send-button" class="wa-send-button" title="Enviar">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                                 <path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z" fill="currentColor"/>
-                        </svg>
-                    </button>
-                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                            </svg>
+                        </button>
                     </div>
+                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
                 </form>
             </div>
         </div>
     </div>
 </div>
-<!-- Stats Panel -->
+<!-- Stats Panel (panel deslizable, oculto por defecto) -->
 <div class="stats-panel" id="stats-panel">
+    <div class="stats-panel-header">
+        <h3><i class="fas fa-chart-line me-2"></i>Estadísticas del chat</h3>
+        <button type="button" class="stats-panel-close" id="stats-panel-close" title="Cerrar">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-title">
@@ -1637,6 +1819,101 @@
         if(chat) chat.scrollTop = chat.scrollHeight;
     };
 
+    // Panel de estadísticas
+    (function() {
+        const statsPanel = document.getElementById('stats-panel');
+        const statsToggleBtn = document.getElementById('stats-toggle-btn');
+        const statsCloseBtn = document.getElementById('stats-panel-close');
+
+        function toggleStats(open) {
+            if (!statsPanel) return;
+            const shouldOpen = typeof open === 'boolean' ? open : !statsPanel.classList.contains('is-open');
+            statsPanel.classList.toggle('is-open', shouldOpen);
+            statsToggleBtn?.classList.toggle('is-active', shouldOpen);
+        }
+
+        statsToggleBtn?.addEventListener('click', () => toggleStats());
+        statsCloseBtn?.addEventListener('click', () => toggleStats(false));
+    })();
+
+    // Indicador "escribiendo..." en WhatsApp del cliente
+    (function() {
+        let lastTypingSentAt = 0;
+        let typingRefreshTimer = null;
+        const TYPING_MIN_INTERVAL = 4000;
+        const TYPING_REFRESH_INTERVAL = 12000;
+        let lastInboundWhatsappId = document.getElementById('last-inbound-wamid')?.value || '';
+
+        window.updateLastInboundWhatsappId = function(wamid) {
+            if (!wamid || typeof wamid !== 'string' || !wamid.startsWith('wamid.')) return;
+            lastInboundWhatsappId = wamid;
+            const el = document.getElementById('last-inbound-wamid');
+            if (el) el.value = wamid;
+            const hint = document.getElementById('typing-unavailable-hint');
+            if (hint) hint.remove();
+        };
+
+        window.sendWhatsAppTypingIndicator = function() {
+            const contactId = document.getElementById('current-contact-id')?.value;
+            if (!contactId) return;
+
+            if (!lastInboundWhatsappId) {
+                const incoming = document.querySelector('#chat-messages .wa-message-wrapper.incoming[data-whatsapp-message-id]');
+                if (incoming) {
+                    updateLastInboundWhatsappId(incoming.getAttribute('data-whatsapp-message-id'));
+                }
+            }
+            if (!lastInboundWhatsappId) return;
+
+            const now = Date.now();
+            if (now - lastTypingSentAt < TYPING_MIN_INTERVAL) return;
+
+            lastTypingSentAt = now;
+            const payload = { contact_id: parseInt(contactId, 10) };
+            if (lastInboundWhatsappId) {
+                payload.whatsapp_message_id = lastInboundWhatsappId;
+            }
+            fetch('{{ route('admin.chat.typing') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            }).catch(function() {});
+        };
+
+        window.scheduleTypingRefresh = function() {
+            clearTimeout(typingRefreshTimer);
+            typingRefreshTimer = setTimeout(function() {
+                sendWhatsAppTypingIndicator();
+                scheduleTypingRefresh();
+            }, TYPING_REFRESH_INTERVAL);
+        };
+
+        window.stopTypingRefresh = function() {
+            clearTimeout(typingRefreshTimer);
+        };
+    })();
+
+    // Búsqueda de contactos en sidebar
+    (function() {
+        const searchInput = document.getElementById('contact-search');
+        const contactsList = document.getElementById('wa-sidebar-contacts');
+        if (!searchInput || !contactsList) return;
+
+        searchInput.addEventListener('input', function() {
+            const query = this.value.trim().toLowerCase();
+            contactsList.querySelectorAll('.wa-sidebar-contact').forEach(function(item) {
+                const name = (item.querySelector('.wa-sidebar-name')?.textContent || '').toLowerCase();
+                const phone = (item.querySelector('.wa-sidebar-phone span')?.textContent || '').toLowerCase();
+                const match = !query || name.includes(query) || phone.includes(query);
+                item.style.display = match ? '' : 'none';
+            });
+        });
+    })();
+
     // Variables globales para polling
     let pollingInterval = null;
     let lastMessageTimestamp = null;
@@ -1652,8 +1929,14 @@
         }
 
         const messageDiv = document.createElement('div');
-        messageDiv.className = isIncoming ? 'flex justify-start' : 'flex justify-end';
+        messageDiv.className = `wa-message-wrapper ${isIncoming ? 'incoming' : 'outgoing'}`;
         messageDiv.setAttribute('data-message-id', messageData.id || Date.now());
+        if (isIncoming && messageData.whatsapp_message_id) {
+            messageDiv.setAttribute('data-whatsapp-message-id', messageData.whatsapp_message_id);
+            if (typeof updateLastInboundWhatsappId === 'function') {
+                updateLastInboundWhatsappId(messageData.whatsapp_message_id);
+            }
+        }
 
         // Usar la fecha del mensaje si está disponible, sino la fecha actual
         const messageDate = messageData.created_at ? new Date(messageData.created_at) : new Date();
@@ -1698,17 +1981,18 @@
             contentHtml += `<span class="wa-bubble-content break-all">${escapeHtmlGlobal(messageData.content)}</span>`;
         }
 
-        // Determinar la clase de burbuja según el tipo de mensaje
         const bubbleClass = isIncoming ? 'wa-bubble-in' : 'wa-bubble-out';
-        const badgeHtml = isIncoming
-            ? '<div class="wa-badge wa-badge-cliente"><span>👤</span>Cliente</div>'
-            : '<div class="wa-badge wa-badge-sistema"><span>🤖</span>Sistema</div>';
+        const statusHtml = !isIncoming
+            ? `<span class="wa-message-status"><svg width="16" height="10" viewBox="0 0 16 10"><path d="M15.854 0.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L8.5 7.293l6.646-6.647a.5.5 0 0 1 .708 0z" fill="#53bdeb"/><path d="M10.854 0.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L3.5 7.293l6.646-6.647a.5.5 0 0 1 .708 0z" fill="#53bdeb"/></svg></span>`
+            : '';
 
         messageDiv.innerHTML = `
-            <div class="max-w-[70%] w-full break-words overflow-x-auto px-4 py-2 mb-1 ${bubbleClass} relative">
-                ${badgeHtml}
+            <div class="${bubbleClass}">
                 ${contentHtml}
-                <div class="text-[10px] text-gray-400 ${isIncoming ? 'text-left' : 'text-right'} mt-1">${timeOnly}</div>
+                <div class="wa-message-time ${isIncoming ? 'incoming' : 'outgoing'}">
+                    <span>${timeOnly}</span>
+                    ${statusHtml}
+                </div>
             </div>
         `;
 
@@ -1799,6 +2083,9 @@
                     const msgId = parseInt(messageData.id);
                     if (!existingMessageIds.has(msgId)) {
                         addMessageToView(messageData, messageData.sender_type === 'client');
+                        if (messageData.sender_type === 'client' && messageData.whatsapp_message_id) {
+                            updateLastInboundWhatsappId(messageData.whatsapp_message_id);
+                        }
                         hasNewMessages = true;
 
                         // Actualizar último mensaje
@@ -1865,8 +2152,15 @@
         let selectedImageFile = null;
         let selectedDocumentFile = null;
 
+        function updateSendButtonState() {
+            const hasContent = messageInput.value.trim().length > 0 || selectedImageFile || selectedDocumentFile;
+            sendButton.classList.toggle('has-text', hasContent);
+        }
+
         // REGISTRAR EL EVENT LISTENER DEL FORMULARIO PRIMERO - CRÍTICO
         messageForm.addEventListener('submit', function(e) {
+            stopTypingRefresh();
+            sendWhatsAppTypingIndicator();
             console.log('=== INICIO ENVÍO MENSAJE ===');
             console.log('1. Formulario submit interceptado', e);
             e.preventDefault();
@@ -2016,6 +2310,7 @@
                     if (documentInput) documentInput.value = '';
                     if (imagePreviewContainer) imagePreviewContainer.classList.add('hidden');
                     if (documentPreviewContainer) documentPreviewContainer.classList.add('hidden');
+                    updateSendButtonState();
                     if (imagePreview) imagePreview.src = '';
 
                     // Agregar el mensaje a la vista
@@ -2183,6 +2478,7 @@
                     if (imagePreviewContainer) imagePreviewContainer.classList.remove('hidden');
                 };
                 reader.readAsDataURL(file);
+                updateSendButtonState();
             }
         });
         }
@@ -2194,6 +2490,7 @@
                 imageInput.value = '';
                 imagePreviewContainer.classList.add('hidden');
                 imagePreview.src = '';
+                updateSendButtonState();
             });
         }
 
@@ -2225,6 +2522,7 @@
                 const fileSize = (file.size / 1024).toFixed(2);
                 if (documentPreviewSize) documentPreviewSize.textContent = fileSize > 1024 ? `${(fileSize / 1024).toFixed(2)} MB` : `${fileSize} KB`;
                 if (documentPreviewContainer) documentPreviewContainer.classList.remove('hidden');
+                updateSendButtonState();
             }
         });
         }
@@ -2235,14 +2533,34 @@
                 selectedDocumentFile = null;
                 documentInput.value = '';
                 documentPreviewContainer.classList.add('hidden');
+                updateSendButtonState();
             });
         }
 
-        // Auto-resize del textarea
+        // Auto-resize del textarea y estado del botón enviar
         messageInput.addEventListener('input', function() {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            updateSendButtonState();
+
+            if (this.value.trim()) {
+                sendWhatsAppTypingIndicator();
+                scheduleTypingRefresh();
+            } else {
+                stopTypingRefresh();
+            }
         });
+
+        messageInput.addEventListener('focus', function() {
+            if (this.value.trim()) {
+                sendWhatsAppTypingIndicator();
+                scheduleTypingRefresh();
+            }
+        });
+
+        messageInput.addEventListener('blur', stopTypingRefresh);
+
+        updateSendButtonState();
 
         // Permitir Enter para enviar y Shift+Enter para nueva línea
         messageInput.addEventListener('keydown', function(e) {

@@ -40,6 +40,14 @@ class WhatsappCart extends Model
         return $this->hasMany(WhatsappCartItem::class);
     }
 
+    /**
+     * Carritos en compra (active) no son pedidos cerrados.
+     */
+    public function scopeReportable($query)
+    {
+        return $query->whereNotIn('status', ['active', 'abandoned']);
+    }
+
     public function isPending()
     {
         return $this->status === self::STATUS_PENDING;

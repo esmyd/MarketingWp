@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
 use App\Models\WhatsappButton;
 use App\Mail\MonitoringNotification;
 use Illuminate\Support\Facades\Mail;
+use Carbon\Carbon;
 
 class WhatsappService
 {
@@ -30,6 +31,9 @@ class WhatsappService
     protected $businessPhone;
     protected $businessProfile;
     protected $lastMessage;
+    /** @var string|null Phone Number ID del webhook actual (prioridad sobre BD) */
+    protected $webhookPhoneNumberId = null;
+    protected bool $inboundMarkedRead = false;
 
     public function __construct()
     {
@@ -126,7 +130,15 @@ class WhatsappService
         try {
             if (!$this->businessProfile || !$this->businessProfile->phone_number_id) {
                 Log::error('No business profile or phone_number_id found');
-                return false;
+                return [
+                    'success' => false,
+                    'error' => 'Perfil de negocio o phone_number_id no configurado',
+                    'boolean' => false,
+                ];
+            }
+
+            if ($humanSent) {
+                $this->sendTypingIndicatorForContact($contact);
             }
 
             $url = "{$this->baseUrl}/{$this->apiVersion}/{$this->businessProfile->phone_number_id}/messages";
@@ -221,6 +233,10 @@ class WhatsappService
             if (!$this->businessProfile) {
                 Log::error('No business profile found');
                 return false;
+            }
+
+            if ($humanSent) {
+                $this->sendTypingIndicatorForContact($contact);
             }
 
             // Primero subir la imagen a WhatsApp Media API
@@ -327,6 +343,9 @@ class WhatsappService
                 return;
             }
 
+            $this->webhookPhoneNumberId = $value['metadata']['phone_number_id'] ?? null;
+            $this->inboundMarkedRead = false;
+
             // Procesar mensajes entrantes
             if (isset($value['messages']) && is_array($value['messages'])) {
                 foreach ($value['messages'] as $message) {
@@ -417,13 +436,12 @@ class WhatsappService
                 return;
             }
 
+            // Siempre actualizar wamid entrante (también en reintentos del webhook)
+            $this->rememberInboundFromWebhook($message);
+
             // Verificar si el mensaje ya fue procesado
             $existingMessage = WhatsappMessage::where('message_id', $message['id'])->first();
             if ($existingMessage) {
-                //Log::info('[processIncomingMessage] ⏭️ Mensaje ya procesado anteriormente', [
-                //    'message_id' => $message['id'],
-                //    'tipo' => $message['type']
-                //]);
                 return;
             }
 
@@ -455,8 +473,8 @@ class WhatsappService
                 $this->handleButtonMessage($message);
             }
 
-            // Marcar como leído
-            if (!empty($message['id']) && !empty($message['from'])) {
+            // Marcar como leído (si el typing no lo hizo ya)
+            if (!$this->inboundMarkedRead && !empty($message['id']) && !empty($message['from'])) {
                 $this->markMessageAsRead($message['id'], $message['from']);
             }
 
@@ -1059,10 +1077,18 @@ class WhatsappService
             // Si el bot está activado manualmente, NO verificar actividad humana reciente
             // El bot funcionará inmediatamente cuando esté activado
 
+            if (!empty($message->message_id)) {
+                $this->sendTypingIndicator($message->message_id);
+            }
+
             $response = $this->generateChatbotResponse($message->content, $message->contact->phone_number);
 
+            if ($response && !empty($message->message_id)) {
+                $this->prepareBotReply($contact, $message->message_id);
+            }
+
             // Enviar la respuesta
-            $result = $this->sendMessageToWhatsApp($contact->phone_number, $response);
+            $result = $response ? $this->sendMessageToWhatsApp($contact->phone_number, $response) : false;
 
             if ($result) {
                 // Extraer el contenido del mensaje según el tipo
@@ -1117,6 +1143,10 @@ class WhatsappService
             if (!$this->businessProfile) {
                 Log::error('No business profile found');
                 return false;
+            }
+
+            if ($humanSent) {
+                $this->sendTypingIndicatorForContact($contact);
             }
 
             // Detectar el tipo MIME del archivo
@@ -1263,6 +1293,10 @@ class WhatsappService
             if (!$this->businessProfile) {
                 Log::error('No business profile found');
                 return false;
+            }
+
+            if ($humanSent) {
+                $this->sendTypingIndicatorForContact($contact);
             }
 
             // Usar el nombre del archivo proporcionado o el nombre del archivo subido
@@ -1592,6 +1626,31 @@ class WhatsappService
         return $components;
     }
 
+    protected function resolvePhoneNumberId(): ?string
+    {
+        return $this->webhookPhoneNumberId
+            ?? $this->businessProfile?->phone_number_id
+            ?? config('whatsapp.phone_number_id');
+    }
+
+    public function setWebhookPhoneNumberId(?string $phoneNumberId): void
+    {
+        $this->webhookPhoneNumberId = $phoneNumberId ?: null;
+        $this->inboundMarkedRead = false;
+    }
+
+    /**
+     * Guarda el wamid entrante del webhook (para typing del panel humano y respuestas del bot).
+     */
+    protected function rememberInboundFromWebhook(array $message): void
+    {
+        $contact = WhatsappContact::where('phone_number', $message['from'])->first();
+
+        if ($contact && !empty($message['id'])) {
+            $this->rememberInboundMessage($contact, $message['id']);
+        }
+    }
+
     protected function markMessageAsRead($messageId, $to)
     {
         try {
@@ -1603,8 +1662,13 @@ class WhatsappService
                 return false;
             }
 
+            $phoneNumberId = $this->resolvePhoneNumberId();
+            if (!$phoneNumberId) {
+                return false;
+            }
+
             $response = Http::withToken($this->apiToken)
-                ->post("{$this->baseUrl}/{$this->apiVersion}/{$this->businessProfile->phone_number_id}/messages", [
+                ->post("{$this->baseUrl}/{$this->apiVersion}/{$phoneNumberId}/messages", [
                     'messaging_product' => 'whatsapp',
                     'status' => 'read',
                     'message_id' => $messageId
@@ -1632,6 +1696,164 @@ class WhatsappService
         }
     }
 
+    /**
+     * Muestra "escribiendo..." en el WhatsApp del cliente (marca el mensaje como leído).
+     * Requiere el message_id (wamid) de un mensaje entrante del cliente.
+     */
+    public function sendTypingIndicator(string $whatsappMessageId): bool
+    {
+        try {
+            if (!config('whatsapp.typing_indicator_enabled', true)) {
+                return false;
+            }
+
+            $phoneNumberId = $this->resolvePhoneNumberId();
+            if (!$whatsappMessageId || !$phoneNumberId) {
+                return false;
+            }
+
+            $response = Http::withToken($this->apiToken)
+                ->post("{$this->baseUrl}/{$this->apiVersion}/{$phoneNumberId}/messages", [
+                    'messaging_product' => 'whatsapp',
+                    'status' => 'read',
+                    'message_id' => $whatsappMessageId,
+                    'typing_indicator' => [
+                        'type' => 'text',
+                    ],
+                ]);
+
+            if ($response->successful()) {
+                $this->inboundMarkedRead = true;
+                Log::info('[sendTypingIndicator] Indicador de escritura enviado', [
+                    'message_id' => substr($whatsappMessageId, 0, 24) . '...',
+                    'phone_number_id' => $phoneNumberId,
+                ]);
+                return true;
+            }
+
+            Log::warning('[sendTypingIndicator] No se pudo enviar', [
+                'status' => $response->status(),
+                'response' => $response->json(),
+            ]);
+
+            return false;
+        } catch (\Exception $e) {
+            Log::error('[sendTypingIndicator] Error', [
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Guarda el wamid del último mensaje entrante (válido ~24 h para typing).
+     */
+    public function rememberInboundMessage(WhatsappContact $contact, string $whatsappMessageId): void
+    {
+        if (!$whatsappMessageId) {
+            return;
+        }
+
+        $contact->forceFill([
+            'last_inbound_message_id' => $whatsappMessageId,
+            'last_inbound_at' => now(),
+        ])->save();
+    }
+
+    /**
+     * Resuelve un message_id entrante reciente y válido para el indicador de escritura.
+     */
+    public function resolveInboundMessageId(WhatsappContact $contact): ?string
+    {
+        if (
+            $contact->last_inbound_message_id
+            && $contact->last_inbound_at
+            && $contact->last_inbound_at->gte(now()->subHours(24))
+        ) {
+            return $contact->last_inbound_message_id;
+        }
+
+        $recent = WhatsappMessage::where('contact_id', $contact->id)
+            ->where('sender_type', 'client')
+            ->whereNotNull('message_id')
+            ->where('message_id', '!=', '')
+            ->where('created_at', '>=', now()->subHours(24))
+            ->latest('created_at')
+            ->value('message_id');
+
+        return $recent ?: null;
+    }
+
+    /**
+     * Sincroniza last_inbound desde el último mensaje del cliente (<24 h).
+     */
+    public function syncContactLastInbound(WhatsappContact $contact): ?string
+    {
+        $recent = WhatsappMessage::where('contact_id', $contact->id)
+            ->where('sender_type', 'client')
+            ->whereNotNull('message_id')
+            ->where('message_id', '!=', '')
+            ->where('created_at', '>=', now()->subHours(24))
+            ->latest('created_at')
+            ->first();
+
+        if ($recent) {
+            $this->rememberInboundMessage($contact, $recent->message_id);
+
+            return $recent->message_id;
+        }
+
+        return $this->resolveInboundMessageId($contact);
+    }
+
+    /**
+     * Busca el último mensaje del cliente (últimas 24 h) y envía el indicador de escritura.
+     */
+    public function sendTypingIndicatorForContact(WhatsappContact $contact): bool
+    {
+        $messageId = $this->syncContactLastInbound($contact);
+
+        if (!$messageId) {
+            Log::debug('[sendTypingIndicatorForContact] Sin mensaje entrante reciente (<24h)', [
+                'contact_id' => $contact->id,
+            ]);
+            return false;
+        }
+
+        return $this->sendTypingIndicator($messageId);
+    }
+
+    /**
+     * Muestra "escribiendo..." justo antes de enviar la respuesta del bot (mismo flujo que el panel humano).
+     */
+    protected function prepareBotReply(WhatsappContact $contact, ?string $inboundMessageId = null): void
+    {
+        $contact->refresh();
+
+        if (!$contact->bot_enabled) {
+            return;
+        }
+
+        $messageId = $inboundMessageId ?: $this->resolveInboundMessageId($contact);
+        if (!$messageId) {
+            Log::warning('[prepareBotReply] Sin wamid entrante reciente para typing', [
+                'contact_id' => $contact->id,
+            ]);
+            return;
+        }
+
+        // Siempre enviar typing aquí (no omitir si ya se marcó como leído)
+        if (!$this->sendTypingIndicator($messageId)) {
+            Log::warning('[prepareBotReply] No se pudo mostrar typing antes de responder', [
+                'contact_id' => $contact->id,
+            ]);
+            return;
+        }
+
+        $delayMs = max((int) config('whatsapp.bot_reply_delay_ms', 2500), 2000);
+        usleep($delayMs * 1000);
+    }
+
     private function handleInteractiveMessage($data)
     {
         try {
@@ -1645,8 +1867,6 @@ class WhatsappService
                 'id' => $messageId,
                 'contenido' => $interactive
             ]);
-
-            $this->markMessageAsRead($messageId, $from);
 
             $contact = WhatsappContact::where('phone_number', $from)->first();
             if (!$contact) {
@@ -1700,12 +1920,14 @@ class WhatsappService
             ]);
 
             $this->lastMessage = $whatsappMessage;
+            $this->rememberInboundMessage($contact, $messageId);
 
             // Refrescar el contacto desde la base de datos para obtener el valor actualizado de bot_enabled
             $contact->refresh();
 
             // Verificar si el bot está habilitado para este contacto ANTES de procesar cualquier respuesta
             if (!$contact->bot_enabled) {
+                $this->markMessageAsRead($messageId, $from);
                 Log::info('[handleInteractiveMessage] 🛑 Bot detenido - Bot deshabilitado manualmente', [
                     'contact_id' => $contact->id,
                     'phone' => substr($from, 0, 4) . '****' . substr($from, -4),
@@ -2087,8 +2309,10 @@ class WhatsappService
             }
 
             if ($response) {
+                $this->prepareBotReply($contact, $messageId);
                 $this->sendMessage($from, $response);
             } else {
+                $this->markMessageAsRead($messageId, $from);
                 Log::warning('⚠️ No se encontró respuesta para el botón', [
                     'button_id' => $buttonId,
                     'button_title' => $buttonTitle
@@ -2583,12 +2807,13 @@ class WhatsappService
             // Obtener el texto del mensaje, manejando tanto strings como arrays
             $text = is_array($message['text']) ? strtolower($message['text']['body']) : strtolower($message['text']);
             $from = $message['from'];
+            $messageId = $message['id'] ?? null;
             $contact = WhatsappContact::where('phone_number', $from)->first();
 
             // Detectar si el cliente pide el catálogo (verificar bot_enabled antes)
             if (preg_match('/(catalogo|catálogo|productos|precios|lista de precios|ver productos)/i', $text)) {
                 if ($contact) {
-                    $contact->refresh(); // Refrescar para obtener valor actualizado
+                    $contact->refresh();
                     if (!$contact->bot_enabled) {
                         Log::info('[handleTextMessage] 🛑 Catálogo no enviado - Bot deshabilitado manualmente', [
                             'contact_id' => $contact->id,
@@ -2596,6 +2821,12 @@ class WhatsappService
                         ]);
                         return;
                     }
+                    if ($messageId) {
+                        $this->rememberInboundMessage($contact, $messageId);
+                    }
+                }
+                if ($contact?->bot_enabled && $messageId) {
+                    $this->prepareBotReply($contact, $messageId);
                 }
                 $this->sendCatalog($from);
                 return;
@@ -2609,9 +2840,6 @@ class WhatsappService
 
             // Lista de respuestas comunes que no deben ser tratadas como SKUs
             $commonResponses = ['no', 'si', 'ok', 'okay', 'gracias', 'thanks', 'bye', 'adios', 'chao', 'hola', 'hi', 'hello'];
-
-            // Marcar el mensaje como leído en WhatsApp
-            $this->markMessageAsRead($messageId, $from);
 
             // Buscar o crear el contacto en la base de datos
             $contact = WhatsappContact::where('phone_number', $from)->first();
@@ -2668,10 +2896,12 @@ class WhatsappService
             ]);
 
             $this->lastMessage = $whatsappMessage;
+            $this->rememberInboundMessage($contact, $messageId);
 
             // Variables para controlar el flujo de procesamiento
             $response = null;
             $processHandled = false;
+            $willAutoReply = false;
 
             // Verificar si hay un carrito activo esperando una nota
             $cart = WhatsappCart::where('contact_id', $contact->id)
@@ -2737,14 +2967,23 @@ class WhatsappService
                     // No generar ni enviar respuesta automática
                     $response = null;
                 } else {
-                    // Si el bot está activado, responder inmediatamente sin verificar actividad humana reciente
+                    $willAutoReply = true;
+                    // Typing mientras se genera la respuesta (IA, menús, etc.)
+                    if ($messageId) {
+                        $this->sendTypingIndicator($messageId);
+                    }
                     $response = $this->generateChatbotResponse($text, $from);
                 }
+            } elseif ($response) {
+                $willAutoReply = true;
             }
 
-            // Enviar la respuesta al usuario si existe
-            if ($response) {
+            if ($willAutoReply && $response) {
+                // Typing justo antes de enviar (tras generar la respuesta), igual que el panel humano
+                $this->prepareBotReply($contact, $messageId);
                 $this->sendMessage($from, $response);
+            } else {
+                $this->markMessageAsRead($messageId, $from);
             }
 
             // Registrar el procesamiento exitoso del mensaje
@@ -4710,10 +4949,12 @@ class WhatsappService
     private function sendMonitoringNotifications(array $message)
     {
         try {
-            // Obtener configuración de monitoreo
-            $config = WhatsappChatbotConfig::first();
+            $profileId = $this->businessProfile?->id;
+            $config = $profileId
+                ? WhatsappChatbotConfig::where('business_profile_id', $profileId)->first()
+                : WhatsappChatbotConfig::first();
 
-            if (!$config || !$config->monitoring_enabled) {
+            if (!$config || !filter_var($config->monitoring_enabled, FILTER_VALIDATE_BOOLEAN)) {
                 return;
             }
 
@@ -4726,7 +4967,7 @@ class WhatsappService
             $messageContent = $this->extractMessageContent($message);
             $messageType = $message['type'] ?? 'desconocido';
             $timestamp = isset($message['timestamp'])
-                ? date('Y-m-d H:i:s', $message['timestamp'])
+                ? Carbon::createFromTimestamp((int) $message['timestamp'])->format('Y-m-d H:i:s')
                 : now()->format('Y-m-d H:i:s');
 
             // Enviar mensaje de WhatsApp si está configurado

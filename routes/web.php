@@ -30,6 +30,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/chats/{contact}/new-messages', [App\Http\Controllers\AdminController::class, 'getNewMessages'])->name('chat.new-messages');
     Route::get('/chats/list/update', [App\Http\Controllers\AdminController::class, 'getContactsList'])->name('chat.contacts.update');
     Route::post('/chats/send', [App\Http\Controllers\AdminController::class, 'sendMessage'])->name('chat.send');
+    Route::post('/chats/typing', [App\Http\Controllers\AdminController::class, 'typingIndicator'])->name('chat.typing');
     Route::get('/messages/{message}/image', [App\Http\Controllers\AdminController::class, 'getImage'])->name('message.image');
     Route::get('/contacts/{id}', [App\Http\Controllers\AdminController::class, 'contactDetails']);
     Route::post('/contacts/{contact}/toggle-bot', [App\Http\Controllers\AdminController::class, 'toggleBot'])->name('contact.toggle-bot');

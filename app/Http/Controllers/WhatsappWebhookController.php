@@ -151,6 +151,10 @@ class WhatsappWebhookController extends Controller
                 Log::info("Tipo de mensaje: " . $type);
                 Log::info("Contenido del mensaje: " . json_encode($mensajeContent, JSON_UNESCAPED_UNICODE));
 
+                if (!empty($metadata['phone_number_id'])) {
+                    $this->whatsappService->setWebhookPhoneNumberId($metadata['phone_number_id']);
+                }
+
                 // Preparar datos para el servicio
                 $messageData = [
                     'from' => $from,

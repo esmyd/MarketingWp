@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\WhatsappCampaign;
 use App\Models\WhatsappContact;
+use App\Models\WhatsappMessage;
 use App\Models\WhatsappTemplate;
 use App\Models\WhatsappBusinessProfile;
 use App\Services\WhatsappService;
@@ -81,6 +82,7 @@ class MarketingCampaignController extends Controller
             'manual_numbers' => 'nullable|array',
             'manual_numbers.*' => 'string',
             'scheduled_at' => 'nullable|date|after:now',
+            'send_immediately' => 'nullable|boolean',
         ]);
 
         $businessProfile = WhatsappBusinessProfile::first();
@@ -123,7 +125,7 @@ class MarketingCampaignController extends Controller
         $validated['selected_contacts'] = array_unique($selectedContacts);
 
         // Calcular total de destinatarios
-        $totalRecipients = $this->calculateRecipients($validated);
+        $totalRecipients = $this->calculateRecipients($validated, $businessProfile->id);
 
         $campaign = WhatsappCampaign::create([
             'business_profile_id' => $businessProfile->id,
@@ -141,8 +143,21 @@ class MarketingCampaignController extends Controller
             'total_recipients' => $totalRecipients,
         ]);
 
+        if ($request->boolean('send_immediately') && !$validated['scheduled_at']) {
+            $result = $this->executeCampaignSend($campaign->fresh());
+            $route = redirect()->route('admin.marketing.show', $campaign);
+
+            if (!$result['ok']) {
+                return $route->with('error', 'Campaña creada, pero no se pudo enviar: ' . $result['message']);
+            }
+
+            return $route->with($result['flash_type'] ?? 'success', $result['message']);
+        }
+
         return redirect()->route('admin.marketing.index')
-            ->with('success', 'Campaña creada correctamente');
+            ->with('success', $validated['scheduled_at']
+                ? 'Campaña programada. Se enviará automáticamente si el programador (cron) está activo.'
+                : 'Campaña creada. Pulsa "Enviar" en la lista para lanzarla.');
     }
 
     /**
@@ -216,7 +231,7 @@ class MarketingCampaignController extends Controller
         ]);
 
         // Recalcular total de destinatarios
-        $totalRecipients = $this->calculateRecipients($validated);
+        $totalRecipients = $this->calculateRecipients($validated, $campaign->business_profile_id);
 
         $campaign->update([
             'name' => $validated['name'],
@@ -255,7 +270,7 @@ class MarketingCampaignController extends Controller
     }
 
     /**
-     * Envía la campaña
+     * Envía la campaña (web).
      */
     public function send($id)
     {
@@ -265,18 +280,49 @@ class MarketingCampaignController extends Controller
             return redirect()->back()->with('error', 'Esta campaña ya fue enviada o está en proceso');
         }
 
+        $result = $this->executeCampaignSend($campaign);
+
+        if (!$result['ok']) {
+            return redirect()->back()->with('error', $result['message']);
+        }
+
+        $flash = $result['flash_type'] === 'warning' ? 'warning' : 'success';
+
+        return redirect()->route('admin.marketing.show', $campaign)
+            ->with($flash, $result['message']);
+    }
+
+    /**
+     * Lógica de envío reutilizable (web, cron, artisan).
+     */
+    public function executeCampaignSend(WhatsappCampaign $campaign): array
+    {
+        if ($campaign->status === 'sending' || $campaign->status === 'completed') {
+            return ['ok' => false, 'message' => 'Esta campaña ya fue enviada o está en proceso'];
+        }
+
+        if (empty(trim((string) $campaign->message_content)) && $campaign->message_type === 'text') {
+            return ['ok' => false, 'message' => 'La campaña no tiene contenido de mensaje'];
+        }
+
+        if ($campaign->message_type === 'template' && !$campaign->template) {
+            return ['ok' => false, 'message' => 'Debe seleccionar una plantilla aprobada'];
+        }
+
+        if (!in_array($campaign->message_type, ['text', 'template'], true)) {
+            return ['ok' => false, 'message' => 'Tipo de mensaje no soportado aún: ' . $campaign->message_type];
+        }
+
         try {
             $campaign->update(['status' => 'sending']);
 
-            // Obtener destinatarios
             $recipients = $this->getRecipients($campaign);
 
-            if (empty($recipients)) {
+            if ($recipients->isEmpty()) {
                 $campaign->update(['status' => 'draft']);
-                return redirect()->back()->with('error', 'No se encontraron destinatarios para la campaña');
+                return ['ok' => false, 'message' => 'No se encontraron destinatarios para la campaña'];
             }
 
-            // Enviar mensajes
             $sent = 0;
             $failed = 0;
             $errorDetails = [];
@@ -287,60 +333,54 @@ class MarketingCampaignController extends Controller
                     $errorMessage = null;
 
                     if ($campaign->message_type === 'text') {
-                        // Personalizar el mensaje con datos del contacto
-                        $personalizedMessage = $this->personalizeMessage($campaign->message_content, $contact);
-                        $result = $this->whatsappService->sendTextMessage(
-                            $contact,
-                            $personalizedMessage,
-                            false
-                        );
-
-                        if (is_array($result)) {
-                            $success = $result['success'] ?? false;
-                            $errorMessage = $result['error'] ?? null;
+                        if (!$this->contactCanReceiveFreeformText($contact)) {
+                            $errorMessage = 'El contacto no escribió en las últimas 24 h. Use una plantilla aprobada para campañas masivas.';
                         } else {
-                            $success = $result;
+                            $personalizedMessage = $this->personalizeMessage(
+                                (string) $campaign->message_content,
+                                $contact
+                            );
+                            $result = $this->whatsappService->sendTextMessage(
+                                $contact,
+                                $personalizedMessage,
+                                false
+                            );
+                            [$success, $errorMessage] = $this->parseSendResult($result);
                         }
                     } elseif ($campaign->message_type === 'template' && $campaign->template) {
-                        $variables = $campaign->template_variables ?? [];
-                        // Personalizar variables con datos del contacto
-                        $personalizedVars = $this->personalizeVariables($variables, $contact);
+                        $personalizedVars = $this->personalizeVariables(
+                            $campaign->template_variables ?? [],
+                            $contact
+                        );
                         $result = $this->whatsappService->sendTemplateMessage(
                             $contact,
                             $campaign->template,
                             $personalizedVars
                         );
-
-                        if (is_array($result)) {
-                            $success = $result['success'] ?? false;
-                            $errorMessage = $result['error'] ?? null;
-                        } else {
-                            $success = $result;
-                        }
+                        [$success, $errorMessage] = $this->parseSendResult($result);
+                    } else {
+                        $errorMessage = 'Configuración de plantilla inválida';
                     }
 
                     if ($success) {
                         $sent++;
                     } else {
                         $failed++;
-                        if ($errorMessage) {
-                            $errorDetails[] = [
-                                'contact_id' => $contact->id,
-                                'contact_name' => $contact->name,
-                                'phone_number' => $contact->phone_number,
-                                'error' => $errorMessage,
-                                'timestamp' => now()->toIso8601String()
-                            ];
-                        }
+                        $errorDetails[] = [
+                            'contact_id' => $contact->id,
+                            'contact_name' => $contact->name,
+                            'phone_number' => $contact->phone_number,
+                            'error' => $errorMessage ?? 'Error desconocido al enviar',
+                            'timestamp' => now()->toIso8601String(),
+                        ];
                     }
 
-                    // Pequeña pausa para evitar rate limiting
-                    usleep(500000); // 0.5 segundos
+                    usleep(500000);
                 } catch (\Exception $e) {
                     Log::error('Error enviando mensaje de campaña', [
                         'campaign_id' => $campaign->id,
                         'contact_id' => $contact->id,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                     $failed++;
                     $errorDetails[] = [
@@ -348,38 +388,61 @@ class MarketingCampaignController extends Controller
                         'contact_name' => $contact->name ?? 'Desconocido',
                         'phone_number' => $contact->phone_number ?? 'N/A',
                         'error' => $e->getMessage(),
-                        'timestamp' => now()->toIso8601String()
+                        'timestamp' => now()->toIso8601String(),
                     ];
                 }
 
-                // Actualizar contadores en tiempo real
                 $campaign->update([
                     'sent_count' => $sent,
                     'failed_count' => $failed,
-                    'error_details' => !empty($errorDetails) ? $errorDetails : null
+                    'error_details' => !empty($errorDetails) ? $errorDetails : null,
                 ]);
             }
 
             $campaign->update([
                 'status' => 'completed',
                 'sent_at' => now(),
-                'error_details' => !empty($errorDetails) ? $errorDetails : null
+                'error_details' => !empty($errorDetails) ? $errorDetails : null,
             ]);
 
-            return redirect()->route('admin.marketing.show', $campaign)
-                ->with('success', "Campaña enviada. Enviados: {$sent}, Fallidos: {$failed}");
+            $message = "Campaña procesada. Enviados: {$sent}, Fallidos: {$failed}";
+            $flashType = $sent === 0 && $failed > 0 ? 'warning' : 'success';
 
+            if ($sent === 0 && $failed > 0 && $campaign->message_type === 'text') {
+                $message .= '. Para contactos sin conversación reciente, use plantillas aprobadas por Meta.';
+            }
+
+            return ['ok' => true, 'message' => $message, 'flash_type' => $flashType, 'sent' => $sent, 'failed' => $failed];
         } catch (\Exception $e) {
             Log::error('Error enviando campaña', [
                 'campaign_id' => $campaign->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ]);
 
             $campaign->update(['status' => 'draft']);
 
-            return redirect()->back()->with('error', 'Error al enviar la campaña: ' . $e->getMessage());
+            return ['ok' => false, 'message' => 'Error al enviar la campaña: ' . $e->getMessage()];
         }
+    }
+
+    private function parseSendResult($result): array
+    {
+        if (is_array($result)) {
+            return [(bool) ($result['success'] ?? false), $result['error'] ?? null];
+        }
+
+        return [(bool) $result, $result ? null : 'No se pudo enviar el mensaje'];
+    }
+
+    /**
+     * Texto libre solo si el cliente escribió en las últimas 24 h (regla de Meta).
+     */
+    private function contactCanReceiveFreeformText(WhatsappContact $contact): bool
+    {
+        return WhatsappMessage::where('contact_id', $contact->id)
+            ->where('sender_type', 'client')
+            ->where('created_at', '>=', now()->subHours(24))
+            ->exists();
     }
 
     /**
@@ -388,6 +451,10 @@ class MarketingCampaignController extends Controller
     private function getRecipients(WhatsappCampaign $campaign)
     {
         $query = WhatsappContact::where('status', 'active');
+
+        if ($campaign->business_profile_id) {
+            $query->where('business_profile_id', $campaign->business_profile_id);
+        }
 
         switch ($campaign->recipient_type) {
             case 'all':
@@ -420,9 +487,13 @@ class MarketingCampaignController extends Controller
     /**
      * Calcula el total de destinatarios
      */
-    private function calculateRecipients(array $data): int
+    private function calculateRecipients(array $data, ?int $businessProfileId = null): int
     {
         $query = WhatsappContact::where('status', 'active');
+
+        if ($businessProfileId) {
+            $query->where('business_profile_id', $businessProfileId);
+        }
 
         switch ($data['recipient_type']) {
             case 'all':

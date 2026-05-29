@@ -11,8 +11,14 @@ return [
     |
     */
 
-    // WhatsApp Business API version
-    'api_version' => env('WHATSAPP_API_VERSION', 'v22.0'),
+    // WhatsApp Business API version (typing indicators requieren v23.0+)
+    'api_version' => env('WHATSAPP_API_VERSION', 'v23.0'),
+
+    // Indicador "escribiendo..." en WhatsApp del cliente
+    'typing_indicator_enabled' => env('WHATSAPP_TYPING_INDICATOR', true),
+
+    // Pausa (ms) entre mostrar "escribiendo..." y enviar respuesta del bot (para que el usuario lo vea)
+    'bot_reply_delay_ms' => env('WHATSAPP_BOT_REPLY_DELAY_MS', 2500),
 
     // Base URL for API requests
     'api_url' => env('WHATSAPP_API_URL', 'https://graph.facebook.com'),
@@ -25,6 +31,9 @@ return [
 
     // Business Phone Number
     'phone_number' => env('WHATSAPP_PHONE_NUMBER'),
+
+    // Phone Number ID (15 dígitos) para llamadas a la API
+    'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
 
     // Default language for templates
     'default_language' => 'es',
