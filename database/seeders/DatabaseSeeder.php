@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             WhatsappChatbotResponsesSeeder::class,
             WhatsappPricesSeeder::class,
             WhatsappMenuSeeder::class,
+            MarketingFlowSeeder::class,
             AdminUserSeeder::class,
             WhatsappProductButtonSeeder::class,
             ChatGPTConfigSeeder::class,

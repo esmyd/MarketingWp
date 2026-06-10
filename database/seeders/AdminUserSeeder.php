@@ -10,11 +10,14 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        User::create([
-            'name' => 'Administrador',
-            'email' => 'gosorio@siglotecnologico.com',
-            'password' => Hash::make('password123'),
-            'is_admin' => true,
-        ]);
+        User::updateOrCreate(
+            ['username' => 'admin'],
+            [
+                'name' => 'Administrador',
+                'email' => 'gosorio@siglotecnologico.com',
+                'password' => Hash::make('password123'),
+                'is_admin' => true,
+            ]
+        );
     }
 }

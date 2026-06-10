@@ -1,167 +1,478 @@
+@php
+    $demoNumber = preg_replace('/[^0-9]/', '', config('whatsapp.demo_whatsapp_number', ''));
+    $demoMessage = rawurlencode('Hola, me interesa conocer el bot de ventas por WhatsApp. ¿Podrían agendarme una demo?');
+    $demoWhatsappUrl = $demoNumber ? "https://wa.me/{$demoNumber}?text={$demoMessage}" : null;
+@endphp
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - WhatsApp Marketing</title>
+    <meta name="robots" content="noindex, nofollow">
+    <title>Ingreso — WhatsApp Marketing</title>
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
     <link rel="apple-touch-icon" href="{{ asset('favicon.svg') }}">
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0b141a;
+            color: #e9edef;
         }
-        .animate-fade-in {
-            animation: fadeIn 0.5s ease-out;
+        .login-shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
         }
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        @media (max-width: 900px) {
+            .login-shell { grid-template-columns: 1fr; }
+            .login-brand { display: none; }
         }
-        .input-focus:focus {
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        .login-brand {
+            background: linear-gradient(160deg, #111b21 0%, #075e54 55%, #128c7e 100%);
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+        .login-brand::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M60 0H0v60' fill='none' stroke='%23ffffff' stroke-opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+        }
+        .brand-top { position: relative; z-index: 1; }
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: .85rem;
+            margin-bottom: 2.5rem;
+        }
+        .brand-logo-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: rgba(255,255,255,.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            color: #25d366;
+        }
+        .brand-logo-text {
+            font-size: 1.35rem;
+            font-weight: 700;
+            letter-spacing: -.02em;
+        }
+        .brand-logo-text span { color: #25d366; }
+        .brand-headline {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.25;
+            max-width: 420px;
+            margin: 0 0 1rem;
+        }
+        .brand-sub {
+            color: rgba(233,237,239,.78);
+            font-size: 1rem;
+            line-height: 1.6;
+            max-width: 400px;
+        }
+        .brand-features {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            gap: .75rem;
+            margin-top: 2rem;
+        }
+        .brand-feature {
+            display: flex;
+            align-items: center;
+            gap: .65rem;
+            font-size: .88rem;
+            color: rgba(233,237,239,.85);
+        }
+        .brand-feature i { color: #25d366; width: 18px; text-align: center; }
+        .brand-footer {
+            position: relative;
+            z-index: 1;
+            font-size: .78rem;
+            color: rgba(233,237,239,.45);
+        }
+        .login-panel {
+            background: #f4f6f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 8px 40px rgba(17, 27, 33, .12);
+            border: 1px solid #e8ecf1;
+            overflow: hidden;
+        }
+        .login-card-header {
+            padding: 2rem 2rem 1.25rem;
+            border-bottom: 1px solid #eef1f4;
+        }
+        .login-card-header h1 {
+            margin: 0 0 .35rem;
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: #111b21;
+        }
+        .login-card-header p {
+            margin: 0;
+            color: #667781;
+            font-size: .9rem;
+        }
+        .login-card-body { padding: 1.5rem 2rem 2rem; }
+        .form-group { margin-bottom: 1.15rem; }
+        .form-label {
+            display: block;
+            font-size: .82rem;
+            font-weight: 600;
+            color: #3b4a54;
+            margin-bottom: .4rem;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+        .input-wrap { position: relative; }
+        .input-wrap > i.field-icon {
+            position: absolute;
+            left: .9rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #8696a0;
+            font-size: .9rem;
+            pointer-events: none;
+        }
+        .form-control {
+            width: 100%;
+            padding: .75rem 2.75rem .75rem 2.5rem;
+            border: 1px solid #d1d7db;
+            border-radius: 10px;
+            font-size: .95rem;
+            color: #111b21;
+            background: #fff;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .form-control.no-toggle { padding-right: .9rem; }
+        .form-control:focus {
+            outline: none;
+            border-color: #128c7e;
+            box-shadow: 0 0 0 3px rgba(18, 140, 126, .12);
+        }
+        .form-control.is-invalid { border-color: #dc3545; }
+        .toggle-password {
+            position: absolute;
+            right: .65rem;
+            top: 50%;
+            transform: translateY(-50%);
+            border: none;
+            background: transparent;
+            color: #8696a0;
+            cursor: pointer;
+            padding: .35rem;
+            border-radius: 6px;
+            line-height: 1;
+            transition: color .15s, background .15s;
+        }
+        .toggle-password:hover {
+            color: #128c7e;
+            background: rgba(18, 140, 126, .08);
+        }
+        .invalid-feedback {
+            color: #dc3545;
+            font-size: .82rem;
+            margin-top: .35rem;
+        }
+        .alert-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            padding: .75rem 1rem;
+            font-size: .85rem;
+            color: #b91c1c;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: flex-start;
+            gap: .5rem;
+        }
+        .btn-login {
+            width: 100%;
+            padding: .85rem 1rem;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #128c7e, #075e54);
+            color: #fff;
+            font-size: .95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform .12s, box-shadow .12s;
+            box-shadow: 0 4px 14px rgba(7, 94, 84, .25);
+        }
+        .btn-login:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(7, 94, 84, .32);
+        }
+        .btn-login:disabled {
+            opacity: .65;
+            cursor: not-allowed;
+        }
+        .btn-demo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            width: 100%;
+            margin-top: .85rem;
+            padding: .8rem 1rem;
+            border-radius: 10px;
+            border: 2px solid #25d366;
+            background: #fff;
+            color: #075e54;
+            font-size: .92rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background .15s, color .15s, transform .12s;
+        }
+        .btn-demo:hover {
+            background: #25d366;
+            color: #fff;
+            transform: translateY(-1px);
+        }
+        .btn-demo i { font-size: 1.1rem; }
+        .login-divider {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            margin: 1.25rem 0 .25rem;
+            color: #8696a0;
+            font-size: .78rem;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+        }
+        .login-divider::before,
+        .login-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e8ecf1;
+        }
+        .login-footer-note {
+            margin-top: 1.25rem;
+            text-align: center;
+            font-size: .78rem;
+            color: #8696a0;
+        }
+        .login-footer-note i { color: #128c7e; }
+        .hp-field {
+            position: absolute;
+            left: -9999px;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .mobile-brand {
+            display: none;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        @media (max-width: 900px) {
+            .mobile-brand { display: block; }
+            .mobile-brand .brand-logo { justify-content: center; margin-bottom: 0; }
         }
     </style>
 </head>
-<body class="gradient-bg min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full animate-fade-in">
-        <!-- Card Container -->
-        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
-            <!-- Header Section -->
-            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-10 text-center">
-                <div class="inline-flex items-center justify-center w-20 h-20 bg-white rounded-full mb-4 shadow-lg">
-                    <i class="fab fa-whatsapp text-4xl text-green-500"></i>
+<body>
+    <div class="login-shell">
+        <aside class="login-brand">
+            <div class="brand-top">
+                <div class="brand-logo">
+                    <div class="brand-logo-icon"><i class="fab fa-whatsapp"></i></div>
+                    <div class="brand-logo-text"><span>WhatsApp</span> Marketing</div>
                 </div>
-                <h1 class="text-3xl font-bold text-white mb-2">WhatsApp Marketing</h1>
-                <p class="text-indigo-100 text-sm">Panel de Administración</p>
+                <h2 class="brand-headline">Vende más con tu bot de WhatsApp</h2>
+                <p class="brand-sub">Automatiza catálogos, campañas y atención al cliente. Tu agencia de ventas, disponible 24/7 en el canal que tus clientes ya usan.</p>
+                <div class="brand-features">
+                    <div class="brand-feature"><i class="fas fa-robot"></i> Bot inteligente con catálogo y pedidos</div>
+                    <div class="brand-feature"><i class="fas fa-bullhorn"></i> Campañas de marketing masivas</div>
+                    <div class="brand-feature"><i class="fas fa-chart-line"></i> Panel de ventas y conversaciones en vivo</div>
+                    <div class="brand-feature"><i class="fas fa-shield-halved"></i> Acceso seguro solo para tu equipo</div>
+                </div>
             </div>
+            <div class="brand-footer">&copy; {{ date('Y') }} WhatsApp Marketing · Uso exclusivo de personal autorizado</div>
+        </aside>
 
-            <!-- Form Section -->
-            <div class="px-8 py-8">
-                <form action="{{ route('login') }}" method="POST" class="space-y-6">
-                    @csrf
-
-                    <!-- Email Field -->
-                    <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-envelope mr-2 text-indigo-600"></i>Correo Electrónico
-                        </label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <i class="fas fa-envelope text-gray-400"></i>
-                            </div>
-                            <input 
-                                id="email" 
-                                name="email" 
-                                type="email" 
-                                autocomplete="email" 
-                                required 
-                                value="{{ old('email') }}"
-                                class="input-focus block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out sm:text-sm @error('email') border-red-500 @enderror" 
-                                placeholder="tu@email.com"
-                            >
-                        </div>
-                        @error('email')
-                            <p class="mt-1 text-sm text-red-600 flex items-center">
-                                <i class="fas fa-exclamation-circle mr-1"></i>{{ $message }}
-                            </p>
-                        @enderror
+        <main class="login-panel">
+            <div style="width:100%;max-width:420px">
+                <div class="mobile-brand">
+                    <div class="brand-logo">
+                        <div class="brand-logo-icon"><i class="fab fa-whatsapp"></i></div>
+                        <div class="brand-logo-text" style="color:#111b21"><span style="color:#128c7e">WhatsApp</span> Marketing</div>
                     </div>
+                </div>
 
-                    <!-- Password Field -->
-                    <div>
-                        <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
-                            <i class="fas fa-lock mr-2 text-indigo-600"></i>Contraseña
-                        </label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <i class="fas fa-lock text-gray-400"></i>
-                            </div>
-                            <input 
-                                id="password" 
-                                name="password" 
-                                type="password" 
-                                autocomplete="current-password" 
-                                required 
-                                class="input-focus block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out sm:text-sm @error('password') border-red-500 @enderror" 
-                                placeholder="••••••••"
-                            >
-                        </div>
-                        @error('password')
-                            <p class="mt-1 text-sm text-red-600 flex items-center">
-                                <i class="fas fa-exclamation-circle mr-1"></i>{{ $message }}
-                            </p>
-                        @enderror
+                <div class="login-card">
+                    <div class="login-card-header">
+                        <h1>Iniciar sesión</h1>
+                        <p>Accede al panel de administración de tu agencia de ventas.</p>
                     </div>
+                    <div class="login-card-body">
+                        <form id="login-form" action="{{ route('login') }}" method="POST" autocomplete="off" novalidate>
+                            @csrf
 
-                    <!-- Error Messages -->
-                    @if ($errors->any() && !$errors->has('email') && !$errors->has('password'))
-                        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                            <div class="flex">
-                                <div class="flex-shrink-0">
-                                    <i class="fas fa-exclamation-triangle text-red-500"></i>
-                                </div>
-                                <div class="ml-3">
-                                    <p class="text-sm text-red-700">
+                            {{-- Honeypot anti-bot: los bots suelen rellenar este campo oculto --}}
+                            <div class="hp-field" aria-hidden="true">
+                                <label for="company_website">Sitio web de la empresa</label>
+                                <input
+                                    type="text"
+                                    id="company_website"
+                                    name="company_website"
+                                    tabindex="-1"
+                                    autocomplete="off"
+                                    value=""
+                                >
+                            </div>
+
+                            <input type="hidden" name="_form_loaded_at" id="_form_loaded_at" value="{{ time() }}">
+
+                            @if ($errors->any() && !$errors->has('username') && !$errors->has('password'))
+                                <div class="alert-error">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <span>
                                         @foreach ($errors->all() as $error)
                                             {{ $error }}
                                         @endforeach
-                                    </p>
+                                    </span>
                                 </div>
+                            @endif
+
+                            <div class="form-group">
+                                <label for="username" class="form-label">Usuario</label>
+                                <div class="input-wrap">
+                                    <i class="fas fa-user field-icon"></i>
+                                    <input
+                                        id="username"
+                                        name="username"
+                                        type="text"
+                                        class="form-control no-toggle @error('username') is-invalid @enderror"
+                                        value="{{ old('username') }}"
+                                        placeholder="Ej. admin"
+                                        required
+                                        autofocus
+                                        autocomplete="username"
+                                        maxlength="60"
+                                        autocapitalize="none"
+                                        spellcheck="false"
+                                    >
+                                </div>
+                                @error('username')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                             </div>
-                        </div>
-                    @endif
 
-                    <!-- Submit Button -->
-                    <div>
-                        <button 
-                            type="submit" 
-                            class="group relative w-full flex justify-center items-center py-3 px-4 border border-transparent text-base font-medium rounded-lg text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                        >
-                            <span class="absolute left-0 inset-y-0 flex items-center pl-3">
-                                <i class="fas fa-sign-in-alt text-indigo-300 group-hover:text-indigo-200"></i>
-                            </span>
-                            Iniciar Sesión
-                        </button>
+                            <div class="form-group">
+                                <label for="password" class="form-label">Contraseña</label>
+                                <div class="input-wrap">
+                                    <i class="fas fa-lock field-icon"></i>
+                                    <input
+                                        id="password"
+                                        name="password"
+                                        type="password"
+                                        class="form-control @error('password') is-invalid @enderror"
+                                        placeholder="••••••••"
+                                        required
+                                        autocomplete="current-password"
+                                        maxlength="255"
+                                    >
+                                    <button
+                                        type="button"
+                                        class="toggle-password"
+                                        id="toggle-password"
+                                        aria-label="Mostrar contraseña"
+                                        title="Mostrar contraseña"
+                                    >
+                                        <i class="fas fa-eye" id="toggle-password-icon"></i>
+                                    </button>
+                                </div>
+                                @error('password')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <button type="submit" class="btn-login" id="submit-btn">
+                                <i class="fas fa-arrow-right-to-bracket"></i> Acceder al panel
+                            </button>
+                        </form>
+
+                        @if ($demoWhatsappUrl)
+                            <div class="login-divider">o</div>
+                            <a
+                                href="{{ $demoWhatsappUrl }}"
+                                class="btn-demo"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <i class="fab fa-whatsapp"></i>
+                                Solicitar una demo
+                            </a>
+                        @endif
+
+                        <p class="login-footer-note">
+                            <i class="fas fa-lock"></i> Conexión cifrada · Protección anti-bots activa
+                        </p>
                     </div>
-                </form>
-
-                <!-- Footer -->
-                <div class="mt-6 text-center">
-                    <p class="text-xs text-gray-500">
-                        <i class="fas fa-shield-alt mr-1"></i>
-                        Acceso seguro y protegido
-                    </p>
                 </div>
             </div>
-        </div>
-
-        <!-- Additional Info -->
-        <div class="mt-6 text-center">
-            <p class="text-white text-sm opacity-90">
-                <i class="fas fa-info-circle mr-1"></i>
-                Solo personal autorizado
-            </p>
-        </div>
+        </main>
     </div>
 
     <script>
-        // Add smooth focus transitions
-        document.querySelectorAll('input').forEach(input => {
-            input.addEventListener('focus', function() {
-                this.parentElement.classList.add('ring-2', 'ring-indigo-500', 'ring-opacity-50');
-            });
-            input.addEventListener('blur', function() {
-                this.parentElement.classList.remove('ring-2', 'ring-indigo-500', 'ring-opacity-50');
-            });
-        });
+        (function () {
+            const passwordInput = document.getElementById('password');
+            const toggleBtn = document.getElementById('toggle-password');
+            const toggleIcon = document.getElementById('toggle-password-icon');
+            const form = document.getElementById('login-form');
+            const submitBtn = document.getElementById('submit-btn');
+            const loadedAtField = document.getElementById('_form_loaded_at');
+
+            if (loadedAtField && !loadedAtField.value) {
+                loadedAtField.value = Math.floor(Date.now() / 1000);
+            }
+
+            if (toggleBtn && passwordInput) {
+                toggleBtn.addEventListener('click', function () {
+                    const isHidden = passwordInput.type === 'password';
+                    passwordInput.type = isHidden ? 'text' : 'password';
+                    toggleIcon.classList.toggle('fa-eye', !isHidden);
+                    toggleIcon.classList.toggle('fa-eye-slash', isHidden);
+                    toggleBtn.setAttribute('aria-label', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
+                    toggleBtn.setAttribute('title', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
+                });
+            }
+
+            if (form) {
+                form.addEventListener('submit', function () {
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
+                    }
+                });
+            }
+        })();
     </script>
 </body>
 </html>

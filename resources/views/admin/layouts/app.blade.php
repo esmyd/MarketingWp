@@ -710,8 +710,9 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 
     @yield('header')
+    @stack('styles')
 </head>
-<body class="@if(request()->routeIs('admin.chat', 'admin.chats')) chat-page @endif">
+<body class="@if(request()->routeIs('admin.chat', 'admin.chats')) chat-page @endif @if(request()->routeIs('admin.marketing-flow*')) flow-builder-page @endif">
     <!-- Sidebar Overlay (Mobile) -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -745,7 +746,11 @@
             </nav>
 
             <nav class="sidebar-nav sidebar-nav-config">
-                <div class="sidebar-section sidebar-text">Catálogo y configuración</div>
+                <div class="sidebar-section sidebar-text">Bot y ventas</div>
+                <a href="{{ route('admin.marketing-flow.edit') }}" class="nav-link {{ request()->routeIs('admin.marketing-flow*') ? 'active' : '' }}">
+                    <i class="fas fa-project-diagram"></i>
+                    <span class="sidebar-text">Flujo del bot</span>
+                </a>
                 <a href="{{ route('admin.marketing.index') }}" class="nav-link {{ request()->routeIs('admin.marketing.*') ? 'active' : '' }}">
                     <i class="fas fa-bullhorn"></i>
                     <span class="sidebar-text">Campañas</span>

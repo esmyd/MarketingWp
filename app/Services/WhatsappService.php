@@ -2,7 +2,11 @@
 
 namespace App\Services;
 
+use App\Enums\MarketingButtonAction;
+use App\Enums\MarketingStepKey;
 use App\Models\WhatsappBusinessProfile;
+use App\Services\Concerns\UsesMarketingFlow;
+use App\Services\MarketingCatalogBuilder;
 use App\Models\WhatsappContact;
 use App\Models\WhatsappMessage;
 use App\Models\WhatsappTemplate;
@@ -25,6 +29,8 @@ use Carbon\Carbon;
 
 class WhatsappService
 {
+    use UsesMarketingFlow;
+
     protected $baseUrl;
     protected $apiVersion;
     protected $apiToken;
@@ -540,7 +546,9 @@ class WhatsappService
                 ]
             ];
 
-            $this->sendMessage($message['from'], $menuMessage);
+            $contact = WhatsappContact::where('phone_number', $message['from'])->first();
+            $flowMenu = $this->buildMarketingStepPayload(MarketingStepKey::MAIN_MENU, $contact);
+            $this->sendMessage($message['from'], $flowMenu ?? $menuMessage);
 
         } catch (\Exception $e) {
             Log::error('Error al manejar mensaje de botón', [
@@ -1552,8 +1560,13 @@ class WhatsappService
         }
     }
 
-    private function getMainMenu(?string $headerText = null): array
+    private function getMainMenu(?string $headerText = null, ?WhatsappContact $contact = null): array
     {
+        $flowMenu = $this->buildMarketingStepPayload(MarketingStepKey::MAIN_MENU, $contact, $headerText);
+        if ($flowMenu) {
+            return $flowMenu;
+        }
+
         // Obtener los menús desde la base de datos
         $productosMenu = WhatsappMenu::where('action_id', 'menu_productos')->first();
         $pedidosMenu = WhatsappMenu::where('action_id', 'menu_pedido')->first();
@@ -1964,13 +1977,43 @@ class WhatsappService
                 'titulo' => $buttonTitle
             ]);
 
+            $inlineFlowResponse = $this->resolveFlowInlineResponse($buttonId, $contact);
+            if ($inlineFlowResponse) {
+                $this->sendMessage($from, $inlineFlowResponse);
+                sleep(1);
+                $this->sendMessage($from, $this->getMainMenu(null, $contact));
+
+                return;
+            }
+
+            $flowAction = $this->resolveFlowButtonAction($buttonId);
+            if ($flowAction === MarketingButtonAction::AGENT) {
+                $agentMessage = $this->buildMarketingStepPayload(MarketingStepKey::AGENT_HANDOFF, $contact)
+                    ?? ['type' => 'text', 'text' => ['body' => 'Te conectamos con un asesor. Espera un momento, por favor.']];
+                $contact->update(['bot_enabled' => false]);
+                $this->sendMessage($from, $agentMessage);
+
+                return;
+            }
+
+            $buttonId = match ($flowAction) {
+                MarketingButtonAction::PRODUCTS => 'menu_productos',
+                MarketingButtonAction::ORDERS => 'menu_pedido',
+                MarketingButtonAction::INFO => 'menu_info',
+                MarketingButtonAction::MAIN_MENU => 'menu_principal',
+                MarketingButtonAction::VIEW_CART => 'ver_carrito',
+                MarketingButtonAction::CHECKOUT => 'checkout',
+                MarketingButtonAction::CATALOG => 'menu_productos',
+                default => $buttonId,
+            };
+
             $response = null;
 
             switch ($buttonId) {
                 // Menús principales
                 case 'menu_productos':
                 case 'productos':
-                    $response = $this->getProductsMenu();
+                    $response = $this->getProductsMenu($contact);
                     break;
                 case 'menu_pedido':
                     $response = $this->getOrderMenu();
@@ -2245,10 +2288,10 @@ class WhatsappService
                     $response = $this->getRemainingProducts();
                     break;
                 case 'volver_productos':
-                    $response = $this->getProductsMenu();
+                    $response = $this->getProductsMenu($contact);
                     break;
                 case 'seguir_comprando':
-                    $response = $this->getProductsMenu();
+                    $response = $this->getProductsMenu($contact);
                     break;
 
                 // Carrito y compras
@@ -2266,6 +2309,13 @@ class WhatsappService
 
                 // Acciones de productos
                 default:
+                    if (str_starts_with((string) $buttonId, 'cat_')) {
+                        $categoryId = (int) substr((string) $buttonId, 4);
+                        Log::info('📂 Categoría seleccionada del catálogo', ['category_id' => $categoryId]);
+                        $response = $this->getProductsMenu($contact, $categoryId > 0 ? $categoryId : null);
+                        break;
+                    }
+
                     // Si es un número simple, es una selección del menú interactivo
                     if (is_numeric($buttonId)) {
                         Log::info('🔍 Producto seleccionado del menú', ['id' => $buttonId]);
@@ -3579,139 +3629,21 @@ class WhatsappService
         }
     }
 
-    private function getProductsMenu()
+    private function getProductsMenu(?WhatsappContact $contact = null, ?int $categoryId = null)
     {
         try {
-            $menu = WhatsappMenu::where('action_id', 'prices_menu')->first();
-            if (!$menu) {
-                Log::warning('⚠️ Menú de precios no encontrado', ['action_id' => 'prices_menu']);
-                return [
-                    'type' => 'text',
-                    'text' => ['body' => 'Lo siento, el catálogo de productos no está disponible en este momento. Por favor, intenta más tarde.']
-                ];
-            }
-
-            $menuItems = $menu->items()->where('is_active', true)->orderBy('order')->get();
-            if ($menuItems->isEmpty()) {
-                Log::warning('⚠️ No hay categorías de precios disponibles', [
-                    'menu_id' => $menu->id,
-                    'menu_title' => $menu->title
-                ]);
-                return [
-                    'type' => 'text',
-                    'text' => ['body' => 'Lo siento, no hay productos disponibles en este momento. Por favor, intenta más tarde.']
-                ];
-            }
-
-            $sections = [];
-            $totalRows = 0;
-            $maxRows = 8; // Máximo 8 productos por sección para cumplir con el límite de 10 elementos
-
-            foreach ($menuItems as $menuItem) {
-                $prices = $menuItem->prices()
-                    ->where('is_active', true)
-                    ->orderBy('name')
-                    ->get();
-
-                if ($prices->isEmpty()) {
-                    continue;
-                }
-
-                $rows = [];
-                foreach ($prices as $price) {
-                    // Asegurar que el título no exceda 24 caracteres
-                    $title = Str::limit("[{$price->sku}] " . $price->name, 24, '');
-
-                    // Preparar el texto del precio
-                    $priceText = $price->is_promo
-                        ? "💰 $" . number_format($price->promo_price, 2) . " (Oferta)"
-                        : "💰 $" . number_format($price->price, 2);
-
-                    // Calcular el espacio disponible para la descripción
-                    $priceTextLength = mb_strlen($priceText);
-                    $separatorLength = 3; // " - "
-                    $maxDescLength = 72 - $priceTextLength - $separatorLength;
-
-                    // Asegurar que la descripción no exceda el espacio disponible
-                    $description = Str::limit($price->description, $maxDescLength, '...');
-
-                    // Combinar precio y descripción
-                    $fullDescription = $priceText . " - " . $description;
-
-                    // Verificación final de longitud
-                    if (mb_strlen($fullDescription) > 72) {
-                        // Si aún excede, truncar más la descripción
-                        $excess = mb_strlen($fullDescription) - 72;
-                        $description = Str::limit($description, $maxDescLength - $excess, '...');
-                        $fullDescription = $priceText . " - " . $description;
-                    }
-
-                    $rows[] = [
-                        'id' => $price->id,
-                        'title' => $title,
-                        'description' => $fullDescription
-                    ];
-
-                    $totalRows++;
-                    if ($totalRows >= $maxRows) {
-                        break;
-                    }
-                }
-
-                if (!empty($rows)) {
-                    $sections[] = [
-                        'title' => Str::limit($menuItem->title, 24, ''),
-                        'rows' => $rows
-                    ];
-                }
-
-                if ($totalRows >= $maxRows) {
-                    break;
-                }
-            }
-
-            // Agregar sección de navegación
-                $sections[] = [
-                'title' => 'Navegación',
-                    'rows' => [
-                        [
-                            'id' => 'ver_mas_precios',
-                        'title' => 'Ver más productos',
-                        'description' => 'Ver todos los productos disponibles'
-                    ],
-                    [
-                        'id' => 'menu_principal',
-                        'title' => 'Volver al menú principal',
-                        'description' => 'Regresar al menú de inicio'
-                    ]
-                ]
-            ];
-
-            return [
-                'type' => 'interactive',
-                'interactive' => [
-                    'type' => 'list',
-                    'body' => [
-                        'text' => "🛍️ *Catálogo de Productos*\n\n" .
-                            "Por favor, selecciona un producto para ver más detalles.\n" .
-                            "También puedes escribir el código del producto (ej: 1001) para verlo directamente."
-                    ],
-                    'action' => [
-                        'button' => 'Ver Productos',
-                        'sections' => $sections
-                    ]
-                ]
-            ];
+            return app(MarketingCatalogBuilder::class)->buildCatalog($contact, $categoryId);
         } catch (\Exception $e) {
             Log::error('❌ Error al generar el menú de precios', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+
             return [
                 'type' => 'text',
                 'text' => [
-                    'body' => 'Lo siento, ha ocurrido un error al cargar los productos. Por favor, intenta nuevamente más tarde.'
-                ]
+                    'body' => 'Lo siento, ha ocurrido un error al cargar los productos. Por favor, intenta nuevamente más tarde.',
+                ],
             ];
         }
     }
@@ -4074,6 +4006,12 @@ class WhatsappService
     private function getInfoMenu()
     {
         try {
+            $flowInfo = $this->buildMarketingStepPayload(MarketingStepKey::INFO_MENU);
+            $infoStep = $this->getMarketingStep(MarketingStepKey::INFO_MENU);
+            if ($flowInfo && $infoStep && in_array($infoStep->getInteractiveType(), ['list', 'button', 'text'], true)) {
+                return $flowInfo;
+            }
+
             $menu = WhatsappMenu::where('action_id', 'info_menu')->first();
             if (!$menu) {
                 return [

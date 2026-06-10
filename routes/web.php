@@ -62,6 +62,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/chatbot/config', [App\Http\Controllers\Admin\ChatbotController::class, 'config'])->name('chatbot.config');
     Route::put('/chatbot/config', [App\Http\Controllers\Admin\ChatbotController::class, 'updateConfig'])->name('chatbot.config.update');
 
+    // Flujo del bot (mensajes, botones y acciones)
+    Route::get('/marketing-flow', [App\Http\Controllers\Admin\MarketingFlowController::class, 'edit'])->name('marketing-flow.edit');
+    Route::put('/marketing-flow', [App\Http\Controllers\Admin\MarketingFlowController::class, 'update'])->name('marketing-flow.update');
+
     // Campañas de Marketing
     Route::resource('marketing', App\Http\Controllers\Admin\MarketingCampaignController::class)->names([
         'index' => 'marketing.index',
@@ -84,7 +88,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
 
 // Rutas de autenticación
 Route::get('/login', [App\Http\Controllers\Auth\LoginController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [App\Http\Controllers\Auth\LoginController::class, 'login']);
+Route::post('/login', [App\Http\Controllers\Auth\LoginController::class, 'login'])->middleware('throttle:login');
 Route::post('/logout', [App\Http\Controllers\Auth\LoginController::class, 'logout'])->name('logout');
 
 Route::post('/admin/orders/{id}/status', [App\Http\Controllers\AdminController::class, 'updateOrderStatus']);
