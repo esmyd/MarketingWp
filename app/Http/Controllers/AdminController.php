@@ -437,7 +437,9 @@ class AdminController extends Controller
         $lastInboundWamid = $whatsappService->syncContactLastInbound($contact);
         $typingAvailable = !empty($lastInboundWamid);
 
-        return view('admin.chat', compact('contacts', 'contact', 'messages', 'stats', 'globalStats', 'lastInboundWamid', 'typingAvailable'));
+        $chatbotConfig = \App\Models\WhatsappChatbotConfig::first();
+
+        return view('admin.chat', compact('contacts', 'contact', 'messages', 'stats', 'globalStats', 'lastInboundWamid', 'typingAvailable', 'chatbotConfig'));
     }
 
     /**

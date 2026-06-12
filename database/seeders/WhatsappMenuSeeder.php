@@ -18,108 +18,91 @@ class WhatsappMenuSeeder extends Seeder
             return;
         }
 
-        // Menú Principal
-        WhatsappMenu::create([
-            'action_id' => 'main_menu',
-            'title' => 'Menú Principal',
-            'button_text' => '🏠 Menú Principal',
-            'content' => '¡Bienvenido! ¿En qué puedo ayudarte hoy?',
-            'is_active' => true,
-            'business_profile_id' => $businessProfile->id,
-            'metadata' => [
-                'sections' => []
+        WhatsappMenu::updateOrCreate(
+            ['action_id' => 'main_menu'],
+            [
+                'title'               => 'Menú Principal',
+                'button_text'         => '🏠 Menú Principal',
+                'content'             => '¡Bienvenido a Siglo Tecnológico! ¿En qué puedo ayudarte hoy?',
+                'is_active'           => true,
+                'business_profile_id' => $businessProfile->id,
+                'metadata'            => ['sections' => []],
             ]
-        ]);
+        );
 
-        // Menú de Productos
-        WhatsappMenu::create([
-            'action_id' => 'menu_productos',
-            'title' => 'Productos',
-            'button_text' => '🛍️ Productos',
-            'content' => 'Explora nuestro catálogo de productos',
-            'is_active' => true,
-            'business_profile_id' => $businessProfile->id,
-            'metadata' => [
-                'sections' => []
+        WhatsappMenu::updateOrCreate(
+            ['action_id' => 'menu_productos'],
+            [
+                'title'               => 'Soluciones',
+                'button_text'         => '💻 Soluciones',
+                'content'             => 'Explora nuestro catálogo de soluciones tecnológicas',
+                'is_active'           => true,
+                'business_profile_id' => $businessProfile->id,
+                'metadata'            => ['sections' => []],
             ]
-        ]);
+        );
 
-        // Menú de Pedidos
-        WhatsappMenu::create([
-            'action_id' => 'menu_pedido',
-            'title' => 'Ver Pedidos',
-            'button_text' => '📦 Ver Pedidos',
-            'content' => 'Consulta el estado de tus pedidos',
-            'is_active' => true,
-            'business_profile_id' => $businessProfile->id,
-            'metadata' => [
-                'sections' => []
+        WhatsappMenu::updateOrCreate(
+            ['action_id' => 'menu_pedido'],
+            [
+                'title'               => 'Ver Pedidos',
+                'button_text'         => '📦 Ver Pedidos',
+                'content'             => 'Consulta el estado de tus proyectos y pedidos',
+                'is_active'           => true,
+                'business_profile_id' => $businessProfile->id,
+                'metadata'            => ['sections' => []],
             ]
-        ]);
+        );
 
-        // Menú de Información
-        WhatsappMenu::create([
-            'action_id' => 'menu_info',
-            'title' => 'Información',
-            'button_text' => 'ℹ️ Información',
-            'content' => 'Información importante sobre nuestros servicios',
-            'is_active' => true,
-            'business_profile_id' => $businessProfile->id,
-            'metadata' => [
-                'sections' => [
-                    [
-                        'title' => 'Información General',
-                        'rows' => [
-                            [
-                                'id' => 'horarios',
-                                'title' => 'Horarios de Atención',
-                                'description' => 'Conoce nuestros horarios de servicio'
-                            ],
-                            [
-                                'id' => 'contacto',
-                                'title' => 'Información de Contacto',
-                                'description' => 'Datos para contactarnos'
-                            ],
-                            [
-                                'id' => 'envios',
-                                'title' => 'Información de Envíos',
-                                'description' => 'Detalles sobre nuestros envíos'
-                            ],
-                            [
-                                'id' => 'pagos',
-                                'title' => 'Métodos de Pago',
-                                'description' => 'Formas de pago aceptadas'
-                            ],
-                            [
-                                'id' => 'asesoria',
-                                'title' => 'Asesoría',
-                                'description' => 'Obtén ayuda personalizada'
-                            ],
-                            [
-                                'id' => 'redes',
-                                'title' => 'Redes Sociales',
-                                'description' => 'Síguenos en redes sociales'
-                            ]
-                        ]
-                    ]
-                ]
+        WhatsappMenu::updateOrCreate(
+            ['action_id' => 'info_menu'],
+            [
+                'title'               => 'Información',
+                'button_text'         => 'ℹ️ Ver opciones',
+                'content'             => "ℹ️ *Información de Siglo Tecnológico*\n\nSelecciona el tema que necesitas:",
+                'is_active'           => true,
+                'business_profile_id' => $businessProfile->id,
+                'metadata'            => ['sections' => []],
             ]
-        ]);
+        );
 
-        // Menú de Precios
-        WhatsappMenu::create([
-            'action_id' => 'prices_menu',
-            'title' => 'Catálogo de Precios',
-            'button_text' => '💰 Ver Precios',
-            'content' => "🛍️ *Catálogo de Productos*\n\n" .
-                        "Aquí encontrarás nuestro catálogo completo de productos.\n" .
-                        "Puedes explorar las diferentes categorías y seleccionar los productos que te interesen.\n\n" .
-                        "También puedes escribir el código del producto (ej: 1001) para verlo directamente.",
-            'is_active' => true,
-            'business_profile_id' => $businessProfile->id,
-            'metadata' => [
-                'sections' => []
+        WhatsappMenu::updateOrCreate(
+            ['action_id' => 'menu_info'],
+            [
+                'title'               => 'Información',
+                'button_text'         => 'ℹ️ Información',
+                'content'             => 'Información sobre Siglo Tecnológico S.A.',
+                'is_active'           => true,
+                'business_profile_id' => $businessProfile->id,
+                'metadata'            => [
+                    'sections' => [
+                        [
+                            'title' => 'Información General',
+                            'rows'  => [
+                                ['id' => 'horarios',  'title' => 'Horarios de Atención',  'description' => 'Nuestros horarios de servicio'],
+                                ['id' => 'contacto',  'title' => 'Información de Contacto','description' => 'Teléfono, email y dirección'],
+                                ['id' => 'envios',    'title' => 'Entregas y Proyectos',   'description' => 'Tiempos de entrega'],
+                                ['id' => 'pagos',     'title' => 'Métodos de Pago',        'description' => 'Formas de pago aceptadas'],
+                                ['id' => 'asesoria',  'title' => 'Asesoría Tecnológica',   'description' => 'Consulta personalizada gratuita'],
+                                ['id' => 'redes',     'title' => 'Redes Sociales',         'description' => 'Síguenos en redes'],
+                            ],
+                        ],
+                    ],
+                ],
             ]
-        ]);
+        );
+
+        // Menú de Precios — usar updateOrCreate para no duplicar (WhatsappPricesSeeder lo gestiona)
+        WhatsappMenu::updateOrCreate(
+            ['action_id' => 'prices_menu'],
+            [
+                'title'               => 'Catálogo de Soluciones',
+                'button_text'         => '💻 Ver Soluciones',
+                'content'             => "🛍️ *Catálogo de Soluciones Tecnológicas*\n\nSelecciona una categoría para explorar nuestros servicios y precios.",
+                'is_active'           => true,
+                'business_profile_id' => $businessProfile->id,
+                'metadata'            => ['sections' => []],
+            ]
+        );
     }
 }

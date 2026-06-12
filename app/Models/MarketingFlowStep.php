@@ -145,6 +145,34 @@ class MarketingFlowStep extends Model
         return $this->config['custom_actions'] ?? [];
     }
 
+    public function isPaymentProofEnabled(): bool
+    {
+        return (bool) ($this->config['require_proof'] ?? false);
+    }
+
+    /** @return string[] */
+    public function paymentProofRequiredMethods(): array
+    {
+        return $this->config['require_for_methods'] ?? ['transferencia', 'tarjeta'];
+    }
+
+    public function requiresPaymentProofForMethod(?string $method): bool
+    {
+        if (!$this->isPaymentProofEnabled() || !$method) {
+            return false;
+        }
+
+        return in_array($method, $this->paymentProofRequiredMethods(), true);
+    }
+
+    public function getPaymentProofSuccessMessage(array $variables = []): string
+    {
+        $message = $this->config['success_message']
+            ?? '✅ Comprobante recibido. Lo verificaremos y te confirmaremos pronto.';
+
+        return self::interpolate($message, $variables);
+    }
+
     public static function interpolate(string $template, array $variables = []): string
     {
         foreach ($variables as $key => $value) {

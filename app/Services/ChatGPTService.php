@@ -21,6 +21,10 @@ class ChatGPTService
      */
     public function isEnabled(): bool
     {
+        if (!config('whatsapp.chatgpt.enabled', false)) {
+            return false;
+        }
+
         return $this->config->chatgpt_enabled && !empty($this->config->chatgpt_api_key);
     }
 

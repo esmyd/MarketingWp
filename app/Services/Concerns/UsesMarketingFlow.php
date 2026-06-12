@@ -6,6 +6,7 @@ use App\Enums\MarketingButtonAction;
 use App\Enums\MarketingStepKey;
 use App\Models\MarketingFlow;
 use App\Models\MarketingFlowStep;
+use App\Models\WhatsappChatbotConfig;
 use App\Models\WhatsappContact;
 use App\Services\MarketingFlowPayloadBuilder;
 
@@ -53,8 +54,13 @@ trait UsesMarketingFlow
 
     protected function marketingFlowVariables(?WhatsappContact $contact = null): array
     {
+        $chatbotConfig = $this->businessProfile
+            ? WhatsappChatbotConfig::where('business_profile_id', $this->businessProfile->id)->first()
+            : WhatsappChatbotConfig::first();
+
         return [
             'nombre' => $contact?->name ?? 'Cliente',
+            'nombre_bot' => $chatbotConfig?->bot_name ?: 'Asistente virtual',
             'nombre_empresa' => $this->businessProfile?->business_name ?? 'Tienda',
             'telefono_soporte' => config('whatsapp.demo_whatsapp_number', ''),
             'horario_atencion' => 'Lunes a viernes 9:00 - 18:00',

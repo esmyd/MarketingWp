@@ -20,6 +20,7 @@ use App\Models\WhatsappMenu;
 use App\Models\WhatsappMenuItem;
 use App\Models\WhatsappPrice;
 use App\Models\WhatsappCart;
+use App\Models\MarketingFlowStep;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Models\WhatsappButton;
@@ -764,6 +765,15 @@ class WhatsappService
                 ]
             ]);
 
+            $proofCart = $this->findCartPendingProofUpload($contact);
+            if ($proofCart) {
+                $response = $this->registrarComprobantePago($contact, $proofCart, $message, 'document');
+                if ($response) {
+                    $this->sendMessage($from, $response);
+                }
+                return;
+            }
+
             // Obtener los menús desde la base de datos
             $productosMenu = WhatsappMenu::where('action_id', 'menu_productos')->first();
             $infoMenu = WhatsappMenu::where('action_id', 'menu_info')->first();
@@ -1462,6 +1472,32 @@ class WhatsappService
     private function generateChatbotResponse(string $message, string $from): array
     {
         try {
+            // Si el mensaje es un saludo, usar el paso de bienvenida del flujo si está configurado
+            $greetings = ['hola', 'hola!', 'hi', 'hello', 'buenas', 'buenos días', 'buenas tardes',
+                          'buenas noches', 'inicio', 'start', 'menu'];
+            if (in_array(strtolower(trim($message)), $greetings, true)) {
+                $contact = WhatsappContact::where('phone_number', $from)->first();
+                $welcomePayload = $this->buildMarketingStepPayload(MarketingStepKey::WELCOME, $contact);
+                if ($welcomePayload) {
+                    $this->sendMessageToWhatsApp($from, $welcomePayload);
+                    sleep(1);
+                    return $this->getMainMenu(null, $contact);
+                }
+
+                $chatbotConfig = WhatsappChatbotConfig::where('business_profile_id', $this->businessProfile->id)->first();
+                if ($chatbotConfig?->welcome_message) {
+                    $this->sendMessageToWhatsApp($from, [
+                        'type' => 'text',
+                        'text' => ['body' => MarketingFlowStep::interpolate(
+                            $chatbotConfig->welcome_message,
+                            $this->marketingFlowVariables($contact)
+                        )],
+                    ]);
+                    sleep(1);
+                    return $this->getMainMenu(null, $contact);
+                }
+            }
+
             // Buscar respuesta específica en la base de datos
             $response = WhatsappChatbotResponse::where('keyword', strtolower($message))
                 ->where('is_active', true)
@@ -1526,30 +1562,41 @@ class WhatsappService
 
             // Si no se encuentra respuesta específica, intentar con ChatGPT
             $config = WhatsappChatbotConfig::where('business_profile_id', $this->businessProfile->id)->first();
-            if ($config && $config->chatgpt_enabled) {
-                try {
-                    $chatGPT = new ChatGPTService($config);
-                    $aiResponse = $chatGPT->query($message);
+            if ($config) {
+                $chatGPT = new ChatGPTService($config);
 
-                    if ($aiResponse) {
-                        Log::info('[generateChatbotResponse] 🤖 Respuesta de ChatGPT', [
-                            'message' => $message,
-                            'response' => $aiResponse
+                if ($chatGPT->isEnabled()) {
+                    try {
+                        $aiResponse = $chatGPT->query($message);
+
+                        if ($aiResponse) {
+                            Log::info('[generateChatbotResponse] 🤖 Respuesta de ChatGPT', [
+                                'message' => $message,
+                                'response' => $aiResponse
+                            ]);
+
+                            // Enviar el menú principal con la respuesta de ChatGPT como encabezado
+                            return $this->getMainMenu($aiResponse);
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('[generateChatbotResponse] ❌ Error al consultar ChatGPT', [
+                            'error' => $e->getMessage()
                         ]);
-
-                        // Enviar el menú principal con la respuesta de ChatGPT como encabezado
-                        return $this->getMainMenu($aiResponse);
                     }
-                } catch (\Exception $e) {
-                    Log::error('[generateChatbotResponse] ❌ Error al consultar ChatGPT', [
-                        'error' => $e->getMessage()
-                    ]);
                 }
             }
 
-            // Si no hay respuesta de ChatGPT o falló, enviar menú principal
+            // Si no hay respuesta de ChatGPT o falló, usar fallback configurado o menú principal
+            $chatbotConfig = WhatsappChatbotConfig::where('business_profile_id', $this->businessProfile->id)->first();
+            $fallbackPayload = $this->buildMarketingStepPayload(MarketingStepKey::FALLBACK_MESSAGE);
+            if ($fallbackPayload) {
+                Log::info('[generateChatbotResponse] ℹ️ Enviando mensaje fallback del flujo');
+                return $fallbackPayload;
+            }
+
+            $fallbackText = $chatbotConfig?->default_response;
             Log::info('[generateChatbotResponse] ℹ️ No se encontró respuesta específica, enviando menú principal');
-            return $this->getMainMenu();
+            return $this->getMainMenu($fallbackText ?: null);
 
         } catch (\Exception $e) {
             Log::error('[generateChatbotResponse] ❌ Error', [
@@ -1863,8 +1910,21 @@ class WhatsappService
             return;
         }
 
-        $delayMs = max((int) config('whatsapp.bot_reply_delay_ms', 2500), 2000);
+        $delayMs = max((int) $this->getBotResponseDelayMs(), 500);
         usleep($delayMs * 1000);
+    }
+
+    protected function getBotResponseDelayMs(): int
+    {
+        $config = $this->businessProfile
+            ? WhatsappChatbotConfig::where('business_profile_id', $this->businessProfile->id)->first()
+            : WhatsappChatbotConfig::first();
+
+        if ($config && $config->response_delay > 0) {
+            return $config->response_delay;
+        }
+
+        return (int) config('whatsapp.bot_reply_delay_ms', 2500);
     }
 
     private function handleInteractiveMessage($data)
@@ -2071,48 +2131,8 @@ class WhatsappService
                             ]);
                         }
 
-                        // Obtener los menús desde la base de datos
-                        $productosMenu = WhatsappMenu::where('action_id', 'menu_productos')->first();
-                        $pedidosMenu = WhatsappMenu::where('action_id', 'menu_pedido')->first();
-                        $infoMenu = WhatsappMenu::where('action_id', 'menu_info')->first();
-
-                        // Enviar el menú principal después de un breve retraso
-                        sleep(1); // Pequeño retraso para asegurar el orden de los mensajes
-
-                        $response = [
-                            'type' => 'interactive',
-                            'interactive' => [
-                                'type' => 'button',
-                                'body' => [
-                                    'text' => "¿En qué más puedo ayudarte?"
-                                ],
-                                'action' => [
-                                    'buttons' => [
-                                        [
-                                            'type' => 'reply',
-                                            'reply' => [
-                                                'id' => 'menu_productos',
-                                                'title' => $productosMenu ? $productosMenu->button_text : '🛍️ Productos'
-                                            ]
-                                        ],
-                                        [
-                                            'type' => 'reply',
-                                            'reply' => [
-                                                'id' => 'menu_pedido',
-                                                'title' => $pedidosMenu ? $pedidosMenu->button_text : '📦 Ver Pedidos'
-                                            ]
-                                        ],
-                                        [
-                                            'type' => 'reply',
-                                            'reply' => [
-                                                'id' => 'menu_info',
-                                                'title' => $infoMenu ? $infoMenu->button_text : 'ℹ️ Información'
-                                            ]
-                                        ]
-                                    ]
-                                ]
-                            ]
-                        ];
+                        sleep(1);
+                        $response = $this->getMainMenu(null, $contact);
                     } else {
                         $response = [
                             'type' => 'text',
@@ -2157,46 +2177,7 @@ class WhatsappService
                             // Esperar un momento para asegurar que el contacto se envíe primero
                             sleep(1);
 
-                            // Obtener los menús desde la base de datos
-                            $productosMenu = WhatsappMenu::where('action_id', 'menu_productos')->first();
-                            $pedidosMenu = WhatsappMenu::where('action_id', 'menu_pedido')->first();
-                            $infoMenu = WhatsappMenu::where('action_id', 'menu_info')->first();
-
-                            // Enviar el menú principal
-                            $response = [
-                                'type' => 'interactive',
-                                'interactive' => [
-                                    'type' => 'button',
-                                    'body' => [
-                                        'text' => "¿En qué más puedo ayudarte?"
-                                    ],
-                                    'action' => [
-                                        'buttons' => [
-                                            [
-                                                'type' => 'reply',
-                                                'reply' => [
-                                                    'id' => 'menu_productos',
-                                                    'title' => $productosMenu ? $productosMenu->button_text : '🛍️ Productos'
-                                                ]
-                                            ],
-                                            [
-                                                'type' => 'reply',
-                                                'reply' => [
-                                                    'id' => 'menu_pedido',
-                                                    'title' => $pedidosMenu ? $pedidosMenu->button_text : '📦 Ver Pedidos'
-                                                ]
-                                            ],
-                                            [
-                                                'type' => 'reply',
-                                                'reply' => [
-                                                    'id' => 'menu_info',
-                                                    'title' => $infoMenu ? $infoMenu->button_text : 'ℹ️ Información'
-                                                ]
-                                            ]
-                                        ]
-                                    ]
-                                ]
-                            ];
+                            $response = $this->getMainMenu(null, $contact);
                         } else {
                             $this->sendMessage($from, [
                                 'type' => 'text',
@@ -2233,48 +2214,8 @@ class WhatsappService
                             'text' => ['body' => $chatbotResponse->response]
                         ]);
 
-                        // Obtener los menús desde la base de datos
-                        $productosMenu = WhatsappMenu::where('action_id', 'menu_productos')->first();
-                        $pedidosMenu = WhatsappMenu::where('action_id', 'menu_pedido')->first();
-                        $infoMenu = WhatsappMenu::where('action_id', 'menu_info')->first();
-
-                        // Enviar el menú principal después de un breve retraso
-                        sleep(1); // Pequeño retraso para asegurar el orden de los mensajes
-
-            $response = [
-                'type' => 'interactive',
-                'interactive' => [
-                    'type' => 'button',
-                    'body' => [
-                                    'text' => "¿En qué más puedo ayudarte?"
-                                ],
-                                'action' => [
-                                    'buttons' => [
-                                        [
-                                            'type' => 'reply',
-                                            'reply' => [
-                                                'id' => 'menu_productos',
-                                                'title' => $productosMenu ? $productosMenu->button_text : '🛍️ Productos'
-                                            ]
-                                        ],
-                                        [
-                                            'type' => 'reply',
-                                            'reply' => [
-                                                'id' => 'menu_pedido',
-                                                'title' => $pedidosMenu ? $pedidosMenu->button_text : '📦 Ver Pedidos'
-                                            ]
-                                        ],
-                                        [
-                                            'type' => 'reply',
-                                            'reply' => [
-                                                'id' => 'menu_info',
-                                                'title' => $infoMenu ? $infoMenu->button_text : 'ℹ️ Información'
-                                            ]
-                                        ]
-                                    ]
-                                ]
-                            ]
-                        ];
+                        sleep(1);
+                        $response = $this->getMainMenu(null, $contact);
                     } else {
                         $response = [
                             'type' => 'text',
@@ -2299,6 +2240,7 @@ class WhatsappService
                     $response = $this->getCartContents($contact);
                     break;
                 case 'finalizar_compra':
+                case 'checkout':
                     $response = $this->finalizarCompra($contact);
                     break;
 
@@ -2368,6 +2310,13 @@ class WhatsappService
                     } elseif (preg_match('/^pago_tarjeta_(\d+)$/', $buttonId, $matches)) {
                         $cartId = $matches[1];
                         $response = $this->procesarPagoTarjeta($contact, $cartId);
+                    } elseif ($buttonId === 'enviar_comprobante_menu') {
+                        $response = $this->buildPaymentProofOrderList($contact);
+                    } elseif (preg_match('/^enviar_comprobante_(\d+)$/', $buttonId, $matches)) {
+                        $response = $this->iniciarEnvioComprobante($contact, (int) $matches[1]);
+                    } elseif ($buttonId === 'ver_instrucciones_pago') {
+                        $response = $this->buildMarketingStepPayload(MarketingStepKey::CHECKOUT, $contact)
+                            ?? $this->getMainMenu(null, $contact);
                     }
                     break;
             }
@@ -2473,6 +2422,14 @@ class WhatsappService
             unset($metadata['pending_quantity']);
             $lastMessage->metadata = $metadata;
             $lastMessage->save();
+        }
+
+        $proofCart = $this->findCartPendingProofUpload($contact);
+        if ($proofCart) {
+            $metadata = $proofCart->metadata ?? [];
+            unset($metadata['pending_payment_proof']);
+            $proofCart->metadata = $metadata;
+            $proofCart->save();
         }
     }
 
@@ -2849,6 +2806,27 @@ class WhatsappService
     }
 
     /**
+     * Limpia formato WhatsApp (*negrita*, _cursiva_, etc.) al buscar SKU copiado del chat.
+     */
+    private function normalizeProductSearchTerm(string $text): string
+    {
+        $text = trim($text);
+
+        if (preg_match('/\[?SKU:\s*([^\]\*\s]+)\]?/i', $text, $matches)) {
+            return trim($matches[1], "*_~`");
+        }
+
+        $previous = null;
+        while ($previous !== $text) {
+            $previous = $text;
+            $text = trim($text);
+            $text = preg_replace('/^[\*_~`]+|[\*_~`]+$/u', '', $text) ?? $text;
+        }
+
+        return trim($text);
+    }
+
+    /**
      * Procesa los mensajes de texto recibidos de WhatsApp
      * Esta función maneja:
      * 1. Creación/actualización de contactos
@@ -2994,11 +2972,12 @@ class WhatsappService
             // Si no se procesó como nota, verificar si es un SKU de producto
             if (!$processHandled) {
                 // Solo buscar productos si el mensaje no es una respuesta común y tiene más de 2 caracteres
-                if (!in_array(strtolower($text), $commonResponses) && strlen($text) > 2) {
+                $searchTerm = $this->normalizeProductSearchTerm($text);
+                if (!in_array(strtolower($searchTerm), $commonResponses) && strlen($searchTerm) > 2) {
                     // Buscar producto por SKU o nombre en la base de datos
-                    $product = WhatsappPrice::where(function($query) use ($text) {
-                            $query->where('sku', 'like', '%' . $text . '%')
-                                  ->orWhere('name', 'like', '%' . $text . '%');
+                    $product = WhatsappPrice::where(function($query) use ($searchTerm) {
+                            $query->where('sku', 'like', '%' . $searchTerm . '%')
+                                  ->orWhere('name', 'like', '%' . $searchTerm . '%');
                         })
                         ->where('is_active', true)
                         ->first();
@@ -3006,7 +2985,8 @@ class WhatsappService
                     if ($product) {
                         // Si se encuentra el producto, mostrar sus detalles
                         Log::info('[handleTextMessage] 🔍 Producto encontrado', [
-                            'search_term' => $text,
+                            'search_term' => $searchTerm,
+                            'original_text' => $text,
                             'product_id' => $product->id
                         ]);
                         $response = $this->getProductDetails($product->id);
@@ -3123,6 +3103,15 @@ class WhatsappService
                         'new_name' => $contactName
                     ]);
                 }
+            }
+
+            $proofCart = $this->findCartPendingProofUpload($contact);
+            if ($proofCart) {
+                $response = $this->registrarComprobantePago($contact, $proofCart, $message, 'image');
+                if ($response) {
+                    $this->sendMessage($message['from'], $response);
+                }
+                return;
             }
 
             // Verificar si hay un proceso activo
@@ -3788,15 +3777,20 @@ class WhatsappService
     private function getOrderMenu()
     {
         try {
-            // Obtener el contacto del último mensaje
-            if (!$this->lastMessage || !$this->lastMessage->contact) {
+            $contact = $this->lastMessage?->contact ?? null;
+
+            if (!$contact) {
                 return [
                     'type' => 'text',
                     'text' => ['body' => 'Lo siento, no se pudo identificar tu contacto. Por favor, envía un mensaje primero.']
                 ];
             }
 
-            $contact = $this->lastMessage->contact;
+            $intro = '';
+            $ordersStep = $this->getMarketingStep(MarketingStepKey::ORDERS_MENU);
+            if ($ordersStep && $ordersStep->is_enabled && $ordersStep->message_template) {
+                $intro = $ordersStep->renderMessage($this->marketingFlowVariables($contact)) . "\n\n";
+            }
 
             // Obtener todos los pedidos del usuario
             $orders = WhatsappCart::where('contact_id', $contact->id)
@@ -3816,7 +3810,7 @@ class WhatsappService
                     'interactive' => [
                         'type' => 'button',
                         'body' => [
-                            'text' => "📦 *Historial de Pedidos*\n\n" .
+                            'text' => $intro . "📦 *Historial de Pedidos*\n\n" .
                                 "No tienes pedidos realizados aún.\n\n" .
                                 "¿Te gustaría ver nuestros productos?"
                         ],
@@ -3848,7 +3842,7 @@ class WhatsappService
             $paymentPendingOrders = $orders->where('status', WhatsappCart::STATUS_PAYMENT_PENDING);
             $completedOrders = $orders->whereIn('status', [WhatsappCart::STATUS_PAID, WhatsappCart::STATUS_COMPLETED]);
 
-            $message = "📦 *Tus Pedidos*\n\n";
+            $message = $intro . "📦 *Tus Pedidos*\n\n";
 
             // Mostrar pedidos pendientes de confirmación
             if ($pendingOrders->isNotEmpty()) {
@@ -3904,6 +3898,11 @@ class WhatsappService
                         $message .= "📅 Fecha: " . date('d/m/Y H:i', strtotime($orderDetails['created_at'])) . "\n";
                         $message .= "💰 Total: \${$orderDetails['total']}\n";
                         $message .= "💳 Método de pago: " . $this->getPaymentMethodText($orderDetails['payment_method']) . "\n";
+                        if ($order->isAwaitingPaymentProof() && !$order->hasPaymentProof()) {
+                            $message .= "📎 *Estado:* Pendiente de comprobante\n";
+                        } elseif ($order->payment_status === 'proof_submitted') {
+                            $message .= "✅ *Estado:* Comprobante en revisión\n";
+                        }
                         $message .= "📋 Items:\n";
                         foreach ($orderDetails['items'] as $item) {
                             $message .= "  • {$item['name']} x{$item['quantity']}\n";
@@ -3940,44 +3939,56 @@ class WhatsappService
 
             $message .= "¿Qué deseas hacer?";
 
-            // Preparar botones según el estado de los pedidos
+            $awaitingProofOrders = $paymentPendingOrders->filter(
+                fn ($order) => $order->isAwaitingPaymentProof() && !$order->hasPaymentProof()
+            );
+
+            // Preparar botones (máx. 3 en WhatsApp)
             $buttons = [];
 
-            if ($pendingOrders->isNotEmpty()) {
+            if ($awaitingProofOrders->count() === 1) {
                 $buttons[] = [
                     'type' => 'reply',
                     'reply' => [
-                        'id' => 'confirmar_pedidos_pendientes',
-                        'title' => '✅ Confirmar pedidos pendientes'
-                    ]
+                        'id' => 'enviar_comprobante_' . $awaitingProofOrders->first()->id,
+                        'title' => '📎 Enviar comprobante',
+                    ],
                 ];
-            }
-
-            if ($paymentPendingOrders->isNotEmpty()) {
+            } elseif ($awaitingProofOrders->count() > 1) {
+                $buttons[] = [
+                    'type' => 'reply',
+                    'reply' => [
+                        'id' => 'enviar_comprobante_menu',
+                        'title' => '📎 Enviar comprobante',
+                    ],
+                ];
+            } elseif ($paymentPendingOrders->isNotEmpty()) {
                 $buttons[] = [
                     'type' => 'reply',
                     'reply' => [
                         'id' => 'ver_instrucciones_pago',
-                        'title' => '💳 Ver instrucciones de pago'
-                    ]
+                        'title' => '💳 Instrucciones de pago',
+                    ],
                 ];
             }
 
             $buttons[] = [
-                                'type' => 'reply',
-                                'reply' => [
-                                    'id' => 'productos',
-                                    'title' => '🛍️ Ver productos'
-                                ]
+                'type' => 'reply',
+                'reply' => [
+                    'id' => 'menu_productos',
+                    'title' => '🛍️ Ver productos',
+                ],
             ];
 
             $buttons[] = [
-                                'type' => 'reply',
-                                'reply' => [
-                                    'id' => 'menu_principal',
-                                    'title' => '🏠 Menú principal'
-                                ]
+                'type' => 'reply',
+                'reply' => [
+                    'id' => 'menu_principal',
+                    'title' => '🏠 Menú principal',
+                ],
             ];
+
+            $buttons = array_slice($buttons, 0, 3);
 
             return [
                 'type' => 'interactive',
@@ -4008,7 +4019,7 @@ class WhatsappService
         try {
             $flowInfo = $this->buildMarketingStepPayload(MarketingStepKey::INFO_MENU);
             $infoStep = $this->getMarketingStep(MarketingStepKey::INFO_MENU);
-            if ($flowInfo && $infoStep && in_array($infoStep->getInteractiveType(), ['list', 'button', 'text'], true)) {
+            if ($flowInfo && $infoStep) {
                 return $flowInfo;
             }
 
@@ -4118,6 +4129,11 @@ class WhatsappService
             return true;
         }
 
+        $proofCart = $this->findCartPendingProofUpload($contact);
+        if ($proofCart) {
+            return true;
+        }
+
         return false;
     }
 
@@ -4135,10 +4151,58 @@ class WhatsappService
                 ];
             }
 
-            $cart->status = WhatsappCart::STATUS_CONFIRMED;
-            $cart->save();
+            $this->syncOrderDetails($cart);
+            $cart->refresh();
 
-            return $this->finalizarCompra($contact);
+            $orderNumber = $cart->getOrderNumber();
+            $confirmationBody = "✅ *¡Pedido confirmado!*\n\n"
+                . "📦 *Número de pedido:* {$orderNumber}\n"
+                . "💰 *Total:* \${$cart->total}\n"
+                . "💳 *Método de pago:* " . $this->getPaymentMethodText($cart->payment_method) . "\n\n";
+
+            if ($this->requiresPaymentProofForCart($cart)) {
+                $cart->status = WhatsappCart::STATUS_PAYMENT_PENDING;
+                $cart->markAwaitingPaymentProof();
+                $this->syncOrderDetails($cart);
+
+                $proofPayload = $this->buildPaymentProofRequestPayload($contact, $cart);
+                if ($proofPayload && ($proofPayload['type'] ?? '') === 'text') {
+                    $proofPayload['text']['body'] = $confirmationBody . ($proofPayload['text']['body'] ?? '');
+                    return $proofPayload;
+                }
+
+                return [
+                    'type' => 'text',
+                    'text' => ['body' => $confirmationBody . "📎 Por favor, envía una imagen o PDF de tu comprobante de pago."]
+                ];
+            }
+
+            $cart->status = WhatsappCart::STATUS_CONFIRMED;
+            $cart->payment_status = $cart->payment_method === 'efectivo' ? 'cash_on_delivery' : 'confirmed';
+            $cart->save();
+            $this->syncOrderDetails($cart);
+
+            $confirmationBody .= "Te contactaremos pronto para coordinar los siguientes pasos.";
+
+            return [
+                'type' => 'interactive',
+                'interactive' => [
+                    'type' => 'button',
+                    'body' => ['text' => $confirmationBody],
+                    'action' => [
+                        'buttons' => [
+                            [
+                                'type' => 'reply',
+                                'reply' => ['id' => 'menu_pedido', 'title' => '📦 Mis pedidos'],
+                            ],
+                            [
+                                'type' => 'reply',
+                                'reply' => ['id' => 'menu_principal', 'title' => '🏠 Menú principal'],
+                            ],
+                        ],
+                    ],
+                ],
+            ];
         } catch (\Exception $e) {
             Log::error('Error al confirmar pedido', [
                 'error' => $e->getMessage(),
@@ -5130,5 +5194,254 @@ class WhatsappService
                 'suggestion' => 'Verifica tu configuración de correo en el archivo .env. Puedes usar MAIL_MAILER=log para desarrollo.'
             ]);
         }
+    }
+
+    private function requiresPaymentProofForCart(WhatsappCart $cart): bool
+    {
+        $step = $this->getMarketingStep(MarketingStepKey::PAYMENT_PROOF);
+        if (!$step || !$step->is_enabled) {
+            return false;
+        }
+
+        return $step->requiresPaymentProofForMethod($cart->payment_method);
+    }
+
+    private function cartFlowVariables(WhatsappCart $cart, ?WhatsappContact $contact = null): array
+    {
+        return array_merge($this->marketingFlowVariables($contact), [
+            'total' => number_format((float) $cart->total, 2),
+            'moneda' => 'USD',
+            'cantidad_items' => (string) $cart->items()->count(),
+            'numero_pedido' => $cart->getOrderNumber(),
+            'estado_pedido' => $this->getOrderStatusLabel($cart),
+            'metodo_pago' => $this->getPaymentMethodText($cart->payment_method),
+        ]);
+    }
+
+    private function getOrderStatusLabel(WhatsappCart $cart): string
+    {
+        if ($cart->isAwaitingPaymentProof() && !$cart->hasPaymentProof()) {
+            return 'Pendiente de comprobante';
+        }
+
+        if ($cart->payment_status === 'proof_submitted') {
+            return 'Comprobante en revisión';
+        }
+
+        return match ($cart->status) {
+            WhatsappCart::STATUS_PAYMENT_PENDING => 'Pendiente de pago',
+            WhatsappCart::STATUS_CONFIRMED => 'Confirmado',
+            WhatsappCart::STATUS_PAID => 'Pagado',
+            WhatsappCart::STATUS_COMPLETED => 'Completado',
+            WhatsappCart::STATUS_CANCELLED => 'Cancelado',
+            default => 'En proceso',
+        };
+    }
+
+    private function syncOrderDetails(WhatsappCart $cart): array
+    {
+        $orderDetails = [
+            'order_number' => 'ORD-' . str_pad((string) $cart->id, 6, '0', STR_PAD_LEFT),
+            'items' => [],
+            'total' => $cart->total,
+            'note' => $cart->note,
+            'created_at' => $cart->created_at->format('Y-m-d H:i:s'),
+            'status' => $cart->status,
+            'payment_method' => $cart->payment_method,
+            'payment_status' => $cart->payment_status,
+        ];
+
+        foreach ($cart->items as $item) {
+            $orderDetails['items'][] = [
+                'name' => $item->name,
+                'quantity' => $item->quantity,
+                'price' => $item->price,
+                'subtotal' => $item->price * $item->quantity,
+            ];
+        }
+
+        $metadata = $cart->metadata ?? [];
+        $metadata['order_details'] = $orderDetails;
+        $cart->metadata = $metadata;
+        $cart->save();
+
+        return $orderDetails;
+    }
+
+    private function buildPaymentProofRequestPayload(WhatsappContact $contact, WhatsappCart $cart): ?array
+    {
+        $step = $this->getMarketingStep(MarketingStepKey::PAYMENT_PROOF);
+        if (!$step || !$step->is_enabled) {
+            return null;
+        }
+
+        $vars = $this->cartFlowVariables($cart, $contact);
+        $body = $step->renderMessage($vars);
+
+        if ($body === '') {
+            $body = "📎 *Envío de Comprobante*\n\nPedido *{$vars['numero_pedido']}*\n\nEnvía una imagen o PDF de tu comprobante de pago.";
+        }
+
+        return [
+            'type' => 'text',
+            'text' => ['body' => $body],
+        ];
+    }
+
+    private function buildPaymentProofSuccessPayload(WhatsappContact $contact, WhatsappCart $cart): array
+    {
+        $step = $this->getMarketingStep(MarketingStepKey::PAYMENT_PROOF);
+        $vars = $this->cartFlowVariables($cart, $contact);
+        $body = $step?->getPaymentProofSuccessMessage($vars)
+            ?? "✅ Comprobante recibido para el pedido *{$vars['numero_pedido']}*. Lo verificaremos pronto.";
+
+        return [
+            'type' => 'interactive',
+            'interactive' => [
+                'type' => 'button',
+                'body' => ['text' => $body],
+                'action' => [
+                    'buttons' => [
+                        [
+                            'type' => 'reply',
+                            'reply' => ['id' => 'menu_pedido', 'title' => '📦 Mis pedidos'],
+                        ],
+                        [
+                            'type' => 'reply',
+                            'reply' => ['id' => 'menu_principal', 'title' => '🏠 Menú principal'],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    private function findCartPendingProofUpload(WhatsappContact $contact): ?WhatsappCart
+    {
+        return WhatsappCart::where('contact_id', $contact->id)
+            ->whereIn('status', [
+                WhatsappCart::STATUS_PAYMENT_PENDING,
+                WhatsappCart::STATUS_CONFIRMED,
+            ])
+            ->get()
+            ->first(fn (WhatsappCart $cart) => $cart->isAwaitingPaymentProof() && !$cart->hasPaymentProof());
+    }
+
+    private function iniciarEnvioComprobante(WhatsappContact $contact, int $cartId): array
+    {
+        $cart = WhatsappCart::where('id', $cartId)
+            ->where('contact_id', $contact->id)
+            ->first();
+
+        if (!$cart) {
+            return [
+                'type' => 'text',
+                'text' => ['body' => 'No se encontró el pedido seleccionado.'],
+            ];
+        }
+
+        if ($cart->hasPaymentProof()) {
+            return [
+                'type' => 'text',
+                'text' => ['body' => "El pedido *{$cart->getOrderNumber()}* ya tiene un comprobante registrado y está en revisión."],
+            ];
+        }
+
+        $cart->markAwaitingPaymentProof();
+
+        return $this->buildPaymentProofRequestPayload($contact, $cart)
+            ?? [
+                'type' => 'text',
+                'text' => ['body' => "📎 Envía una imagen o PDF del comprobante de pago del pedido *{$cart->getOrderNumber()}*."],
+            ];
+    }
+
+    private function buildPaymentProofOrderList(WhatsappContact $contact): array
+    {
+        $orders = WhatsappCart::where('contact_id', $contact->id)
+            ->whereIn('status', [WhatsappCart::STATUS_PAYMENT_PENDING, WhatsappCart::STATUS_CONFIRMED])
+            ->orderByDesc('created_at')
+            ->get()
+            ->filter(fn (WhatsappCart $cart) => $cart->isAwaitingPaymentProof() && !$cart->hasPaymentProof());
+
+        if ($orders->isEmpty()) {
+            return [
+                'type' => 'text',
+                'text' => ['body' => 'No tienes pedidos pendientes de comprobante en este momento.'],
+            ];
+        }
+
+        $rows = [];
+        foreach ($orders as $order) {
+            $rows[] = [
+                'id' => 'enviar_comprobante_' . $order->id,
+                'title' => Str::limit($order->getOrderNumber(), 24, ''),
+                'description' => Str::limit('$' . number_format((float) $order->total, 2) . ' · ' . $this->getPaymentMethodText($order->payment_method), 72, ''),
+            ];
+        }
+
+        return [
+            'type' => 'interactive',
+            'interactive' => [
+                'type' => 'list',
+                'body' => [
+                    'text' => "📎 *Enviar comprobante*\n\nSelecciona el pedido al que corresponde tu comprobante de pago:",
+                ],
+                'action' => [
+                    'button' => 'Ver pedidos',
+                    'sections' => [
+                        ['title' => 'Pendientes', 'rows' => array_slice($rows, 0, 10)],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    private function registrarComprobantePago(
+        WhatsappContact $contact,
+        WhatsappCart $cart,
+        array $message,
+        string $mediaType
+    ): array {
+        $mediaData = $message[$mediaType] ?? $message['text'] ?? [];
+        $messageId = $message['id'] ?? null;
+
+        WhatsappMessage::updateOrCreate(
+            ['message_id' => $messageId],
+            [
+                'contact_id' => $contact->id,
+                'business_profile_id' => $this->businessProfile->id,
+                'sender_type' => 'client',
+                'receiver_type' => 'system',
+                'content' => json_encode($mediaData),
+                'type' => $mediaType,
+                'status' => 'received',
+                'metadata' => [
+                    'cart_id' => $cart->id,
+                    'payment_proof' => true,
+                    'timestamp' => $message['timestamp'] ?? null,
+                ],
+            ]
+        );
+
+        $cart->attachPaymentProof([
+            'message_id' => $messageId,
+            'type' => $mediaType,
+            'media_id' => $mediaData['id'] ?? null,
+            'mime_type' => $mediaData['mime_type'] ?? null,
+            'filename' => $mediaData['filename'] ?? null,
+            'received_at' => now()->toIso8601String(),
+        ]);
+
+        $this->syncOrderDetails($cart);
+
+        Log::info('[registrarComprobantePago] Comprobante asociado al pedido', [
+            'cart_id' => $cart->id,
+            'contact_id' => $contact->id,
+            'message_id' => $messageId,
+            'media_type' => $mediaType,
+        ]);
+
+        return $this->buildPaymentProofSuccessPayload($contact, $cart);
     }
 }

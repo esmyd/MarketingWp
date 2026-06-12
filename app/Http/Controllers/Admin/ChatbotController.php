@@ -9,6 +9,7 @@ use App\Models\WhatsappPrice;
 use App\Models\WhatsappChatbotConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -78,19 +79,16 @@ class ChatbotController extends Controller
     public function updateConfig(Request $request)
     {
         $validated = $request->validate([
-            'business_name' => 'nullable|string|max:255',
-            'business_description' => 'nullable|string',
-            'business_hours' => 'nullable|string|max:255',
+            'bot_name' => 'nullable|string|max:255',
             'welcome_message' => 'nullable|string',
-            'menu_message' => 'nullable|string',
-            'menu_command' => 'nullable|string|max:50',
-            'help_command' => 'nullable|string|max:50',
-            'offline_message' => 'nullable|string',
-            'error_message' => 'nullable|string',
-            'not_found_message' => 'nullable|string',
-            'order_confirmation_message' => 'nullable|string',
-            'order_status_message' => 'nullable|string',
-            'payment_confirmation_message' => 'nullable|string',
+            'fallback_message' => 'nullable|string',
+            'response_delay' => 'nullable|integer|min:0|max:10000',
+            'primary_color' => 'nullable|string|max:20',
+            'secondary_color' => 'nullable|string|max:20',
+            'bot_avatar' => 'nullable|string|max:500',
+            'bot_avatar_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'remove_bot_avatar' => 'nullable|boolean',
+            'font_family' => 'nullable|string|max:50',
             'monitoring_phone_number' => 'nullable|string|max:20',
             'monitoring_email' => 'nullable|email|max:255',
         ]);
@@ -98,20 +96,47 @@ class ChatbotController extends Controller
         $config = WhatsappChatbotConfig::first();
         if (!$config) {
             $config = new WhatsappChatbotConfig();
-            // Si no existe, necesitamos un business_profile_id
             $businessProfile = \App\Models\WhatsappBusinessProfile::first();
             if ($businessProfile) {
                 $config->business_profile_id = $businessProfile->id;
             }
         }
 
-        $config->fill($validated);
-        // Checkbox: si no viene en el POST, debe guardarse como false (no dejar el valor anterior)
+        $metadata = $config->metadata ?? [];
+        $metadata['bot_name'] = $validated['bot_name'] ?? null;
+        $metadata['response_delay'] = $validated['response_delay'] ?? 1000;
+        $metadata['primary_color'] = $validated['primary_color'] ?? '#3B82F6';
+        $metadata['secondary_color'] = $validated['secondary_color'] ?? '#1E40AF';
+        $metadata['bot_avatar'] = $validated['bot_avatar'] ?? null;
+        $metadata['font_family'] = $validated['font_family'] ?? 'Arial';
+
+        if ($request->boolean('remove_bot_avatar')) {
+            $this->deleteBotAvatarFile($metadata['bot_avatar_path'] ?? null);
+            unset($metadata['bot_avatar'], $metadata['bot_avatar_path']);
+        } elseif ($request->hasFile('bot_avatar_image')) {
+            $this->deleteBotAvatarFile($metadata['bot_avatar_path'] ?? null);
+            $profileId = $config->business_profile_id ?? \App\Models\WhatsappBusinessProfile::first()?->id ?? 'default';
+            $metadata['bot_avatar_path'] = $request->file('bot_avatar_image')
+                ->store("chatbot-avatars/{$profileId}", 'public');
+        }
+
+        $config->metadata = $metadata;
+        $config->welcome_message = $validated['welcome_message'] ?? $config->welcome_message;
+        $config->default_response = $validated['fallback_message'] ?? $config->default_response;
+        $config->monitoring_phone_number = $validated['monitoring_phone_number'] ?? null;
+        $config->monitoring_email = $validated['monitoring_email'] ?? null;
         $config->monitoring_enabled = $request->has('monitoring_enabled')
             && $request->input('monitoring_enabled') == '1';
         $config->save();
 
         return redirect()->back()->with('success', 'Configuración actualizada correctamente');
+    }
+
+    protected function deleteBotAvatarFile(?string $path): void
+    {
+        if ($path && Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
     }
 
     /**

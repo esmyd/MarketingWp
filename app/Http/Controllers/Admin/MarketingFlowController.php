@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MarketingFlow;
 use App\Models\MarketingFlowStep;
 use App\Models\WhatsappBusinessProfile;
+use App\Models\WhatsappChatbotConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -33,6 +34,9 @@ class MarketingFlowController extends Controller
         return view('admin.marketing-flow.edit', [
             'profile' => $profile,
             'flow' => $flow,
+            'chatbotConfig' => $profile
+                ? WhatsappChatbotConfig::where('business_profile_id', $profile->id)->first()
+                : WhatsappChatbotConfig::first(),
             'stepLabels' => MarketingStepKey::all(),
             'scenarioGroups' => MarketingStepKey::scenarioGroups(),
             'stepIcons' => MarketingStepKey::icons(),
@@ -78,6 +82,9 @@ class MarketingFlowController extends Controller
             'steps.*.catalog_source' => 'nullable|string|in:products,categories,manual',
             'steps.*.max_product_rows' => 'nullable|integer|min:1|max:8',
             'steps.*.include_navigation' => 'nullable|boolean',
+            'steps.*.require_proof' => 'nullable|boolean',
+            'steps.*.require_for_methods' => 'nullable|array',
+            'steps.*.require_for_methods.*' => 'string|in:transferencia,efectivo,tarjeta',
         ]);
 
         $flow = MarketingFlow::firstOrCreate(
@@ -136,6 +143,13 @@ class MarketingFlowController extends Controller
                 $config['catalog_source'] = $stepData['catalog_source'] ?? 'products';
                 $config['max_product_rows'] = (int) ($stepData['max_product_rows'] ?? 8);
                 $config['include_navigation'] = !empty($stepData['include_navigation']);
+            }
+
+            if ($stepData['step_key'] === MarketingStepKey::PAYMENT_PROOF) {
+                $config['require_proof'] = !empty($stepData['require_proof']);
+                $config['require_for_methods'] = array_values(
+                    $stepData['require_for_methods'] ?? ['transferencia', 'tarjeta']
+                );
             }
 
             MarketingFlowStep::updateOrCreate(

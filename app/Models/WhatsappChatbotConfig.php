@@ -39,6 +39,53 @@ class WhatsappChatbotConfig extends Model
         'chatgpt_temperature' => 'float'
     ];
 
+    public function getBotNameAttribute(): ?string
+    {
+        return $this->metadata['bot_name'] ?? null;
+    }
+
+    public function getFallbackMessageAttribute(): ?string
+    {
+        return $this->default_response;
+    }
+
+    public function getResponseDelayAttribute(): int
+    {
+        return (int) ($this->metadata['response_delay'] ?? 1000);
+    }
+
+    public function getPrimaryColorAttribute(): string
+    {
+        return $this->metadata['primary_color'] ?? '#3B82F6';
+    }
+
+    public function getSecondaryColorAttribute(): string
+    {
+        return $this->metadata['secondary_color'] ?? '#1E40AF';
+    }
+
+    public function getBotAvatarAttribute(): ?string
+    {
+        return $this->metadata['bot_avatar'] ?? null;
+    }
+
+    public function getBotAvatarUrlAttribute(): ?string
+    {
+        $path = $this->metadata['bot_avatar_path'] ?? null;
+        if ($path) {
+            return asset('storage/' . ltrim($path, '/'));
+        }
+
+        $url = $this->metadata['bot_avatar'] ?? null;
+
+        return $url !== null && $url !== '' ? $url : null;
+    }
+
+    public function getFontFamilyAttribute(): string
+    {
+        return $this->metadata['font_family'] ?? 'Arial';
+    }
+
     public function businessProfile(): BelongsTo
     {
         return $this->belongsTo(WhatsappBusinessProfile::class, 'business_profile_id');

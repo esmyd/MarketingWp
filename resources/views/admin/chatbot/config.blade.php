@@ -5,7 +5,7 @@
 @section('content')
 <div class="bg-white shadow-sm rounded-lg overflow-hidden">
     <div class="p-6">
-        <form action="{{ route('admin.chatbot.config.update') }}" method="POST">
+        <form action="{{ route('admin.chatbot.config.update') }}" method="POST" enctype="multipart/form-data">
             @csrf
             @method('PUT')
 
@@ -15,20 +15,21 @@
 
                     <div>
                         <label for="bot_name" class="block text-sm font-medium text-gray-700">Nombre del Bot</label>
-                        <input type="text" id="bot_name" name="bot_name" value="{{ $config->bot_name ?? '' }}" required
+                        <input type="text" id="bot_name" name="bot_name" value="{{ old('bot_name', $config->bot_name ?? '') }}" required
                             class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <p class="mt-1 text-xs text-gray-500">Usa <code>@{{nombre_bot}}</code> en mensajes del flujo de marketing para mostrar este nombre.</p>
                     </div>
 
                     <div>
                         <label for="welcome_message" class="block text-sm font-medium text-gray-700">Mensaje de Bienvenida</label>
                         <textarea id="welcome_message" name="welcome_message" rows="3" required
-                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">{{ $config->welcome_message ?? '' }}</textarea>
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">{{ old('welcome_message', $config->welcome_message ?? '') }}</textarea>
                     </div>
 
                     <div>
                         <label for="fallback_message" class="block text-sm font-medium text-gray-700">Mensaje de Fallback</label>
                         <textarea id="fallback_message" name="fallback_message" rows="3" required
-                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">{{ $config->fallback_message ?? '' }}</textarea>
+                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">{{ old('fallback_message', $config->fallback_message ?? '') }}</textarea>
                     </div>
 
                     <div>
@@ -55,8 +56,27 @@
 
                     <div>
                         <label for="bot_avatar" class="block text-sm font-medium text-gray-700">Avatar del Bot</label>
-                        <input type="text" id="bot_avatar" name="bot_avatar" value="{{ $config->bot_avatar ?? '' }}" placeholder="URL de la imagen"
-                            class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <div class="mt-2 flex items-start gap-4">
+                            <div id="bot-avatar-preview-wrap" class="flex-shrink-0 w-16 h-16 rounded-full overflow-hidden border border-gray-200 bg-gray-100 flex items-center justify-center {{ ($config->bot_avatar_url ?? null) ? '' : 'hidden' }}">
+                                <img id="bot-avatar-preview" src="{{ $config->bot_avatar_url ?? '' }}" alt="Avatar del bot" class="w-full h-full object-cover">
+                            </div>
+                            <div id="bot-avatar-placeholder" class="flex-shrink-0 w-16 h-16 rounded-full border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-gray-400 {{ ($config->bot_avatar_url ?? null) ? 'hidden' : '' }}">
+                                <i class="fas fa-robot text-xl"></i>
+                            </div>
+                            <div class="flex-1 space-y-2">
+                                <input type="file" id="bot_avatar_image" name="bot_avatar_image" accept="image/jpeg,image/png,image/jpg,image/webp"
+                                    class="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                <input type="url" id="bot_avatar" name="bot_avatar" value="{{ old('bot_avatar', $config->bot_avatar ?? '') }}" placeholder="O pega la URL de la imagen"
+                                    class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                @if($config->bot_avatar_url ?? null)
+                                <label class="inline-flex items-center text-sm text-gray-600">
+                                    <input type="checkbox" name="remove_bot_avatar" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2">
+                                    Eliminar avatar actual
+                                </label>
+                                @endif
+                                <p class="text-xs text-gray-500">Se muestra en el chat del panel y en la vista previa del flujo.</p>
+                            </div>
+                        </div>
                     </div>
 
                     <div>
@@ -130,8 +150,27 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Inicializar textareas con editor enriquecido si es necesario
-    // Ejemplo: tinymce.init({ selector: 'textarea' });
+    const fileInput = document.getElementById('bot_avatar_image');
+    const preview = document.getElementById('bot-avatar-preview');
+    const previewWrap = document.getElementById('bot-avatar-preview-wrap');
+    const placeholder = document.getElementById('bot-avatar-placeholder');
+
+    if (fileInput) {
+        fileInput.addEventListener('change', function () {
+            const file = this.files?.[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                preview.src = event.target.result;
+                previewWrap.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        });
+    }
 });
 </script>
 @endpush

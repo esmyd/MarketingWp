@@ -103,4 +103,40 @@ class WhatsappCart extends Model
         $this->status = self::STATUS_CANCELLED;
         $this->save();
     }
+
+    public function hasPaymentProof(): bool
+    {
+        return !empty($this->metadata['payment_proof']);
+    }
+
+    public function isAwaitingPaymentProof(): bool
+    {
+        return $this->payment_status === 'awaiting_proof'
+            || !empty($this->metadata['pending_payment_proof']);
+    }
+
+    public function attachPaymentProof(array $proofData): void
+    {
+        $metadata = $this->metadata ?? [];
+        $metadata['payment_proof'] = $proofData;
+        unset($metadata['pending_payment_proof']);
+        $this->metadata = $metadata;
+        $this->payment_status = 'proof_submitted';
+        $this->save();
+    }
+
+    public function markAwaitingPaymentProof(): void
+    {
+        $metadata = $this->metadata ?? [];
+        $metadata['pending_payment_proof'] = true;
+        $this->metadata = $metadata;
+        $this->payment_status = 'awaiting_proof';
+        $this->save();
+    }
+
+    public function getOrderNumber(): string
+    {
+        return $this->metadata['order_details']['order_number']
+            ?? 'ORD-' . str_pad((string) $this->id, 6, '0', STR_PAD_LEFT);
+    }
 }

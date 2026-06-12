@@ -6,6 +6,7 @@ use App\Enums\MarketingStepKey;
 use App\Models\MarketingFlow;
 use App\Models\MarketingFlowStep;
 use App\Models\WhatsappBusinessProfile;
+use App\Models\WhatsappChatbotConfig;
 use App\Models\WhatsappContact;
 use App\Models\WhatsappMenu;
 use App\Services\Whatsapp\WhatsappMessagePayload;
@@ -17,7 +18,9 @@ class MarketingCatalogBuilder
         protected MarketingFlowPayloadBuilder $payloadBuilder,
         protected ?WhatsappBusinessProfile $businessProfile = null,
     ) {
-        $this->businessProfile ??= WhatsappBusinessProfile::first();
+        if (!$this->businessProfile?->id) {
+            $this->businessProfile = WhatsappBusinessProfile::first();
+        }
     }
 
     public function buildCatalog(?WhatsappContact $contact = null, ?int $categoryId = null): array
@@ -82,6 +85,8 @@ class MarketingCatalogBuilder
 
         return [
             'nombre' => $contact?->name ?? 'Cliente',
+            'nombre_bot' => WhatsappChatbotConfig::where('business_profile_id', $this->businessProfile?->id)->first()?->bot_name
+                ?: 'Asistente virtual',
             'nombre_empresa' => $this->businessProfile?->business_name ?? 'Tienda',
             'telefono_soporte' => config('whatsapp.demo_whatsapp_number', ''),
             'horario_atencion' => 'Lunes a viernes 9:00 - 18:00',

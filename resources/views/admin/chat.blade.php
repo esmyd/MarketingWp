@@ -1199,7 +1199,10 @@
                 </div>
                 <div class="wa-header-actions">
                     <div class="wa-chat-bot-control">
-                        <span style="font-size: 12px; color: #8696a0;">Bot</span>
+                        @if($chatbotConfig?->bot_avatar_url)
+                            <img src="{{ $chatbotConfig->bot_avatar_url }}" alt="{{ $chatbotConfig->bot_name ?? 'Bot' }}" title="{{ $chatbotConfig->bot_name ?? 'Bot' }}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;">
+                        @endif
+                        <span style="font-size: 12px; color: #8696a0;">{{ $chatbotConfig?->bot_name ?? 'Bot' }}</span>
                         <label class="bot-toggle-switch">
                             <input type="checkbox" id="bot-enabled-toggle"
                                    {{ ($contact->bot_enabled ?? true) ? 'checked' : '' }}

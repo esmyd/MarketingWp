@@ -608,7 +608,32 @@ body.flow-builder-page .content-header {
 
                         @if($stepKey === \App\Enums\MarketingStepKey::PAYMENT_PROOF)
                         <div class="flow-section">
-                            <div class="flow-section-title"><i class="fas fa-check-circle"></i> Tras comprobante</div>
+                            <div class="flow-section-title"><i class="fas fa-receipt"></i> Comprobante de pago</div>
+                            <div class="form-check form-switch mb-3">
+                                <input type="hidden" name="steps[{{ $stepKey }}][require_proof]" value="0">
+                                <input type="checkbox" class="form-check-input" id="require_proof_{{ $stepKey }}"
+                                    name="steps[{{ $stepKey }}][require_proof]" value="1"
+                                    {{ old("steps.$stepKey.require_proof", $config['require_proof'] ?? false) ? 'checked' : '' }}>
+                                <label class="form-check-label" for="require_proof_{{ $stepKey }}">
+                                    Solicitar comprobante al confirmar el pedido
+                                </label>
+                            </div>
+                            <p class="text-muted small mb-2">Métodos de pago que requieren comprobante:</p>
+                            @php
+                                $selectedMethods = old("steps.$stepKey.require_for_methods", $config['require_for_methods'] ?? ['transferencia', 'tarjeta']);
+                            @endphp
+                            <div class="d-flex flex-wrap gap-3 mb-3">
+                                @foreach(['transferencia' => '🏦 Transferencia', 'tarjeta' => '💳 Tarjeta', 'efectivo' => '💵 Efectivo'] as $methodKey => $methodLabel)
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input"
+                                        name="steps[{{ $stepKey }}][require_for_methods][]"
+                                        value="{{ $methodKey }}" id="proof_method_{{ $stepKey }}_{{ $methodKey }}"
+                                        {{ in_array($methodKey, $selectedMethods, true) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="proof_method_{{ $stepKey }}_{{ $methodKey }}">{{ $methodLabel }}</label>
+                                </div>
+                                @endforeach
+                            </div>
+                            <label class="form-label small">Mensaje tras recibir comprobante</label>
                             <textarea name="steps[{{ $stepKey }}][success_message]" rows="2" class="form-control form-control-sm">{{ old("steps.$stepKey.success_message", $config['success_message'] ?? '') }}</textarea>
                         </div>
                         @endif
@@ -630,8 +655,13 @@ body.flow-builder-page .content-header {
                 <div class="flow-preview-card">
                     <div class="wa-preview-label"><i class="fab fa-whatsapp text-success me-1"></i> Vista previa</div>
                     <div class="wa-phone">
-                        <div class="wa-phone-header">
-                            <i class="fas fa-robot me-2 opacity-75"></i>{{ $profile->business_name ?? 'Bot Ventas' }}
+                        <div class="wa-phone-header d-flex align-items-center gap-2">
+                            @if($chatbotConfig?->bot_avatar_url)
+                                <img src="{{ $chatbotConfig->bot_avatar_url }}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">
+                            @else
+                                <i class="fas fa-robot opacity-75"></i>
+                            @endif
+                            <span>{{ $chatbotConfig?->bot_name ?? ($profile->business_name ?? 'Bot Ventas') }}</span>
                         </div>
                         <div class="wa-phone-body">
                             <div class="wa-bubble">
@@ -668,6 +698,7 @@ body.flow-builder-page .content-header {
 (function () {
     const previewSamples = {
         nombre: 'María González',
+        nombre_bot: @json($chatbotConfig?->bot_name ?? 'Asistente virtual'),
         nombre_empresa: @json($profile->business_name ?? 'Tienda Demo'),
         telefono_soporte: '593959520743',
         horario_atencion: 'Lun–Vie 9:00–18:00',

@@ -69,6 +69,11 @@ return [
         'max_conversation_duration' => 3600, // 1 hour in seconds
     ],
 
+    // ChatGPT / OpenAI (interruptor global; requiere también activar en la config del perfil)
+    'chatgpt' => [
+        'enabled' => filter_var(env('CHATGPT_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+    ],
+
     // Business Profile Settings (use your custom variable names)
     'business_id' => env('WHATSAPP_BUSINESS_ID'),
 ];

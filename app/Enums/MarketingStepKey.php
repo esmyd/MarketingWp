@@ -80,12 +80,12 @@ class MarketingStepKey
 
     public static function templateVariables(string $stepKey): array
     {
-        $common = ['nombre', 'nombre_empresa', 'telefono_soporte', 'horario_atencion'];
+        $common = ['nombre', 'nombre_bot', 'nombre_empresa', 'telefono_soporte', 'horario_atencion'];
 
         return match ($stepKey) {
             self::PRODUCTS_MENU => array_merge($common, ['total_productos', 'total_categorias']),
             self::CART_SUMMARY, self::CHECKOUT => array_merge($common, ['total', 'moneda', 'cantidad_items']),
-            self::ORDERS_MENU => array_merge($common, ['numero_pedido', 'estado_pedido']),
+            self::ORDERS_MENU, self::PAYMENT_PROOF => array_merge($common, ['numero_pedido', 'estado_pedido', 'total', 'moneda', 'metodo_pago']),
             default => $common,
         };
     }

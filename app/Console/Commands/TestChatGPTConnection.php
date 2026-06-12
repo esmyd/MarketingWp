@@ -51,6 +51,11 @@ class TestChatGPTConnection extends Command
             return;
         }
 
+        if (!config('whatsapp.chatgpt.enabled', false)) {
+            $this->warn('ChatGPT está desactivado globalmente (CHATGPT_ENABLED=false en .env).');
+            return;
+        }
+
         if (!$config->chatgpt_enabled) {
             $this->warn('ChatGPT está desactivado para este perfil.');
             return;
