@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ClientInsightsService
 {
@@ -65,7 +66,7 @@ class ClientInsightsService
 
     public function contactDetail(WhatsappContact $contact): array
     {
-        $contact = $this->enrichContact($contact);
+        $contact = $this->loadContactMetrics($contact);
 
         $orders = WhatsappCart::reportable()
             ->with('items')
@@ -96,7 +97,7 @@ class ClientInsightsService
             'orders' => $orders,
             'recent_messages' => $recentMessages,
             'messages_by_month' => $messagesByMonth,
-            'response_rate' => $this->responseRate($contact->id),
+            'response_rate' => $this->responseRateFromMetrics($contact),
         ];
     }
 
@@ -177,8 +178,9 @@ class ClientInsightsService
                 'messages as last_reply_message_at' => fn (Builder $q) => $q->whereIn('sender_type', ['system', 'humano']),
             ], 'created_at')
             ->withMax('messages as last_activity_at', 'created_at')
-            ->select('whatsapp_contacts.*')
-            ->selectRaw("CASE WHEN JSON_EXTRACT(metadata, '$.needs_agent') = true THEN 1 ELSE 0 END as needs_agent_flag");
+            ->addSelect(DB::raw(
+                "CASE WHEN JSON_EXTRACT(whatsapp_contacts.metadata, '$.needs_agent') = true THEN 1 ELSE 0 END as needs_agent_flag"
+            ));
     }
 
     private function applyFilters(Builder $query, Request $request, bool $skipSegment = false): void
@@ -260,34 +262,49 @@ class ClientInsightsService
             ->first();
 
         if (!$enriched) {
-            $contact->loadCount([
-                'messages as client_messages_count' => fn (Builder $q) => $q->where('sender_type', 'client'),
-                'messages as replied_messages_count' => fn (Builder $q) => $q->whereIn('sender_type', ['system', 'humano']),
-                'carts as orders_count' => fn (Builder $q) => $q->reportable(),
-            ]);
-            $contact->total_spent = WhatsappCart::reportable()
-                ->where('contact_id', $contact->id)
-                ->where('status', '!=', WhatsappCart::STATUS_CANCELLED)
-                ->sum('total');
-            $contact->last_client_message_at = WhatsappMessage::where('contact_id', $contact->id)
-                ->where('sender_type', 'client')
-                ->max('created_at');
-            $contact->last_reply_message_at = WhatsappMessage::where('contact_id', $contact->id)
-                ->whereIn('sender_type', ['system', 'humano'])
-                ->max('created_at');
-            $contact->last_activity_at = WhatsappMessage::where('contact_id', $contact->id)->max('created_at');
-            $contact->needs_agent_flag = $contact->needsAgent() ? 1 : 0;
-            $contact->recent_orders_count = WhatsappCart::reportable()
-                ->where('contact_id', $contact->id)
-                ->where('created_at', '>=', now()->subDays(90))
-                ->count();
-
-            return $contact;
+            return $this->loadContactMetrics($contact);
         }
 
         $enriched->pending_reply = $this->isPendingReply($enriched);
 
         return $enriched;
+    }
+
+    /** Métricas directas — fuente de verdad para el detalle del cliente. */
+    private function loadContactMetrics(WhatsappContact $contact): WhatsappContact
+    {
+        $contactId = $contact->id;
+        $ninetyDaysAgo = now()->subDays(90);
+
+        $contact->client_messages_count = WhatsappMessage::where('contact_id', $contactId)
+            ->where('sender_type', 'client')
+            ->count();
+        $contact->replied_messages_count = WhatsappMessage::where('contact_id', $contactId)
+            ->whereIn('sender_type', ['system', 'humano'])
+            ->count();
+        $contact->orders_count = WhatsappCart::reportable()
+            ->where('contact_id', $contactId)
+            ->count();
+        $contact->recent_orders_count = WhatsappCart::reportable()
+            ->where('contact_id', $contactId)
+            ->where('created_at', '>=', $ninetyDaysAgo)
+            ->count();
+        $contact->total_spent = (float) WhatsappCart::reportable()
+            ->where('contact_id', $contactId)
+            ->where('status', '!=', WhatsappCart::STATUS_CANCELLED)
+            ->sum('total');
+        $contact->last_client_message_at = WhatsappMessage::where('contact_id', $contactId)
+            ->where('sender_type', 'client')
+            ->max('created_at');
+        $contact->last_reply_message_at = WhatsappMessage::where('contact_id', $contactId)
+            ->whereIn('sender_type', ['system', 'humano'])
+            ->max('created_at');
+        $contact->last_activity_at = WhatsappMessage::where('contact_id', $contactId)
+            ->max('created_at');
+        $contact->needs_agent_flag = $contact->needsAgent() ? 1 : 0;
+        $contact->pending_reply = $this->isPendingReply($contact);
+
+        return $contact;
     }
 
     /** Subconsulta segura para filtrar/ordenar por última actividad (no es columna física). */
@@ -362,6 +379,18 @@ class ClientInsightsService
         }
 
         return $clientAt->gt(Carbon::parse($contact->last_reply_message_at));
+    }
+
+    private function responseRateFromMetrics(object $contact): float
+    {
+        $inbound = (int) ($contact->client_messages_count ?? 0);
+        if ($inbound === 0) {
+            return 0;
+        }
+
+        $outbound = (int) ($contact->replied_messages_count ?? 0);
+
+        return min(round(($outbound / $inbound) * 100, 1), 100);
     }
 
     private function responseRate(int $contactId): float

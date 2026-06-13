@@ -3562,6 +3562,85 @@
         // Actualizar lista de contactos en tiempo real
         let contactsUpdateInterval = null;
         let currentContactId = {{ $contact->id }};
+        let agentSoundInitialized = false;
+        const alertedAgentContactIds = new Set();
+        let agentAudioContext = null;
+
+        function unlockAgentAudio() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                if (!agentAudioContext) {
+                    agentAudioContext = new AudioContext();
+                }
+                if (agentAudioContext.state === 'suspended') {
+                    agentAudioContext.resume();
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        document.addEventListener('click', unlockAgentAudio, { once: true, passive: true });
+        document.addEventListener('keydown', unlockAgentAudio, { once: true });
+
+        function playAgentRequestSound() {
+            unlockAgentAudio();
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+
+                const ctx = agentAudioContext || new AudioContext();
+                agentAudioContext = ctx;
+
+                const playTone = (freq, start, duration, volume = 0.22) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.value = freq;
+                    osc.type = 'triangle';
+                    const t0 = ctx.currentTime + start;
+                    gain.gain.setValueAtTime(0.0001, t0);
+                    gain.gain.exponentialRampToValueAtTime(volume, t0 + 0.025);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+                    osc.start(t0);
+                    osc.stop(t0 + duration + 0.05);
+                };
+
+                playTone(880, 0, 0.14);
+                playTone(1175, 0.16, 0.18);
+                playTone(880, 0.36, 0.22, 0.18);
+            } catch (e) { /* ignore */ }
+        }
+
+        function handleAgentRequestAlerts(contacts) {
+            const requestingIds = contacts
+                .filter(contact => contact.needs_agent)
+                .map(contact => String(contact.id));
+
+            if (!agentSoundInitialized) {
+                requestingIds.forEach(id => alertedAgentContactIds.add(id));
+                agentSoundInitialized = true;
+                return;
+            }
+
+            let shouldPlay = false;
+            requestingIds.forEach(id => {
+                if (!alertedAgentContactIds.has(id)) {
+                    alertedAgentContactIds.add(id);
+                    shouldPlay = true;
+                }
+            });
+
+            [...alertedAgentContactIds].forEach(id => {
+                if (!requestingIds.includes(id)) {
+                    alertedAgentContactIds.delete(id);
+                }
+            });
+
+            if (shouldPlay) {
+                playAgentRequestSound();
+            }
+        }
 
         function updateAgentHandoffBanner(needsAgent) {
             const banner = document.getElementById('wa-agent-handoff-banner');
@@ -3599,6 +3678,7 @@
             .then(data => {
                 if (data.success) {
                     updateAgentHandoffBanner(false);
+                    alertedAgentContactIds.delete(String(contactId));
                     updateContactsList();
                 }
                 return data;
@@ -3633,6 +3713,8 @@
                     if (typeof data.agent_requests_count !== 'undefined') {
                         updateAgentRequestsCount(data.agent_requests_count);
                     }
+
+                    handleAgentRequestAlerts(data.contacts);
 
                     const contactsContainer = document.querySelector('.wa-sidebar-contacts');
                     if (!contactsContainer) return;
