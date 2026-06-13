@@ -24,13 +24,13 @@ class UserAdminController extends Controller
             ->orderBy('name')
             ->get();
 
-        $stats = $activity->dailyStatsForUsers($users, $date);
+        $stats = $activity->dailyStatsForUsers($users, $date)->all();
 
         $summary = [
             'total' => $users->count(),
             'active' => $users->filter(fn (User $u) => $u->isActive())->count(),
-            'messages_today' => $stats->sum('messages_sent'),
-            'clients_today' => $stats->sum('clients_served'),
+            'messages_today' => collect($stats)->sum('messages_sent'),
+            'clients_today' => collect($stats)->sum('clients_served'),
         ];
 
         return view('admin.users.index', compact('users', 'stats', 'date', 'summary'));

@@ -232,15 +232,16 @@
         <div class="timeline">
             @forelse($recent_messages as $message)
                 @php
-                    $iconClass = match($message->sender_type) {
+                    $iconClass = match($message->senderKind()) {
                         'client' => 'client',
-                        'humano' => 'humano',
+                        'agent' => 'humano',
                         default => 'system',
                     };
-                    $senderLabel = match($message->sender_type) {
-                        'client' => 'Cliente',
-                        'humano' => 'Humano',
-                        default => 'Bot',
+                    $senderLabel = $message->senderBadgeLabel($contact->name ?? null);
+                    $badgeIcon = match($message->senderKind()) {
+                        'client' => 'user',
+                        'agent' => 'headset',
+                        default => 'robot',
                     };
                     $preview = WhatsappMessageFormatter::displayText(
                         $message->content,
@@ -253,7 +254,7 @@
                         <i class="fas fa-{{ $message->sender_type === 'client' ? 'user' : ($message->sender_type === 'humano' ? 'headset' : 'robot') }}"></i>
                     </div>
                     <div style="flex:1; min-width:0;">
-                        <strong>{{ $senderLabel }}</strong>
+                        <strong><i class="fas fa-{{ $badgeIcon }} me-1 opacity-75"></i>{{ $senderLabel }}</strong>
                         <div>{{ \Illuminate\Support\Str::limit($preview, 120) }}</div>
                         <div class="timeline-meta">{{ $message->created_at->format('d/m/Y H:i:s') }}</div>
                     </div>

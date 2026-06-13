@@ -339,7 +339,6 @@
     }
 
     .user-activity-detail {
-        display: none;
         margin-top: .75rem;
         padding: .75rem;
         background: #f8fafc;
@@ -347,7 +346,9 @@
         border-radius: 12px;
     }
 
-    .user-activity-detail.open { display: block; }
+    .user-activity-detail.collapsed {
+        display: none;
+    }
 
     .u-detail-head {
         display: flex;
@@ -582,13 +583,11 @@
                         <span><i class="far fa-envelope"></i> {{ $user->email }}</span>
                     </div>
                     <div class="user-metrics mt-2">
-                        <div class="u-metric {{ $day['messages_sent'] ? 'highlight' : '' }} {{ $hasActivity ? 'clickable' : '' }}"
-                             @if($hasActivity) data-toggle-activity="user-activity-{{ $user->id }}" title="Ver detalle" @endif>
+                        <div class="u-metric {{ $day['messages_sent'] ? 'highlight' : '' }}">
                             <div class="n {{ $day['messages_sent'] ? '' : 'zero' }}">{{ $day['messages_sent'] }}</div>
                             <div class="t">Mensajes</div>
                         </div>
-                        <div class="u-metric {{ $day['clients_served'] ? 'highlight' : '' }} {{ $hasActivity ? 'clickable' : '' }}"
-                             @if($hasActivity) data-toggle-activity="user-activity-{{ $user->id }}" title="Ver clientes" @endif>
+                        <div class="u-metric {{ $day['clients_served'] ? 'highlight' : '' }}">
                             <div class="n {{ $day['clients_served'] ? '' : 'zero' }}">{{ $day['clients_served'] }}</div>
                             <div class="t">Clientes</div>
                         </div>
@@ -599,33 +598,37 @@
                     </div>
 
                     @if($hasActivity)
-                        <div class="user-activity-detail" id="user-activity-{{ $user->id }}">
-                            <div class="u-detail-head">
-                                <span>Clientes atendidos · {{ $dateLabel }}</span>
-                                <button type="button" class="btn-u-ghost btn-sm py-0 px-2" data-close-activity="user-activity-{{ $user->id }}">Cerrar</button>
-                            </div>
-                            <ul class="u-client-list">
-                                @foreach($clients as $client)
-                                    <li class="u-client-item">
-                                        <div class="who">
-                                            <strong>{{ $client['name'] ?: 'Sin nombre' }}</strong>
-                                            <small>{{ $client['phone'] }}</small>
-                                        </div>
-                                        <div class="u-client-tags">
-                                            @if($client['messages'] > 0)
-                                                <span class="u-tag msg">{{ $client['messages'] }} msg</span>
-                                            @endif
-                                            @if($client['agent_closed'])
-                                                <span class="u-tag agent">Asesor</span>
-                                            @endif
-                                            @perm('chats.open')
+                        @if(count($clients) > 0)
+                            <div class="user-activity-detail" id="user-activity-{{ $user->id }}">
+                                <div class="u-detail-head">
+                                    <span><i class="fas fa-users me-1"></i> Clientes atendidos · {{ $dateLabel }}</span>
+                                </div>
+                                <ul class="u-client-list">
+                                    @foreach($clients as $client)
+                                        <li class="u-client-item">
+                                            <div class="who">
+                                                <strong>{{ $client['name'] ?: 'Sin nombre' }}</strong>
+                                                <small>{{ $client['phone'] }}</small>
+                                            </div>
+                                            <div class="u-client-tags">
+                                                @if($client['messages'] > 0)
+                                                    <span class="u-tag msg">{{ $client['messages'] }} msg</span>
+                                                @endif
+                                                @if($client['agent_closed'])
+                                                    <span class="u-tag agent">Asesor</span>
+                                                @endif
                                                 <a href="{{ route('admin.chat', $client['id']) }}" class="u-client-link">Abrir chat</a>
-                                            @endperm
-                                        </div>
-                                    </li>
-                                @endforeach
-                            </ul>
-                        </div>
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @else
+                            <div class="user-activity-detail" style="font-size:.82rem;color:#64748b;">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Hay actividad registrada ({{ $day['clients_served'] }} cliente(s)) pero no se encontraron los contactos en la base de datos.
+                            </div>
+                        @endif
                     @endif
                 </div>
 
@@ -657,33 +660,8 @@
     </div>
 
     <p class="users-footnote mb-0">
-        <strong>Clientes</strong> cuenta contactos distintos con mensajes humanos o solicitud de asesor cerrada ese día.
-        Haz clic en <strong>Mensajes</strong> o <strong>Clientes</strong> para ver el detalle. Las métricas aplican a actividad registrada desde el chat del panel.
+        <strong>Clientes</strong> = contactos distintos con mensajes desde el panel o solicitud de asesor cerrada ese día.
+        La lista aparece debajo de cada usuario con actividad.
     </p>
 </div>
-
-@push('scripts')
-<script>
-document.querySelectorAll('[data-toggle-activity]').forEach(function (el) {
-    el.addEventListener('click', function () {
-        var id = el.getAttribute('data-toggle-activity');
-        var panel = document.getElementById(id);
-        if (!panel) return;
-        var isOpen = panel.classList.contains('open');
-        document.querySelectorAll('.user-activity-detail.open').forEach(function (p) {
-            p.classList.remove('open');
-        });
-        if (!isOpen) panel.classList.add('open');
-    });
-});
-document.querySelectorAll('[data-close-activity]').forEach(function (btn) {
-    btn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        var id = btn.getAttribute('data-close-activity');
-        var panel = document.getElementById(id);
-        if (panel) panel.classList.remove('open');
-    });
-});
-</script>
-@endpush
 @endsection

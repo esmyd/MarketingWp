@@ -113,6 +113,15 @@
         margin-left: auto;
     }
 
+    .wa-bubble-out.wa-bubble-bot {
+        background: #005c4b;
+    }
+
+    .wa-bubble-out.wa-bubble-agent {
+        background: #176b5b;
+        box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    }
+
     .wa-bubble-out::after {
         content: '';
         position: absolute;
@@ -123,6 +132,14 @@
         border-style: solid;
         border-width: 8px 0 0 8px;
         border-color: #005c4b transparent transparent transparent;
+    }
+
+    .wa-bubble-out.wa-bubble-bot::after {
+        border-color: #005c4b transparent transparent transparent;
+    }
+
+    .wa-bubble-out.wa-bubble-agent::after {
+        border-color: #176b5b transparent transparent transparent;
     }
 
     .wa-badge {
@@ -705,7 +722,7 @@
         padding: 14px 16px;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 4px;
         position: relative;
         z-index: 1;
         min-height: 0;
@@ -730,8 +747,8 @@
 
     .wa-message-wrapper {
         display: flex;
-        margin-bottom: 2px;
-        padding: 0 7.5px;
+        margin-bottom: 8px;
+        padding: 0 12px;
     }
 
     .wa-message-wrapper.incoming {
@@ -740,6 +757,67 @@
 
     .wa-message-wrapper.outgoing {
         justify-content: flex-end;
+    }
+
+    .wa-msg-col {
+        display: flex;
+        flex-direction: column;
+        max-width: min(520px, 78%);
+        gap: 4px;
+    }
+
+    .wa-message-wrapper.incoming .wa-msg-col {
+        align-items: flex-start;
+    }
+
+    .wa-message-wrapper.outgoing .wa-msg-col {
+        align-items: flex-end;
+    }
+
+    .wa-msg-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        padding: 3px 8px;
+        border-radius: 999px;
+        line-height: 1.2;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .wa-msg-badge i {
+        font-size: 10px;
+        opacity: 0.9;
+        flex-shrink: 0;
+    }
+
+    .wa-msg-badge-client {
+        background: rgba(32, 44, 51, 0.85);
+        color: #aebac1;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .wa-msg-badge-bot {
+        background: rgba(0, 92, 75, 0.35);
+        color: #7fd4b8;
+        border: 1px solid rgba(0, 168, 132, 0.25);
+    }
+
+    .wa-msg-badge-agent {
+        background: rgba(23, 107, 91, 0.45);
+        color: #ffe082;
+        border: 1px solid rgba(255, 224, 130, 0.25);
+    }
+
+    .wa-msg-col .wa-bubble-in,
+    .wa-msg-col .wa-bubble-out {
+        max-width: 100%;
+        margin-left: 0;
     }
 
     .wa-message-time {
@@ -1324,7 +1402,17 @@
                 @forelse($messages as $msg)
                     @php
                         $isIncoming = $msg->sender_type === 'client';
+                        $senderKind = $msg->senderKind();
+                        $senderLabel = $msg->senderBadgeLabel($contact->name ?: null);
                         $bubbleClass = $isIncoming ? 'wa-bubble-in' : 'wa-bubble-out';
+                        if (!$isIncoming) {
+                            $bubbleClass .= $senderKind === 'agent' ? ' wa-bubble-agent' : ' wa-bubble-bot';
+                        }
+                        $badgeIcon = match ($senderKind) {
+                            'client' => 'user',
+                            'agent' => 'headset',
+                            default => 'robot',
+                        };
                         $content = $msg->content;
                         $metadata = $msg->metadata ?? [];
                         $displayText = \App\Helpers\WhatsappMessageFormatter::displayText($content, $msg->type, $metadata);
@@ -1332,6 +1420,11 @@
                         $isInteractiveReply = \App\Helpers\WhatsappMessageFormatter::isInteractiveReply($content, $msg->type, $metadata);
                     @endphp
                     <div class="wa-message-wrapper {{ $isIncoming ? 'incoming' : 'outgoing' }}" data-message-id="{{ $msg->id }}" @if($isIncoming && $msg->message_id) data-whatsapp-message-id="{{ $msg->message_id }}" @endif>
+                        <div class="wa-msg-col">
+                            <div class="wa-msg-badge wa-msg-badge-{{ $senderKind }}">
+                                <i class="fas fa-{{ $badgeIcon }}"></i>
+                                <span>{{ $senderLabel }}</span>
+                            </div>
                         <div class="{{ $bubbleClass }}">
                             @if($msg->type === 'image')
                                 @php
@@ -1404,6 +1497,7 @@
                                     </span>
                                 @endif
                             </div>
+                        </div>
                         </div>
                     </div>
                 @empty
@@ -1594,6 +1688,7 @@
                     <input type="file" id="image-input" name="image" accept="image/*" class="hidden">
                     <input type="file" id="document-input" name="document" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" class="hidden">
                     <input type="hidden" id="current-contact-id" value="{{ $contact->id }}">
+                    <input type="hidden" id="current-contact-name" value="{{ $contact->name ?: 'Cliente' }}">
                     <input type="hidden" id="last-inbound-wamid" value="{{ $lastInboundWamid ?? '' }}">
                     @if(empty($typingAvailable))
                     <p id="typing-unavailable-hint" class="text-xs text-amber-600 px-3 py-1 text-center" style="background:#fff8e6;">
@@ -2005,6 +2100,43 @@
     let lastMessageId = 0;
     let currentPollingContactId = null;
 
+    function resolveSenderMeta(messageData, isIncoming) {
+        if (isIncoming) {
+            const clientName = document.getElementById('current-contact-name')?.value || 'Cliente';
+            return { kind: 'client', label: clientName, icon: 'user', bubbleExtra: '' };
+        }
+
+        if (messageData.sender_kind) {
+            const kind = messageData.sender_kind;
+            return {
+                kind,
+                label: messageData.sender_label || (kind === 'agent' ? 'Asesor' : 'Bot'),
+                icon: kind === 'agent' ? 'headset' : 'robot',
+                bubbleExtra: kind === 'agent' ? ' wa-bubble-agent' : ' wa-bubble-bot',
+            };
+        }
+
+        if (messageData.admin_sender_name || messageData.sender_type === 'humano') {
+            return {
+                kind: 'agent',
+                label: messageData.admin_sender_name || messageData.sender_label || 'Asesor',
+                icon: 'headset',
+                bubbleExtra: ' wa-bubble-agent',
+            };
+        }
+
+        return {
+            kind: 'bot',
+            label: messageData.sender_label || 'Bot',
+            icon: 'robot',
+            bubbleExtra: ' wa-bubble-bot',
+        };
+    }
+
+    function buildMessageBadgeHtml(meta) {
+        return `<div class="wa-msg-badge wa-msg-badge-${meta.kind}"><i class="fas fa-${meta.icon}"></i><span>${escapeHtmlGlobal(meta.label)}</span></div>`;
+    }
+
     // Función para agregar mensajes a la vista (debe estar fuera de DOMContentLoaded para ser accesible globalmente)
     function addMessageToView(messageData, isIncoming = false) {
         const chatMessages = document.getElementById('chat-messages');
@@ -2066,17 +2198,21 @@
             contentHtml += `<span class="wa-bubble-content break-all">${escapeHtmlGlobal(messageData.content)}</span>`;
         }
 
-        const bubbleClass = isIncoming ? 'wa-bubble-in' : 'wa-bubble-out';
+        const senderMeta = resolveSenderMeta(messageData, isIncoming);
+        const bubbleClass = isIncoming ? 'wa-bubble-in' : ('wa-bubble-out' + senderMeta.bubbleExtra);
         const statusHtml = !isIncoming
             ? `<span class="wa-message-status"><svg width="16" height="10" viewBox="0 0 16 10"><path d="M15.854 0.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L8.5 7.293l6.646-6.647a.5.5 0 0 1 .708 0z" fill="#53bdeb"/><path d="M10.854 0.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L3.5 7.293l6.646-6.647a.5.5 0 0 1 .708 0z" fill="#53bdeb"/></svg></span>`
             : '';
 
         messageDiv.innerHTML = `
-            <div class="${bubbleClass}">
-                ${contentHtml}
-                <div class="wa-message-time ${isIncoming ? 'incoming' : 'outgoing'}">
-                    <span>${timeOnly}</span>
-                    ${statusHtml}
+            <div class="wa-msg-col">
+                ${buildMessageBadgeHtml(senderMeta)}
+                <div class="${bubbleClass}">
+                    ${contentHtml}
+                    <div class="wa-message-time ${isIncoming ? 'incoming' : 'outgoing'}">
+                        <span>${timeOnly}</span>
+                        ${statusHtml}
+                    </div>
                 </div>
             </div>
         `;
@@ -3007,7 +3143,8 @@
         function renderMessage(msg) {
             const chatMessages = document.getElementById('chat-messages');
             const isIncoming = msg.sender_type === 'client';
-            const bubbleClass = isIncoming ? 'wa-bubble-in' : 'wa-bubble-out';
+            const senderMeta = resolveSenderMeta(msg, isIncoming);
+            const bubbleClass = isIncoming ? 'wa-bubble-in' : ('wa-bubble-out' + senderMeta.bubbleExtra);
             const wrapperClass = isIncoming ? 'incoming' : 'outgoing';
 
             let contentHtml = '';
@@ -3056,11 +3193,14 @@
             messageDiv.className = `wa-message-wrapper ${wrapperClass}`;
             messageDiv.setAttribute('data-message-id', msg.id);
             messageDiv.innerHTML = `
-                <div class="${bubbleClass}">
-                    ${contentHtml}
-                    <div class="wa-message-time ${isIncoming ? 'incoming' : 'outgoing'}">
-                        <span>${time}</span>
-                        ${statusIcon}
+                <div class="wa-msg-col">
+                    ${buildMessageBadgeHtml(senderMeta)}
+                    <div class="${bubbleClass}">
+                        ${contentHtml}
+                        <div class="wa-message-time ${isIncoming ? 'incoming' : 'outgoing'}">
+                            <span>${time}</span>
+                            ${statusIcon}
+                        </div>
                     </div>
                 </div>
             `;

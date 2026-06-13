@@ -42,7 +42,7 @@ class UserActivityService
 
         $messageRows = WhatsappMessage::query()
             ->select('admin_user_id', 'contact_id')
-            ->where('sender_type', 'humano')
+            ->whereNotNull('admin_user_id')
             ->whereIn('admin_user_id', $userIds)
             ->whereBetween('created_at', [$from, $to])
             ->get()
@@ -81,9 +81,11 @@ class UserActivityService
             $rows = $messageRows->get($user->id, collect());
             $closedContacts = $agentClosed->get($user->id, collect());
 
-            $messagesByContact = $rows->groupBy('contact_id')->map->count();
-            $closedIds = $closedContacts->pluck('id')->filter()->unique();
-            $allContactIds = $messagesByContact->keys()->merge($closedIds)->unique()->filter();
+            $messagesByContact = $rows
+                ->groupBy(fn ($row) => (int) $row->contact_id)
+                ->map->count();
+            $closedIds = $closedContacts->pluck('id')->map(fn ($id) => (int) $id)->filter()->unique();
+            $allContactIds = $messagesByContact->keys()->merge($closedIds)->unique()->filter(fn ($id) => $id > 0);
 
             return [$user->id => [
                 'messages_sent' => $rows->count(),
@@ -106,18 +108,19 @@ class UserActivityService
 
         return $preliminary->map(function (array $row) use ($contacts) {
             $clients = collect($row['contact_ids'])->map(function ($contactId) use ($row, $contacts) {
+                $contactId = (int) $contactId;
                 $contact = $contacts->get($contactId) ?? $row['closed_contacts']->get($contactId);
-                $messages = (int) ($row['messages_by_contact'][$contactId] ?? 0);
+                $messages = (int) ($row['messages_by_contact'][$contactId] ?? $row['messages_by_contact'][(string) $contactId] ?? 0);
                 $agentClosed = $row['closed_contacts']->has($contactId);
 
                 return [
-                    'id' => (int) $contactId,
+                    'id' => $contactId,
                     'name' => $contact?->name,
                     'phone' => $contact?->phone_number ?? '—',
                     'messages' => $messages,
                     'agent_closed' => $agentClosed,
                 ];
-            })->sortByDesc(fn ($c) => [$c['messages'], $c['agent_closed'] ? 1 : 0])->values()->all();
+            })->sortByDesc(fn ($c) => $c['messages'])->values()->all();
 
             return [
                 'messages_sent' => $row['messages_sent'],

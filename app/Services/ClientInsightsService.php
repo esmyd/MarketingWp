@@ -76,6 +76,7 @@ class ClientInsightsService
             ->get();
 
         $recentMessages = WhatsappMessage::where('contact_id', $contact->id)
+            ->with('adminUser:id,name')
             ->latest()
             ->limit(30)
             ->get()

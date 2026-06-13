@@ -73,7 +73,10 @@ class AdminController extends Controller
     {
         $contacts = $this->getSidebarContacts((int) $contactId);
         $contact = \App\Models\WhatsappContact::findOrFail($contactId);
-        $messages = \App\Models\WhatsappMessage::where('contact_id', $contactId)->orderBy('created_at')->get();
+        $messages = \App\Models\WhatsappMessage::where('contact_id', $contactId)
+            ->with('adminUser:id,name')
+            ->orderBy('created_at')
+            ->get();
 
         // Calcular estadísticas del contacto actual
         $now = \Carbon\Carbon::now();
@@ -858,25 +861,9 @@ class AdminController extends Controller
 
             if ($success && $message) {
                 $contact->clearAgentRequest(auth()->id());
+                $message->load('adminUser:id,name');
 
-                $responseData = [
-                    'id' => $message->id,
-                    'content' => $message->content,
-                    'type' => $message->type,
-                    'created_at' => $message->created_at->format('Y-m-d H:i:s')
-                ];
-
-                // Agregar información adicional según el tipo
-                if ($message->type === 'image') {
-                    $metadata = $message->metadata ?? [];
-                    $responseData['image_url'] = null;
-                } elseif ($message->type === 'audio') {
-                    $metadata = $message->metadata ?? [];
-                    $responseData['filename'] = $metadata['filename'] ?? 'audio';
-                } elseif ($message->type === 'document') {
-                    $metadata = $message->metadata ?? [];
-                    $responseData['filename'] = $metadata['filename'] ?? 'documento';
-                }
+                $responseData = $message->toChatPayload();
 
                 return response()->json([
                     'success' => true,
@@ -1101,37 +1088,11 @@ class AdminController extends Controller
                 $query->latest()->limit(10);
             }
 
-            $newMessages = $query->orderBy('created_at')->get();
+            $newMessages = $query->with('adminUser:id,name')->orderBy('created_at')->get();
 
             return response()->json([
                 'success' => true,
-                'messages' => $newMessages->map(function($msg) {
-                    $metadata = $msg->metadata ?? [];
-                    $messageData = [
-                        'id' => $msg->id,
-                        'content' => $msg->content,
-                        'display_text' => \App\Helpers\WhatsappMessageFormatter::displayText($msg->content, $msg->type, $metadata),
-                        'display_description' => \App\Helpers\WhatsappMessageFormatter::displayDescription($msg->content, $metadata),
-                        'is_interactive_reply' => \App\Helpers\WhatsappMessageFormatter::isInteractiveReply($msg->content, $msg->type, $metadata),
-                        'type' => $msg->type,
-                        'sender_type' => $msg->sender_type,
-                        'whatsapp_message_id' => $msg->message_id,
-                        'metadata' => $metadata,
-                        'created_at' => $msg->created_at->toDateTimeString(),
-                        'created_at_formatted' => $msg->created_at->format('H:i')
-                    ];
-
-                    // Agregar información adicional según el tipo
-                    if ($msg->type === 'image') {
-                        $messageData['has_image'] = true;
-                    } elseif ($msg->type === 'document') {
-                        $metadata = $msg->metadata ?? [];
-                        $messageData['filename'] = $metadata['filename'] ?? 'documento';
-                        $messageData['file_size'] = $metadata['file_size'] ?? null;
-                    }
-
-                    return $messageData;
-                }),
+                'messages' => $newMessages->map(fn ($msg) => $msg->toChatPayload()),
                 'count' => $newMessages->count()
             ]);
         } catch (\Exception $e) {
