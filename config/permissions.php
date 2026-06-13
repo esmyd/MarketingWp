@@ -21,6 +21,15 @@ return [
                 'chats.toggle_bot' => ['label' => 'Activar / desactivar bot', 'type' => 'action'],
             ],
         ],
+        'clients' => [
+            'label' => 'Clientes',
+            'icon' => 'fa-users',
+            'permissions' => [
+                'clients.menu' => ['label' => 'Ver en menú', 'type' => 'menu'],
+                'clients.view' => ['label' => 'Ver listado de clientes', 'type' => 'action'],
+                'clients.detail' => ['label' => 'Ver detalle del cliente', 'type' => 'action'],
+            ],
+        ],
         'orders' => [
             'label' => 'Pedidos',
             'icon' => 'fa-shopping-cart',
@@ -95,6 +104,13 @@ return [
                 'roles.update' => ['label' => 'Configurar permisos', 'type' => 'action'],
             ],
         ],
+        'demo' => [
+            'label' => 'Demo',
+            'icon' => 'fa-rotate-left',
+            'permissions' => [
+                'demo.reset' => ['label' => 'Reiniciar datos de demo', 'type' => 'action'],
+            ],
+        ],
     ],
 
     'default_roles' => [
@@ -111,12 +127,14 @@ return [
             'permissions' => [
                 'dashboard.menu', 'dashboard.view',
                 'chats.menu', 'chats.view', 'chats.open', 'chats.send', 'chats.toggle_bot',
+                'clients.menu', 'clients.view', 'clients.detail',
                 'orders.menu', 'orders.view', 'orders.update',
                 'marketing_flow.menu', 'marketing_flow.view', 'marketing_flow.update',
                 'menus.menu', 'menus.view', 'menus.update',
                 'products.menu', 'products.view', 'products.update',
                 'chatbot.menu', 'chatbot.view', 'chatbot.update',
                 'users.menu', 'users.view', 'users.create', 'users.update',
+                'demo.reset',
             ],
         ],
         'agent' => [
@@ -126,6 +144,7 @@ return [
             'permissions' => [
                 'dashboard.menu', 'dashboard.view',
                 'chats.menu', 'chats.view', 'chats.open', 'chats.send', 'chats.toggle_bot',
+                'clients.menu', 'clients.view', 'clients.detail',
                 'orders.menu', 'orders.view', 'orders.update',
             ],
         ],
@@ -136,6 +155,7 @@ return [
             'permissions' => [
                 'dashboard.menu', 'dashboard.view',
                 'chats.menu', 'chats.view', 'chats.open',
+                'clients.menu', 'clients.view', 'clients.detail',
                 'orders.menu', 'orders.view',
             ],
         ],

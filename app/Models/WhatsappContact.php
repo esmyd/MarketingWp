@@ -48,7 +48,7 @@ class WhatsappContact extends Model
 
     public function carts()
     {
-        return $this->hasMany(WhatsappCart::class);
+        return $this->hasMany(WhatsappCart::class, 'contact_id');
     }
 
     public function needsAgent(): bool

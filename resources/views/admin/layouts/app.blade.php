@@ -738,9 +738,15 @@
                 </a>
                 @endperm
                 @perm('chats.menu')
-                <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chat*') ? 'active' : '' }}">
+                <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chat*') && !request()->routeIs('admin.clients*') ? 'active' : '' }}">
                     <i class="fas fa-comments"></i>
                     <span class="sidebar-text">Chats</span>
+                </a>
+                @endperm
+                @perm('clients.menu')
+                <a href="{{ route('admin.clients.index') }}" class="nav-link {{ request()->routeIs('admin.clients*') ? 'active' : '' }}">
+                    <i class="fas fa-users"></i>
+                    <span class="sidebar-text">Clientes</span>
                 </a>
                 @endperm
                 @perm('orders.menu')

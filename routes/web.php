@@ -27,6 +27,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/chats', [App\Http\Controllers\AdminController::class, 'chats'])
         ->middleware('permission:chats.view,chats.menu')
         ->name('chats');
+
+    Route::get('/clients', [App\Http\Controllers\Admin\ClientController::class, 'index'])
+        ->middleware('permission:clients.view,clients.menu')
+        ->name('clients.index');
+    Route::get('/clients/{client}', [App\Http\Controllers\Admin\ClientController::class, 'show'])
+        ->middleware('permission:clients.detail,clients.view')
+        ->name('clients.show');
+
     Route::get('/chats/{contact}', [App\Http\Controllers\AdminController::class, 'chat'])
         ->middleware('permission:chats.open,chats.view')
         ->name('chat');
@@ -157,6 +165,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::put('/users/{user}/role', [App\Http\Controllers\Admin\UserAdminController::class, 'updateRole'])
         ->middleware('permission:users.update,roles.update')
         ->name('users.role.update');
+
+    Route::post('/demo/reset', [App\Http\Controllers\Admin\DemoResetController::class, 'store'])
+        ->middleware('permission:demo.reset')
+        ->name('demo.reset');
 
     Route::get('/profile', [App\Http\Controllers\Admin\UserProfileController::class, 'show'])->name('profile.show');
     Route::put('/profile', [App\Http\Controllers\Admin\UserProfileController::class, 'update'])->name('profile.update');
