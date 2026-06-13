@@ -98,7 +98,8 @@
         margin-bottom: .35rem;
     }
     .platform-field input,
-    .platform-field select {
+    .platform-field select,
+    .platform-field textarea {
         width: 100%;
         border: 1px solid #d1d5db;
         border-radius: 8px;
@@ -142,7 +143,8 @@
 
     <div class="mb-4">
         <p class="text-sm text-gray-600 mb-0">
-            Panel interno de super administrador: define el <strong>plan contratado</strong>, los <strong>límites de capacidad</strong> del cliente y los <strong>costos Meta WhatsApp</strong> que se reflejan en el dashboard.
+            Panel interno de super administrador: define el <strong>plan contratado</strong>, los <strong>límites de capacidad</strong>,
+            el <strong><a href="#order-pdf" class="text-emerald-700">PDF de orden</a></strong> y los <strong>costos Meta WhatsApp</strong> que se reflejan en el dashboard.
         </p>
     </div>
 
@@ -242,16 +244,12 @@
                         <label class="d-flex align-items-center gap-2" style="cursor:pointer;">
                             <input type="hidden" name="bulk_web_order_enabled" value="0">
                             <input type="checkbox" name="bulk_web_order_enabled" value="1"
-                                @checked(old('bulk_web_order_enabled', $bulkWebOrderEnabled ?? false))
-                                @disabled(!($bulkWebOrderPlanAllowed ?? false))>
+                                @checked(old('bulk_web_order_enabled', $bulkWebOrderEnabled ?? false))>
                             <span><strong>Pedido masivo por formulario web</strong> (enlace desde WhatsApp)</span>
                         </label>
                         <p class="hint mb-0">
-                            @if($bulkWebOrderPlanAllowed ?? false)
-                                Requiere plan Pro o superior. Si está activo, el bot muestra «Armar lista» cuando el carrito tiene {{ config('bulk_order.min_cart_lines', 3) }}+ ítems.
-                            @else
-                                El plan actual (Starter) no incluye esta función. Cámbialo a Pro o Enterprise para habilitarla.
-                            @endif
+                            Si está activo, el bot muestra «Armar lista» al agregar productos y en el carrito.
+                            El formulario del panel se controla con el permiso «Crear pedidos desde el panel» en Roles.
                         </p>
                     </div>
                     @endif
@@ -261,6 +259,108 @@
                 <p class="text-xs text-gray-500 mb-0">Plan, productos, categorías y espacio en disco.</p>
                 <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg border-0">
                     <i class="fas fa-save"></i> Guardar plan y límites
+                </button>
+            </div>
+        </section>
+    </form>
+
+    @php $pdf = $orderPdfSettings ?? []; @endphp
+    <form action="{{ route('admin.pricing-settings.update') }}" method="POST" id="form-order-pdf">
+        @csrf
+        @method('PUT')
+        <input type="hidden" name="_section" value="order_pdf">
+
+        <section class="platform-section" id="order-pdf">
+            <div class="platform-section-head">
+                <h2>📄 PDF de orden de pedido</h2>
+                <p>Datos de la empresa y textos que aparecen en el PDF enviado al cliente (Ecuador).</p>
+            </div>
+            <div class="platform-section-body">
+                <div class="platform-grid mb-4">
+                    <div class="platform-field">
+                        <label for="pdf_legal_name">Razón social / nombre legal *</label>
+                        <input type="text" id="pdf_legal_name" name="legal_name" required maxlength="255"
+                            value="{{ old('legal_name', $pdf['legal_name'] ?? '') }}">
+                    </div>
+                    <div class="platform-field">
+                        <label for="pdf_trade_name">Nombre comercial</label>
+                        <input type="text" id="pdf_trade_name" name="trade_name" maxlength="255"
+                            value="{{ old('trade_name', $pdf['trade_name'] ?? '') }}">
+                    </div>
+                    <div class="platform-field">
+                        <label for="pdf_ruc">RUC</label>
+                        <input type="text" id="pdf_ruc" name="ruc" maxlength="20"
+                            value="{{ old('ruc', $pdf['ruc'] ?? '') }}" placeholder="0990000001001">
+                    </div>
+                    <div class="platform-field">
+                        <label for="pdf_phone">Teléfono</label>
+                        <input type="text" id="pdf_phone" name="phone" maxlength="30"
+                            value="{{ old('phone', $pdf['phone'] ?? '') }}">
+                    </div>
+                    <div class="platform-field" style="grid-column: 1 / -1;">
+                        <label for="pdf_address">Dirección</label>
+                        <input type="text" id="pdf_address" name="address" maxlength="500"
+                            value="{{ old('address', $pdf['address'] ?? '') }}">
+                    </div>
+                    <div class="platform-field">
+                        <label for="pdf_city">Ciudad / país</label>
+                        <input type="text" id="pdf_city" name="city" maxlength="120"
+                            value="{{ old('city', $pdf['city'] ?? 'Ecuador') }}">
+                    </div>
+                    <div class="platform-field">
+                        <label for="pdf_email">Correo</label>
+                        <input type="email" id="pdf_email" name="email" maxlength="255"
+                            value="{{ old('email', $pdf['email'] ?? '') }}">
+                    </div>
+                    <div class="platform-field">
+                        <label for="pdf_website">Sitio web</label>
+                        <input type="text" id="pdf_website" name="website" maxlength="255"
+                            value="{{ old('website', $pdf['website'] ?? '') }}" placeholder="www.miempresa.com">
+                    </div>
+                </div>
+
+                <div class="platform-grid mb-4">
+                    <div class="platform-field">
+                        <label for="pdf_document_title">Título del documento *</label>
+                        <input type="text" id="pdf_document_title" name="document_title" required maxlength="120"
+                            value="{{ old('document_title', $pdf['document_title'] ?? 'ORDEN DE PEDIDO') }}">
+                    </div>
+                    <div class="platform-field">
+                        <label for="pdf_document_subtitle">Subtítulo</label>
+                        <input type="text" id="pdf_document_subtitle" name="document_subtitle" maxlength="255"
+                            value="{{ old('document_subtitle', $pdf['document_subtitle'] ?? '') }}">
+                    </div>
+                    <div class="platform-field">
+                        <label for="pdf_iva_rate">IVA (%)</label>
+                        <input type="number" id="pdf_iva_rate" name="iva_rate_percent" min="0" max="100" required
+                            value="{{ old('iva_rate_percent', $pdf['iva_rate_percent'] ?? 15) }}">
+                        <p class="hint">En Ecuador suele ser 15%.</p>
+                    </div>
+                    <div class="platform-field">
+                        <label for="pdf_timezone">Zona horaria</label>
+                        <input type="text" id="pdf_timezone" name="timezone" required maxlength="64"
+                            value="{{ old('timezone', $pdf['timezone'] ?? 'America/Guayaquil') }}">
+                    </div>
+                    <div class="platform-field" style="grid-column: 1 / -1;">
+                        <label class="d-flex align-items-center gap-2" style="cursor:pointer;">
+                            <input type="hidden" name="prices_include_iva" value="0">
+                            <input type="checkbox" name="prices_include_iva" value="1"
+                                @checked(old('prices_include_iva', $pdf['prices_include_iva'] ?? false))>
+                            <span>Los precios del catálogo ya incluyen IVA</span>
+                        </label>
+                        <p class="hint mb-0">Si no está marcado, el PDF calcula subtotal + IVA sobre el total de líneas.</p>
+                    </div>
+                    <div class="platform-field" style="grid-column: 1 / -1;">
+                        <label for="pdf_legal_footer">Nota legal al pie del PDF</label>
+                        <textarea id="pdf_legal_footer" name="legal_footer" rows="3" maxlength="2000">{{ old('legal_footer', $pdf['legal_footer'] ?? '') }}</textarea>
+                        <p class="hint mb-0">Ej: «Este documento no sustituye factura electrónica del SRI».</p>
+                    </div>
+                </div>
+            </div>
+            <div class="platform-save-bar" style="border-top: 1px solid #f1f5f9; border-radius: 0; margin: 0;">
+                <p class="text-xs text-gray-500 mb-0">Estos datos se usan al descargar o enviar el PDF de pedidos.</p>
+                <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg border-0">
+                    <i class="fas fa-save"></i> Guardar PDF de orden
                 </button>
             </div>
         </section>

@@ -126,7 +126,8 @@ return [
             'label' => 'Pedido masivo web',
             'icon' => 'fa-list-check',
             'permissions' => [
-                'bulk_orders.manage' => ['label' => 'Activar / desactivar formulario de pedido masivo', 'type' => 'action'],
+                'bulk_orders.create' => ['label' => 'Crear pedidos desde el panel (formulario web)', 'type' => 'action'],
+                'bulk_orders.manage' => ['label' => 'Activar / desactivar formulario en WhatsApp', 'type' => 'action'],
             ],
         ],
     ],
@@ -147,6 +148,7 @@ return [
                 'chats.menu', 'chats.view', 'chats.open', 'chats.send', 'chats.toggle_bot',
                 'clients.menu', 'clients.view', 'clients.detail', 'clients.update', 'clients.notes',
                 'orders.menu', 'orders.view', 'orders.update',
+                'bulk_orders.create', 'bulk_orders.manage',
                 'wallet.menu', 'wallet.view', 'wallet.submit',
                 'marketing_flow.menu', 'marketing_flow.view', 'marketing_flow.update',
                 'menus.menu', 'menus.view', 'menus.update',

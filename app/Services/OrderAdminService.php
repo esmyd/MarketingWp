@@ -40,6 +40,8 @@ class OrderAdminService
             'items' => $order->items,
             'items_count' => $order->items->count(),
             'order_number' => $order->getOrderNumber(),
+            'awaiting_client_confirmation' => !empty($order->metadata['awaiting_client_confirmation']),
+            'confirmation_sent_at' => $order->metadata['confirmation_sent_at'] ?? null,
             'contact' => $contact ? [
                 'id' => $contact->id,
                 'name' => $contact->name,

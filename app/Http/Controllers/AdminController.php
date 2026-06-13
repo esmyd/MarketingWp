@@ -8,6 +8,7 @@ use App\Models\WhatsappMessage;
 use App\Models\WhatsappContact;
 use App\Models\WhatsappConversation;
 use App\Services\OrderAdminService;
+use App\Services\OrderConfirmationService;
 use App\Services\OrderExportService;
 use App\Services\WhatsappService;
 use App\Helpers\WhatsappMessageFormatter;
@@ -127,6 +128,44 @@ class AdminController extends Controller
                 'created_at' => $note->created_at,
             ],
         ]);
+    }
+
+    public function sendOrderConfirmation(Request $request, $id, OrderConfirmationService $confirmation)
+    {
+        $order = WhatsappCart::reportable()->with('contact')->findOrFail($id);
+
+        $validated = $request->validate([
+            'message' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        try {
+            $confirmation->sendToClient(
+                $order,
+                (int) $request->user()->id,
+                $validated['message'] ?? null
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Confirmación enviada al cliente por WhatsApp (PDF + botones).',
+                'order' => app(OrderAdminService::class)->orderPayload($order->fresh(['items', 'contact', 'notes.user'])),
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('[Orders] No se pudo enviar confirmación', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo enviar la confirmación por WhatsApp.',
+            ], 500);
+        }
     }
 
     public function chats()

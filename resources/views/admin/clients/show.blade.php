@@ -224,6 +224,11 @@
             @endif
         </div>
         <div class="client-hero-actions">
+            @perm('bulk_orders.create')
+                <a href="{{ route('admin.orders.bulk.create', ['contact' => $contact->id]) }}" class="btn btn-outline-success btn-lg">
+                    <i class="fas fa-clipboard-list me-1"></i> Nuevo pedido
+                </a>
+            @endperm
             @perm('chats.open')
                 <a href="{{ route('admin.chat', $contact->id) }}" class="btn btn-success btn-lg">
                     <i class="fas fa-comments me-1"></i> Abrir chat

@@ -17,6 +17,7 @@
     $statusOptions = ['pending', 'confirmed', 'payment_pending', 'paid', 'completed', 'cancelled'];
     $invoiceLabels = OrderAdminService::INVOICE_STATUSES;
     $canUpdate = auth()->user()?->hasPermission('orders.update') ?? false;
+    $canBulkCreate = auth()->user()?->hasPermission('bulk_orders.create') ?? false;
 @endphp
 
 <style>
@@ -99,6 +100,7 @@
     }
     .o-tag.notes { background: #e0e7ff; color: #3730a3; }
     .o-tag.feedback { background: #dcfce7; color: #166534; }
+    .o-tag.confirm { background: #fef3c7; color: #92400e; }
     .o-tag.empty { color: #cbd5e1; }
 
     .order-status-select {
@@ -234,6 +236,11 @@
             <i class="fas fa-search"></i>
             <input type="text" id="orders-search" placeholder="Buscar por cliente o teléfono..." autocomplete="off">
         </div>
+        @if($canBulkCreate)
+            <a href="{{ route('admin.orders.bulk.create') }}" class="o-btn primary">
+                <i class="fas fa-plus"></i> Nuevo pedido
+            </a>
+        @endif
         <span class="text-muted small">{{ $orders->total() }} pedido(s)</span>
 
         <form class="orders-export-form" method="get" action="{{ route('admin.orders.export') }}" id="orders-export-form">
@@ -286,7 +293,9 @@
                     @foreach($orders as $order)
                         @php
                             $itemsCount = $order->items->count();
-                            $hasTags = ($order->internal_notes_count ?? 0) > 0 || ($order->feedback_count ?? 0) > 0;
+                            $hasTags = ($order->internal_notes_count ?? 0) > 0
+                                || ($order->feedback_count ?? 0) > 0
+                                || (($order->metadata['awaiting_client_confirmation'] ?? false) && $order->status === 'pending');
                         @endphp
                         <tr id="order-row-{{ $order->id }}"
                             data-search="{{ strtolower(($order->contact->name ?? '') . ' ' . ($order->contact->phone_number ?? '')) }}">
@@ -303,6 +312,9 @@
                                     @endif
                                     @if(($order->feedback_count ?? 0) > 0)
                                         <span class="o-tag feedback"><i class="fas fa-comment"></i>{{ $order->feedback_count }}</span>
+                                    @endif
+                                    @if(($order->metadata['awaiting_client_confirmation'] ?? false) && $order->status === 'pending')
+                                        <span class="o-tag confirm"><i class="fas fa-clock"></i> Espera cliente</span>
                                     @endif
                                     @unless($hasTags)
                                         <span class="o-tag empty">—</span>
@@ -332,6 +344,9 @@
                                     <button type="button" class="o-btn primary" onclick="showOrderDetails({{ $order->id }})">
                                         <i class="fas fa-eye"></i>
                                     </button>
+                                    <a href="{{ route('admin.orders.pdf', $order->id) }}" class="o-btn" title="Descargar PDF" target="_blank" rel="noopener">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </a>
                                 </div>
                             </td>
                         </tr>
@@ -427,6 +442,18 @@ function renderOrderModal(order) {
     }
     html += `</div></div>`;
 
+    if (CAN_UPDATE && ['pending', 'payment_pending'].includes(order.status)) {
+        html += `<div class="order-section"><div class="order-section-head"><i class="fab fa-whatsapp me-1 text-success"></i> Confirmación del cliente</div><div class="order-section-body">`;
+        if (order.awaiting_client_confirmation) {
+            html += `<p class="small mb-2 text-warning-emphasis"><i class="fas fa-clock me-1"></i> Esperando respuesta del cliente (PDF y botones enviados).</p>`;
+        } else {
+            html += `<p class="small mb-2 text-muted">Envía el PDF de la orden con botones para confirmar, modificar o cancelar.</p>`;
+        }
+        html += `<textarea class="form-control form-control-sm mb-2" id="confirmationMessage" rows="2" placeholder="Mensaje opcional para el cliente…"></textarea>`;
+        html += `<button type="button" class="o-btn primary" onclick="sendOrderConfirmation()"><i class="fab fa-whatsapp me-1"></i>Enviar confirmación por WhatsApp</button>`;
+        html += `</div></div>`;
+    }
+
     if (order.requires_invoice || CAN_UPDATE) {
         html += `<div class="order-section"><div class="order-section-head"><i class="fas fa-file-invoice me-1 text-warning"></i> Facturación</div><div class="order-section-body">`;
         if (CAN_UPDATE) {
@@ -506,6 +533,7 @@ function renderOrderModal(order) {
 
     const footer = document.getElementById('orderModalFooter');
     footer.innerHTML = `<button type="button" class="o-btn" onclick="closeOrderModal()">Cerrar</button>`;
+    footer.innerHTML += `<a href="/admin/orders/${order.id}/pdf" class="o-btn primary" target="_blank" rel="noopener"><i class="fas fa-file-pdf me-1"></i>Descargar PDF</a>`;
     if (order.contact?.id) {
         footer.innerHTML += `<a href="${CHAT_URL_TEMPLATE.replace('__ID__', order.contact.id)}" class="o-btn primary"><i class="fas fa-comments me-1"></i>Abrir chat</a>`;
     }
@@ -528,6 +556,26 @@ function showOrderDetails(orderId) {
         .catch(() => {
             document.getElementById('orderDetails').innerHTML = '<p class="text-danger">No se pudo cargar el pedido.</p>';
         });
+}
+
+function sendOrderConfirmation() {
+    if (!currentOrderId) return;
+    const message = document.getElementById('confirmationMessage')?.value?.trim() || null;
+    fetch(`/admin/orders/${currentOrderId}/send-confirmation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+        body: JSON.stringify({ message }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || 'Confirmación enviada');
+            if (data.order) renderOrderModal(data.order);
+        } else {
+            showToast(data.message || 'No se pudo enviar', 'error');
+        }
+    })
+    .catch(() => showToast('Error al enviar confirmación', 'error'));
 }
 
 function saveOrderInvoice(e) {

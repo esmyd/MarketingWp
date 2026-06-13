@@ -2316,6 +2316,10 @@ class WhatsappService
                         $parts = explode('_', $buttonId);
                         $cartId = intval($parts[2]);
                         $response = $this->confirmarPedido($contact, $cartId);
+                    } elseif (strpos($buttonId, 'modificar_pedido_') === 0) {
+                        $parts = explode('_', $buttonId);
+                        $cartId = intval($parts[2]);
+                        $response = $this->modificarPedido($contact, $cartId);
                     } elseif (strpos($buttonId, 'cancelar_pedido_') === 0) {
                         $parts = explode('_', $buttonId);
                         $cartId = intval($parts[2]);
@@ -2631,25 +2635,51 @@ class WhatsappService
         ]);
     }
 
-    private function notifyBulkWebOrderSubmittedOld(WhatsappContact $contact, WhatsappCart $cart): void
+    public function sendBotPayload(WhatsappContact $contact, array $payload, bool $humanSent = false): bool
+    {
+        if (!$contact->phone_number) {
+            return false;
+        }
+
+        if ($humanSent) {
+            $this->sendTypingIndicatorForContact($contact);
+        }
+
+        return (bool) $this->sendMessage($contact->phone_number, $payload);
+    }
+
+    public function buildOrderConfirmationPayload(WhatsappCart $cart, string $pdfUrl, ?string $agentNote = null): array
     {
         $cart->loadMissing('items');
+        $orderNumber = $cart->getOrderNumber();
 
-        $lines = '';
-        foreach ($cart->items as $item) {
-            $lines .= "• {$item->name} x{$item->quantity}\n";
-            if (!empty($item->line_note)) {
-                $lines .= "  _Nota:_ {$item->line_note}\n";
+        $body = "📋 *Confirma tu pedido*\n\n"
+            . "📦 *Número:* {$orderNumber}\n"
+            . "💰 *Total:* \${$cart->total}\n"
+            . "📄 *PDF:* {$pdfUrl}\n\n";
+
+        if ($cart->items->isNotEmpty()) {
+            $body .= "*Resumen:*\n";
+            foreach ($cart->items->take(6) as $item) {
+                $body .= "• {$item->name} x{$item->quantity}\n";
             }
+            if ($cart->items->count() > 6) {
+                $body .= "• … y " . ($cart->items->count() - 6) . " producto(s) más\n";
+            }
+            $body .= "\n";
         }
 
-        $body = "✅ *Recibimos tu pedido*\n\n{$lines}\n💰 *Total:* \${$cart->total}\n";
-        if ($cart->note) {
-            $body .= "\n📝 *Nota:* {$cart->note}\n";
+        if ($cart->note && strtolower(trim($cart->note)) !== 'sin nota') {
+            $body .= "📝 *Nota:* {$cart->note}\n\n";
         }
-        $body .= "\nToca el botón para elegir método de pago y confirmar.";
 
-        $payload = [
+        if ($agentNote) {
+            $body .= "💬 *Mensaje del asesor:*\n{$agentNote}\n\n";
+        }
+
+        $body .= "Revisa el PDF y elige una opción:";
+
+        return [
             'type' => 'interactive',
             'interactive' => [
                 'type' => 'button',
@@ -2659,16 +2689,28 @@ class WhatsappService
                         [
                             'type' => 'reply',
                             'reply' => [
-                                'id' => 'finalizar_compra',
-                                'title' => '✅ Continuar pedido',
+                                'id' => 'confirmar_pedido_' . $cart->id,
+                                'title' => '✅ Confirmar',
+                            ],
+                        ],
+                        [
+                            'type' => 'reply',
+                            'reply' => [
+                                'id' => 'modificar_pedido_' . $cart->id,
+                                'title' => '✏️ Modificar',
+                            ],
+                        ],
+                        [
+                            'type' => 'reply',
+                            'reply' => [
+                                'id' => 'cancelar_pedido_' . $cart->id,
+                                'title' => '❌ Cancelar',
                             ],
                         ],
                     ],
                 ],
             ],
         ];
-
-        $this->sendMessageToWhatsApp($contact->phone_number, $payload);
     }
 
     private function addToCart(WhatsappContact $contact, $priceId, $quantity = 1)
@@ -4355,6 +4397,13 @@ class WhatsappService
             $this->syncOrderDetails($cart);
             $cart->refresh();
 
+            $metadata = $cart->metadata ?? [];
+            unset($metadata['awaiting_client_confirmation']);
+            $metadata['confirmed_at'] = now()->toIso8601String();
+            $metadata['confirmed_via'] = 'whatsapp';
+            $cart->metadata = $metadata;
+            $cart->save();
+
             $orderNumber = $cart->getOrderNumber();
             $confirmationBody = "✅ *¡Pedido confirmado!*\n\n"
                 . "📦 *Número de pedido:* {$orderNumber}\n"
@@ -4431,6 +4480,11 @@ class WhatsappService
             }
 
             $cart->status = WhatsappCart::STATUS_CANCELLED;
+            $metadata = $cart->metadata ?? [];
+            unset($metadata['awaiting_client_confirmation']);
+            $metadata['cancelled_at'] = now()->toIso8601String();
+            $metadata['cancelled_via'] = 'whatsapp';
+            $cart->metadata = $metadata;
             $cart->save();
 
             return [
@@ -4470,6 +4524,83 @@ class WhatsappService
             return [
                 'type' => 'text',
                 'text' => ['body' => 'Lo siento, ha ocurrido un error al cancelar tu pedido.']
+            ];
+        }
+    }
+
+    private function modificarPedido(WhatsappContact $contact, $cartId)
+    {
+        try {
+            $cart = WhatsappCart::where('id', $cartId)
+                ->where('contact_id', $contact->id)
+                ->first();
+
+            if (!$cart) {
+                return [
+                    'type' => 'text',
+                    'text' => ['body' => 'Lo siento, no se encontró el pedido.'],
+                ];
+            }
+
+            if ($cart->status === WhatsappCart::STATUS_CANCELLED) {
+                return [
+                    'type' => 'text',
+                    'text' => ['body' => 'Este pedido ya fue cancelado. Puedes armar uno nuevo desde el menú.'],
+                ];
+            }
+
+            $metadata = $cart->metadata ?? [];
+            $metadata['modification_requested_at'] = now()->toIso8601String();
+            unset($metadata['awaiting_client_confirmation']);
+            $cart->metadata = $metadata;
+            $cart->save();
+
+            $orderNumber = $cart->getOrderNumber();
+            $bulkService = app(BulkOrderService::class);
+
+            if ($bulkService->isAvailable()) {
+                $token = $bulkService->issueToken($contact);
+                if ($token) {
+                    $url = $bulkService->formUrl($token);
+
+                    return [
+                        'type' => 'interactive',
+                        'interactive' => [
+                            'type' => 'cta_url',
+                            'body' => [
+                                'text' => "✏️ *Modificar pedido*\n\n"
+                                    . "Pedido *{$orderNumber}*.\n"
+                                    . "Abre el formulario, ajusta productos y cantidades.\n"
+                                    . "Al enviarlo, el pedido anterior será reemplazado.",
+                            ],
+                            'action' => [
+                                'name' => 'cta_url',
+                                'parameters' => [
+                                    'display_text' => 'Abrir formulario',
+                                    'url' => $url,
+                                ],
+                            ],
+                        ],
+                    ];
+                }
+            }
+
+            return [
+                'type' => 'text',
+                'text' => [
+                    'body' => "✏️ *Modificar pedido {$orderNumber}*\n\n"
+                        . "Escríbenos por este chat indicando los cambios que necesitas y un asesor te ayudará.",
+                ],
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error al modificar pedido', [
+                'error' => $e->getMessage(),
+                'cart_id' => $cartId,
+            ]);
+
+            return [
+                'type' => 'text',
+                'text' => ['body' => 'Lo siento, ha ocurrido un error al procesar tu solicitud.'],
             ];
         }
     }

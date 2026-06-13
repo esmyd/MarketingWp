@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\AdminBulkOrderController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Auth\LoginController;
 
@@ -17,6 +18,10 @@ Route::prefix('pedido')->name('bulk-order.')->group(function () {
     Route::get('/{token}/catalogo', [App\Http\Controllers\BulkOrderController::class, 'catalog'])->name('catalog');
     Route::post('/{token}', [App\Http\Controllers\BulkOrderController::class, 'submit'])->name('submit');
 });
+
+Route::get('/orden/{order}/pdf', [App\Http\Controllers\OrderPdfController::class, 'downloadSigned'])
+    ->name('order.pdf.signed')
+    ->middleware('signed');
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])
@@ -35,12 +40,24 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/orders/{id}/details', [App\Http\Controllers\AdminController::class, 'orderDetails'])
         ->middleware(['permission:orders.view,orders.menu', 'platform.feature:orders'])
         ->name('orders.details');
+    Route::get('/orders/{id}/pdf', [App\Http\Controllers\OrderPdfController::class, 'downloadAdmin'])
+        ->middleware(['permission:orders.view,orders.menu', 'platform.feature:orders'])
+        ->name('orders.pdf');
+    Route::post('/orders/{id}/send-confirmation', [App\Http\Controllers\AdminController::class, 'sendOrderConfirmation'])
+        ->middleware(['permission:orders.update', 'platform.feature:orders'])
+        ->name('orders.send-confirmation');
     Route::put('/orders/{id}', [App\Http\Controllers\AdminController::class, 'updateOrder'])
         ->middleware(['permission:orders.update', 'platform.feature:orders'])
         ->name('orders.update');
     Route::post('/orders/{id}/notes', [App\Http\Controllers\AdminController::class, 'storeOrderNote'])
         ->middleware(['permission:orders.update', 'platform.feature:orders'])
         ->name('orders.notes.store');
+    Route::prefix('orders/bulk')->name('orders.bulk.')->middleware(['permission:bulk_orders.create', 'platform.feature:orders'])->group(function () {
+        Route::get('/', [AdminBulkOrderController::class, 'create'])->name('create');
+        Route::get('/contacts', [AdminBulkOrderController::class, 'searchContacts'])->name('contacts');
+        Route::get('/catalogo', [AdminBulkOrderController::class, 'catalog'])->name('catalog');
+        Route::post('/', [AdminBulkOrderController::class, 'submit'])->name('submit');
+    });
     Route::get('/chats', [App\Http\Controllers\AdminController::class, 'chats'])
         ->middleware(['permission:chats.view,chats.menu', 'platform.feature:chat'])
         ->name('chats');

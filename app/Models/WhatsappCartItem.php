@@ -30,4 +30,10 @@ class WhatsappCartItem extends Model
     {
         return $this->belongsTo(WhatsappPrice::class, 'whatsapp_price_id');
     }
+
+    /** Catálogo vinculado (alias para evitar conflicto con la columna `price`). */
+    public function product(): BelongsTo
+    {
+        return $this->price();
+    }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PlatformPaymentReceipt;
 use App\Models\PricingSetting;
+use App\Services\OrderPdfSettingsService;
 use App\Services\PlanFeatureService;
 use App\Services\PlanLimitsService;
 use App\Services\PlatformBillingService;
@@ -16,7 +17,7 @@ use Illuminate\View\View;
 
 class PricingSettingsController extends Controller
 {
-    public function edit(PricingService $pricing, PlanLimitsService $planLimits, PlatformBillingService $billing, PlanFeatureService $planFeatures): View
+    public function edit(PricingService $pricing, PlanLimitsService $planLimits, PlatformBillingService $billing, PlanFeatureService $planFeatures, OrderPdfSettingsService $orderPdfSettings): View
     {
         $settings = $pricing->settings();
         $categories = config('pricing.meta_rates.per_conversation', []);
@@ -41,18 +42,22 @@ class PricingSettingsController extends Controller
             'platformBillingSnapshot' => $billing->dashboardSnapshot(),
             'paymentReceipts' => $billing->receiptsForWallet(100),
             'pendingReceiptsCount' => $billing->pendingReceiptsCount(),
-            'bulkWebOrderPlanAllowed' => $planFeatures->hasPlanFeature('bulk_web_order'),
             'bulkWebOrderEnabled' => $planFeatures->isPlatformBulkWebOrderEnabled(),
             'canManageBulkOrder' => $canManageBulkOrder,
+            'orderPdfSettings' => $orderPdfSettings->get(),
         ]);
     }
 
-    public function update(Request $request, PlanLimitsService $planLimits): RedirectResponse
+    public function update(Request $request, PlanLimitsService $planLimits, OrderPdfSettingsService $orderPdfSettings): RedirectResponse
     {
         $section = $request->input('_section', 'all');
 
         if ($section === 'capacidades') {
             return $this->updateCapacidades($request, $planLimits);
+        }
+
+        if ($section === 'order_pdf') {
+            return $this->updateOrderPdf($request, $orderPdfSettings);
         }
 
         if ($section === 'meta') {
@@ -89,6 +94,33 @@ class PricingSettingsController extends Controller
         return redirect()
             ->to(route('admin.pricing-settings.edit') . '#capacidades')
             ->with('success', 'Plan y límites de capacidad guardados.');
+    }
+
+    private function updateOrderPdf(Request $request, OrderPdfSettingsService $orderPdfSettings): RedirectResponse
+    {
+        $validated = $request->validate([
+            'legal_name' => ['required', 'string', 'max:255'],
+            'trade_name' => ['nullable', 'string', 'max:255'],
+            'ruc' => ['nullable', 'string', 'max:20'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'city' => ['nullable', 'string', 'max:120'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'website' => ['nullable', 'string', 'max:255'],
+            'document_title' => ['required', 'string', 'max:120'],
+            'document_subtitle' => ['nullable', 'string', 'max:255'],
+            'legal_footer' => ['nullable', 'string', 'max:2000'],
+            'iva_rate_percent' => ['required', 'integer', 'min:0', 'max:100'],
+            'timezone' => ['required', 'string', 'max:64'],
+        ]);
+
+        $orderPdfSettings->save(array_merge($validated, [
+            'prices_include_iva' => $request->boolean('prices_include_iva'),
+        ]));
+
+        return redirect()
+            ->to(route('admin.pricing-settings.edit') . '#order-pdf')
+            ->with('success', 'Datos del PDF de orden guardados.');
     }
 
     private function updateMeta(Request $request): RedirectResponse
