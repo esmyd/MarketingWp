@@ -122,6 +122,13 @@ return [
                 'demo.reset' => ['label' => 'Reiniciar datos de demo', 'type' => 'action'],
             ],
         ],
+        'bulk_orders' => [
+            'label' => 'Pedido masivo web',
+            'icon' => 'fa-list-check',
+            'permissions' => [
+                'bulk_orders.manage' => ['label' => 'Activar / desactivar formulario de pedido masivo', 'type' => 'action'],
+            ],
+        ],
     ],
 
     'default_roles' => [

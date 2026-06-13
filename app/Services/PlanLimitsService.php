@@ -98,6 +98,9 @@ class PlanLimitsService
         if (array_key_exists('storage_gb_used', $data)) {
             $limits['storage_gb_used'] = max(0, (float) $data['storage_gb_used']);
         }
+        if (array_key_exists('bulk_web_order_enabled', $data)) {
+            $limits['bulk_web_order_enabled'] = (bool) $data['bulk_web_order_enabled'];
+        }
 
         PricingSetting::current()->update(['platform_limits' => $limits]);
     }

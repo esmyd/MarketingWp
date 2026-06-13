@@ -5,16 +5,18 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PlatformPaymentReceipt;
 use App\Models\PricingSetting;
+use App\Services\PlanFeatureService;
 use App\Services\PlanLimitsService;
 use App\Services\PlatformBillingService;
 use App\Services\PricingService;
+use App\Services\PermissionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PricingSettingsController extends Controller
 {
-    public function edit(PricingService $pricing, PlanLimitsService $planLimits, PlatformBillingService $billing): View
+    public function edit(PricingService $pricing, PlanLimitsService $planLimits, PlatformBillingService $billing, PlanFeatureService $planFeatures): View
     {
         $settings = $pricing->settings();
         $categories = config('pricing.meta_rates.per_conversation', []);
@@ -23,6 +25,8 @@ class PricingSettingsController extends Controller
         $plans = $planLimits->allPlans();
         $planLimitsSnapshot = $planLimits->snapshot();
         $platformLimits = $planLimits->platformLimitsRaw();
+        $user = auth()->user();
+        $canManageBulkOrder = $user && app(PermissionService::class)->userCan($user, 'bulk_orders.manage');
 
         return view('admin.pricing-settings.edit', [
             'settings' => $settings,
@@ -37,6 +41,9 @@ class PricingSettingsController extends Controller
             'platformBillingSnapshot' => $billing->dashboardSnapshot(),
             'paymentReceipts' => $billing->receiptsForWallet(100),
             'pendingReceiptsCount' => $billing->pendingReceiptsCount(),
+            'bulkWebOrderPlanAllowed' => $planFeatures->hasPlanFeature('bulk_web_order'),
+            'bulkWebOrderEnabled' => $planFeatures->isPlatformBulkWebOrderEnabled(),
+            'canManageBulkOrder' => $canManageBulkOrder,
         ]);
     }
 
@@ -72,6 +79,12 @@ class PricingSettingsController extends Controller
             'storage_gb_limit' => $validated['storage_gb_limit'],
             'storage_gb_used' => $validated['storage_gb_used'],
         ]);
+
+        if ($request->user() && app(PermissionService::class)->userCan($request->user(), 'bulk_orders.manage')) {
+            $planLimits->savePlatformLimits([
+                'bulk_web_order_enabled' => $request->boolean('bulk_web_order_enabled'),
+            ]);
+        }
 
         return redirect()
             ->to(route('admin.pricing-settings.edit') . '#capacidades')

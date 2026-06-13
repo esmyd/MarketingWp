@@ -236,6 +236,25 @@
                         <p class="hint">Límite del plan. Se muestra en el dashboard del cliente junto al espacio usado.</p>
                         @error('storage_gb_limit')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                     </div>
+
+                    @if($canManageBulkOrder ?? false)
+                    <div class="platform-field" style="grid-column: 1 / -1;">
+                        <label class="d-flex align-items-center gap-2" style="cursor:pointer;">
+                            <input type="hidden" name="bulk_web_order_enabled" value="0">
+                            <input type="checkbox" name="bulk_web_order_enabled" value="1"
+                                @checked(old('bulk_web_order_enabled', $bulkWebOrderEnabled ?? false))
+                                @disabled(!($bulkWebOrderPlanAllowed ?? false))>
+                            <span><strong>Pedido masivo por formulario web</strong> (enlace desde WhatsApp)</span>
+                        </label>
+                        <p class="hint mb-0">
+                            @if($bulkWebOrderPlanAllowed ?? false)
+                                Requiere plan Pro o superior. Si está activo, el bot muestra «Armar lista» cuando el carrito tiene {{ config('bulk_order.min_cart_lines', 3) }}+ ítems.
+                            @else
+                                El plan actual (Starter) no incluye esta función. Cámbialo a Pro o Enterprise para habilitarla.
+                            @endif
+                        </p>
+                    </div>
+                    @endif
                 </div>
             </div>
             <div class="platform-save-bar" style="border-top: 1px solid #f1f5f9; border-radius: 0; margin: 0;">

@@ -286,6 +286,14 @@
             margin-bottom: 4px;
         }
 
+        .plan-tax-note {
+            display: block;
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
         .annual-note {
             font-size: 12px;
             color: var(--gold);
@@ -331,6 +339,26 @@
             letter-spacing: .1em;
             color: var(--muted);
             margin-bottom: 14px;
+        }
+
+        .feature-list li.feature-group {
+            padding: 12px 0 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--accent);
+            border-bottom: none;
+        }
+
+        .feature-list li.feature-group:not(:first-child) {
+            margin-top: 6px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255,255,255,.06);
+        }
+
+        .feature-list li.feature-group.muted {
+            color: var(--muted);
         }
 
         .feature-list {
@@ -1651,7 +1679,7 @@
 
         <div class="hero-notice">
             <span>⚠️</span>
-            <span>Los precios de los planes cubren <strong>solo la plataforma</strong> (bot + panel). Los consumos de mensajes y plantillas de Meta/WhatsApp se facturan <strong>aparte</strong>. <a href="#" data-goto="meta">Ver costos Meta ↓</a></span>
+            <span>Los precios de los planes (<strong>sin IVA</strong>) cubren solo la plataforma (bot + panel). Los consumos de mensajes y plantillas de Meta/WhatsApp se facturan <strong>aparte</strong>. <a href="#" data-goto="meta">Ver costos Meta ↓</a></span>
         </div>
     </header>
 
@@ -1677,38 +1705,41 @@
                 <div class="plan-price">
                     <span class="amount"><span class="currency">$</span><span class="price-value">60</span></span>
                     <span class="period">/ mes</span>
+                    <span class="plan-tax-note">sin IVA</span>
                 </div>
                 <a href="{{ $whatsappUrls['starter'] }}" class="plan-cta plan-cta-link" data-select="starter" target="_blank" rel="noopener">Elegir Starter</a>
 
                 <div class="features-label">Incluye</div>
                 <ul class="feature-list">
-                    <li><span class="icon yes">✓</span> Bot de WhatsApp 24/7 con menús y botones</li>
-                    <li><span class="icon yes">✓</span> Flujo de marketing completo (saludo, catálogo, pedidos…)</li>
-                    <li><span class="icon yes">✓</span> Hasta <strong>{{ $plans['starter']['limits']['max_products'] }}</strong> productos y <strong>{{ $plans['starter']['limits']['max_categories'] }}</strong> categorías <span class="tag tag-limited">Límite</span></li>
-                    <li><span class="icon yes">✓</span> <strong>{{ $plans['starter']['limits']['storage_gb'] }} GB</strong> de espacio en servidor (imágenes y archivos) <span class="tag tag-limited">Límite</span></li>
-                    <li><span class="icon yes">✓</span> Carrito, checkout y gestión de pedidos</li>
-                    <li><span class="icon yes">✓</span> Panel de chat en vivo con alerta de asesor</li>
-                    <li><span class="icon yes">✓</span> <strong>Módulo Clientes</strong>: listado, perfil, pedidos e historial por contacto</li>
-                    <li><span class="icon yes">✓</span> <strong>Pedidos en tabla</strong> con filtros y cambio de estado rápido</li>
-                    <li><span class="icon yes">✓</span> <strong>Exportación Excel</strong> de pedidos (una fila por producto: código, cantidad, cédula, teléfono, valor)</li>
-                    <li><span class="icon yes">✓</span> <strong>Dashboard</strong> con uso de tu plan (productos, categorías y GB)</li>
-                    <li><span class="icon yes">✓</span> Enlace <strong>wa.me</strong> para invitar al primer mensaje al bot</li>
-                    <li><span class="icon yes">✓</span> Palabras clave y respuestas automáticas</li>
-                    <li><span class="icon yes">✓</span> Configuración del bot (nombre, avatar, mensajes)</li>
-                    <li><span class="icon yes">✓</span> <strong>Historial</strong> de conversaciones por cliente (panel web)</li>
-                    <li><span class="icon yes">✓</span> <strong>Trazabilidad</strong> de pedidos (ORD, estados, ítems)</li>
-                    <li><span class="icon yes">✓</span> Listado de pedidos y clientes por número</li>
-                    <li><span class="icon yes">✓</span> Estadísticas básicas por contacto en el chat</li>
-                    <li><span class="icon yes">✓</span> <strong>3 usuarios</strong> admin <span class="tag tag-limited">Límite</span></li>
-                    <li class="excluded"><span class="icon no">✕</span> Segmentación automática de clientes (VIP, frecuentes…)</li>
-                    <li class="excluded"><span class="icon no">✕</span> Gestión avanzada de pedidos (factura, notas, feedback)</li>
-                    <li class="excluded"><span class="icon no">✕</span> Estimado de consumo Meta en el dashboard</li>
-                    <li class="excluded"><span class="icon no">✕</span> Colores personalizados del bot en el panel</li>
-                    <li class="excluded"><span class="icon no">✕</span> Envío de plantillas masivas</li>
-                    <li class="excluded"><span class="icon no">✕</span> Recepción de imágenes/PDF del cliente en flujo</li>
-                    <li class="excluded"><span class="icon no">✕</span> Comprobantes de pago por WhatsApp</li>
-                    <li class="excluded"><span class="icon no">✕</span> Integraciones externas</li>
-                    <li class="excluded"><span class="icon no">✕</span> Reportes avanzados</li>
+                    <li class="feature-group">Bot WhatsApp</li>
+                    <li><span class="icon yes">✓</span> Menú: productos, mis pedidos e info del negocio</li>
+                    <li><span class="icon yes">✓</span> Info negocio: horarios, contacto, pagos y envíos</li>
+                    <li><span class="icon yes">✓</span> Catálogo: <strong>{{ $plans['starter']['limits']['max_products'] }}</strong> productos · <strong>{{ $plans['starter']['limits']['max_categories'] }}</strong> categorías <span class="tag tag-limited">Límite</span></li>
+                    <li><span class="icon yes">✓</span> Carrito, checkout y pedidos ORD</li>
+                    <li><span class="icon yes">✓</span> Notas en la compra (opcional)</li>
+                    <li><span class="icon yes">✓</span> Método de pago: transferencia, tarjeta o efectivo</li>
+                    <li><span class="icon yes">✓</span> Seguimiento de pedidos en el chat</li>
+                    <li><span class="icon yes">✓</span> Pide asesor → alerta en panel</li>
+                    <li><span class="icon yes">✓</span> Palabras clave automáticas</li>
+                    <li><span class="icon yes">✓</span> Config del bot: nombre, avatar y mensajes</li>
+                    <li class="feature-group">Panel web</li>
+                    <li><span class="icon yes">✓</span> Módulo Chats: en vivo + alerta asesor</li>
+                    <li><span class="icon yes">✓</span> Módulo Clientes: editar datos y gestiones</li>
+                    <li><span class="icon yes">✓</span> Módulo Pedidos: estados, filtros y Excel</li>
+                    <li><span class="icon yes">✓</span> Catálogo: agregar, editar e inactivar productos</li>
+                    <li><span class="icon yes">✓</span> Categorías y flujo del bot editable</li>
+                    <li><span class="icon yes">✓</span> Módulo Usuarios: roles y permisos ({{ $plans['starter']['limits']['admin_users'] }})</li>
+                    <li><span class="icon yes">✓</span> Dashboard: indicadores y reportes de ventas</li>
+                    <li><span class="icon yes">✓</span> Historial de conversaciones</li>
+                    <li><span class="icon yes">✓</span> Uso del plan: productos y categorías</li>
+                    <li><span class="icon yes">✓</span> <strong>{{ $plans['starter']['limits']['storage_gb'] }} GB</strong> almacenamiento <span class="tag tag-limited">Límite</span></li>
+                    <li class="feature-group muted">No incluye</li>
+                    <li class="excluded"><span class="icon no">✕</span> Segmentación CRM automática</li>
+                    <li class="excluded"><span class="icon no">✕</span> Pedidos avanzados (factura, notas internas)</li>
+                    <li class="excluded"><span class="icon no">✕</span> Consumo Meta · colores del bot</li>
+                    <li class="excluded"><span class="icon no">✕</span> Campañas masivas</li>
+                    <li class="excluded"><span class="icon no">✕</span> Imágenes/PDF y comprobantes del cliente</li>
+                    <li class="excluded"><span class="icon no">✕</span> Integraciones y reportes avanzados</li>
                 </ul>
             </article>
 
@@ -1722,29 +1753,34 @@
                 <div class="plan-price">
                     <span class="amount"><span class="currency">$</span><span class="price-value">90</span></span>
                     <span class="period">/ mes</span>
+                    <span class="plan-tax-note">sin IVA</span>
                 </div>
                 <a href="{{ $whatsappUrls['pro'] }}" class="plan-cta plan-cta-link" data-select="pro" target="_blank" rel="noopener">Elegir Pro</a>
 
-                <div class="features-label">Todo lo de Starter, más</div>
+                <div class="features-label">Todo Starter, más</div>
                 <ul class="feature-list">
-                    <li><span class="icon yes">✓</span> Hasta <strong>{{ $plans['pro']['limits']['max_products'] }}</strong> productos y <strong>{{ $plans['pro']['limits']['max_categories'] }}</strong> categorías <span class="tag tag-full">Ampliado</span></li>
-                    <li><span class="icon yes">✓</span> <strong>{{ $plans['pro']['limits']['storage_gb'] }} GB</strong> de espacio en servidor <span class="tag tag-full">Ampliado</span></li>
+                    <li class="feature-group">Bot WhatsApp</li>
+                    <li><span class="icon yes">✓</span> <strong>{{ $plans['pro']['limits']['max_products'] }}</strong> productos · <strong>{{ $plans['pro']['limits']['max_categories'] }}</strong> categorías <span class="tag tag-full">Ampliado</span></li>
+                    <li><span class="icon yes">✓</span> Recibe imágenes y PDF del cliente</li>
+                    <li><span class="icon yes">✓</span> Comprobante de pago en el flujo</li>
+                    <li><span class="icon yes">✓</span> Plantillas masivas y campañas</li>
+                    <li><span class="icon yes">✓</span> Envío programado por segmento</li>
+                    <li><span class="icon yes">✓</span> Pedido masivo por formulario web (enlace en chat)</li>
+                    <li><span class="icon yes">✓</span> Imágenes en productos y cabeceras</li>
+                    <li class="feature-group">Panel web</li>
                     <li><span class="icon yes">✓</span> <strong>{{ $plans['pro']['limits']['admin_users'] }} usuarios</strong> admin <span class="tag tag-full">Ampliado</span></li>
-                    <li><span class="icon yes">✓</span> <strong>Segmentación automática</strong> de clientes (VIP, frecuentes, atención pendiente)</li>
-                    <li><span class="icon yes">✓</span> <strong>Gestión avanzada de pedidos</strong>: factura, notas internas y feedback</li>
-                    <li><span class="icon yes">✓</span> Dashboard con <strong>estimado de consumo Meta</strong> del mes</li>
-                    <li><span class="icon yes">✓</span> <strong>Colores y avatar</strong> del bot en el panel de chat</li>
-                    <li><span class="icon yes">✓</span> Cliente envía <strong>imágenes y PDF</strong> (comprobantes, documentos)</li>
-                    <li><span class="icon yes">✓</span> Flujo de comprobante de pago configurable</li>
-                    <li><span class="icon yes">✓</span> <strong>Plantillas masivas</strong> y campañas de marketing</li>
-                    <li><span class="icon yes">✓</span> Envío programado a contactos segmentados</li>
-                    <li><span class="icon yes">✓</span> Imágenes en productos y cabeceras del flujo</li>
-                    <li><span class="icon yes">✓</span> Alertas de monitoreo (WhatsApp / email)</li>
-                    <li><span class="icon yes">✓</span> Reportes de pedidos y clientes activos en el panel</li>
-                    <li><span class="icon yes">✓</span> Soporte por ticket (48 h hábiles)</li>
-                    <li class="excluded"><span class="icon no">✕</span> Integraciones con ERP, CRM o APIs custom</li>
-                    <li class="excluded"><span class="icon no">✕</span> Reportes ejecutivos y exportación avanzada</li>
-                    <li class="excluded"><span class="icon no">✕</span> Ajustes de desarrollo personalizados</li>
+                    <li><span class="icon yes">✓</span> <strong>{{ $plans['pro']['limits']['storage_gb'] }} GB</strong> almacenamiento <span class="tag tag-full">Ampliado</span></li>
+                    <li><span class="icon yes">✓</span> Segmentación: VIP, frecuentes, pide agente</li>
+                    <li><span class="icon yes">✓</span> Pedidos: factura, notas y feedback</li>
+                    <li><span class="icon yes">✓</span> Consumo Meta en dashboard</li>
+                    <li><span class="icon yes">✓</span> Colores y avatar del bot</li>
+                    <li><span class="icon yes">✓</span> Alertas externas WhatsApp / email</li>
+                    <li><span class="icon yes">✓</span> Reportes de pedidos y clientes</li>
+                    <li><span class="icon yes">✓</span> Soporte ticket (48 h)</li>
+                    <li class="feature-group muted">No incluye</li>
+                    <li class="excluded"><span class="icon no">✕</span> Integraciones ERP / CRM</li>
+                    <li class="excluded"><span class="icon no">✕</span> Reportes ejecutivos</li>
+                    <li class="excluded"><span class="icon no">✕</span> Desarrollo a medida</li>
                 </ul>
             </article>
 
@@ -1759,23 +1795,25 @@
                     <span class="from-label">Desde</span>
                     <span class="amount"><span class="currency">$</span><span class="price-value">130</span></span>
                     <span class="period">/ mes</span>
+                    <span class="plan-tax-note">sin IVA</span>
                 </div>
                 <a href="{{ $whatsappUrls['enterprise'] }}" class="plan-cta plan-cta-link" data-select="enterprise" target="_blank" rel="noopener">Solicitar cotización</a>
 
-                <div class="features-label">Todo lo de Pro, más</div>
+                <div class="features-label">Todo Pro, más</div>
                 <ul class="feature-list">
-                    <li><span class="icon yes">✓</span> Hasta <strong>{{ $plans['enterprise']['limits']['max_products'] }}</strong> productos y <strong>{{ $plans['enterprise']['limits']['max_categories'] }}</strong> categorías <span class="tag tag-full">Ampliable</span></li>
-                    <li><span class="icon yes">✓</span> <strong>{{ $plans['enterprise']['limits']['storage_gb'] }} GB</strong> de espacio en servidor <span class="tag tag-full">Ampliable</span></li>
-                    <li><span class="icon yes">✓</span> <strong>Usuarios admin ilimitados</strong> <span class="tag tag-full">Sin límite</span></li>
-                    <li><span class="icon yes">✓</span> <strong>Integraciones</strong> (CRM, ERP, pasarelas, webhooks)</li>
-                    <li><span class="icon yes">✓</span> <strong>Reportes avanzados</strong> y exportación de datos</li>
-                    <li><span class="icon yes">✓</span> Dashboard ejecutivo de ventas y conversaciones</li>
-                    <li><span class="icon yes">✓</span> ChatGPT / IA conversacional (si aplica)</li>
-                    <li><span class="icon yes">✓</span> <strong>Ajustes menores</strong> incluidos (textos, flujos, campos)</li>
+                    <li class="feature-group">Bot WhatsApp</li>
+                    <li><span class="icon yes">✓</span> <strong>{{ $plans['enterprise']['limits']['max_products'] }}</strong> productos · <strong>{{ $plans['enterprise']['limits']['max_categories'] }}</strong> categorías <span class="tag tag-full">Ampliable</span></li>
+                    <li><span class="icon yes">✓</span> IA ChatGPT (opcional)</li>
+                    <li class="feature-group">Panel web</li>
+                    <li><span class="icon yes">✓</span> Usuarios admin ilimitados</li>
+                    <li><span class="icon yes">✓</span> <strong>{{ $plans['enterprise']['limits']['storage_gb'] }} GB</strong> almacenamiento ampliable</li>
+                    <li><span class="icon yes">✓</span> Integraciones CRM, ERP, webhooks</li>
+                    <li><span class="icon yes">✓</span> Reportes avanzados y exportación</li>
+                    <li><span class="icon yes">✓</span> Dashboard ejecutivo</li>
+                    <li><span class="icon yes">✓</span> Ajustes menores incluidos</li>
                     <li><span class="icon yes">✓</span> Soporte prioritario y canal directo</li>
-                    <li><span class="icon yes">✓</span> Onboarding personalizado</li>
-                    <li><span class="icon yes">✓</span> Revisiones mensuales de rendimiento</li>
-                    <li><span class="icon partial">~</span> Desarrollos mayores se cotizan aparte</li>
+                    <li><span class="icon yes">✓</span> Onboarding y revisiones mensuales</li>
+                    <li><span class="icon partial">~</span> Desarrollos mayores aparte</li>
                 </ul>
             </article>
         </div>
@@ -1871,6 +1909,8 @@
                         <li>Hilo completo por contacto con fecha y hora</li>
                         <li>Texto, botones, imágenes y documentos</li>
                         <li>Identificación: mensaje del cliente, bot o asesor</li>
+                        <li>Alerta cuando pide hablar con un humano (banner, contador, chat resaltado)</li>
+                        <li>Marca «atendido» cuando tu equipo ya respondió</li>
                         <li>Búsqueda visual desde sidebar de chats</li>
                     </ul>
                     <span class="plan-tag">Todos los planes</span>
@@ -1900,21 +1940,21 @@
                 <thead>
                     <tr>
                         <th>Funcionalidad</th>
-                        <th>Starter<br><small>$60/mes</small></th>
-                        <th>Pro<br><small>$90/mes</small></th>
-                        <th>Enterprise<br><small>desde $130/mes</small></th>
+                        <th>Starter<br><small>$60/mes · sin IVA</small></th>
+                        <th>Pro<br><small>$90/mes · sin IVA</small></th>
+                        <th>Enterprise<br><small>desde $130/mes · sin IVA</small></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr class="category-row"><td colspan="4">Bot y conversación</td></tr>
+                    <tr class="category-row"><td colspan="4">Bot WhatsApp</td></tr>
                     <tr>
-                        <td>Bot automático 24/7 (menús, botones, listas)</td>
+                        <td>Menú: productos, mis pedidos e info del negocio</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                     </tr>
                     <tr>
-                        <td>Flujo de marketing editable (10 pasos)</td>
+                        <td>Info del negocio (horarios, contacto, pagos, envíos)</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
@@ -1926,13 +1966,19 @@
                         <td class="cell-yes">✓</td>
                     </tr>
                     <tr>
-                        <td>Derivación a asesor humano + alerta en panel</td>
+                        <td>Seguimiento «Mis pedidos» en el chat</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                     </tr>
                     <tr>
-                        <td>Cliente envía imágenes / PDF (comprobantes, docs)</td>
+                        <td>Cliente pide asesor humano</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Cliente envía imágenes / PDF</td>
                         <td class="cell-no">✕</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
@@ -1944,7 +1990,6 @@
                         <td class="cell-partial">Opcional</td>
                     </tr>
 
-                    <tr class="category-row"><td colspan="4">Ventas y catálogo</td></tr>
                     <tr>
                         <td>Catálogo por categorías y búsqueda por SKU</td>
                         <td class="cell-yes">✓</td>
@@ -1953,6 +1998,18 @@
                     </tr>
                     <tr>
                         <td>Carrito, checkout y confirmación de pedido</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Notas en la compra (opcional)</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Método de pago: transferencia, tarjeta o efectivo</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
@@ -1988,13 +2045,31 @@
                         <td class="cell-partial">Hasta {{ $plans['enterprise']['limits']['max_categories'] }}</td>
                     </tr>
                     <tr>
-                        <td>Espacio en servidor (imágenes, archivos, respaldos)</td>
-                        <td class="cell-partial">{{ $plans['starter']['limits']['storage_gb'] }} GB</td>
-                        <td class="cell-partial">{{ $plans['pro']['limits']['storage_gb'] }} GB</td>
-                        <td class="cell-partial">{{ $plans['enterprise']['limits']['storage_gb'] }} GB</td>
+                        <td>Pedido masivo por formulario web (enlace en chat)</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Plantillas masivas y campañas</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Envío programado por segmento</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Alertas externas WhatsApp / email</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
                     </tr>
 
-                    <tr class="category-row"><td colspan="4">Panel web · historial y trazabilidad</td></tr>
+                    <tr class="category-row"><td colspan="4">Panel web</td></tr>
                     <tr>
                         <td>Historial completo de conversaciones por cliente</td>
                         <td class="cell-yes">✓</td>
@@ -2044,9 +2119,14 @@
                         <td class="cell-yes">✓</td>
                     </tr>
 
-                    <tr class="category-row"><td colspan="4">Panel de administración</td></tr>
                     <tr>
-                        <td>Chat en vivo (responder como humano)</td>
+                        <td>Chat en vivo</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Alerta al pedir asesor (banner, contador)</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
@@ -2058,34 +2138,64 @@
                         <td class="cell-yes">✓</td>
                     </tr>
                     <tr>
-                        <td>Módulo Clientes (CRM): listado y perfil</td>
+                        <td>Catálogo: agregar, editar e inactivar productos</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                     </tr>
                     <tr>
-                        <td>Segmentación automática de clientes (VIP, frecuentes…)</td>
+                        <td>Categorías y flujo del bot editable</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Módulo Clientes: editar datos y gestiones</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Módulo Usuarios y roles</td>
+                        <td class="cell-partial">{{ $plans['starter']['limits']['admin_users'] }} usuarios</td>
+                        <td class="cell-partial">{{ $plans['pro']['limits']['admin_users'] }} usuarios</td>
+                        <td class="cell-yes">Ilimitados</td>
+                    </tr>
+                    <tr>
+                        <td>Dashboard: reportes e indicadores de ventas</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">Avanzado</td>
+                    </tr>
+                    <tr>
+                        <td>Segmentación automática (VIP, frecuentes, pide agente)</td>
                         <td class="cell-no">✕</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                     </tr>
                     <tr>
-                        <td>Gestión avanzada de pedidos (factura, notas, feedback)</td>
+                        <td>Gestión avanzada de pedidos (factura, notas internas, feedback)</td>
                         <td class="cell-no">✕</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                     </tr>
                     <tr>
-                        <td>Exportación Excel de pedidos (detalle por producto y cliente)</td>
+                        <td>Exportación Excel de pedidos</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                     </tr>
                     <tr>
-                        <td>Dashboard de uso del plan (productos, categorías, GB)</td>
+                        <td>Uso del plan (productos y categorías)</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Almacenamiento (imágenes y archivos)</td>
+                        <td class="cell-partial">{{ $plans['starter']['limits']['storage_gb'] }} GB</td>
+                        <td class="cell-partial">{{ $plans['pro']['limits']['storage_gb'] }} GB</td>
+                        <td class="cell-partial">{{ $plans['enterprise']['limits']['storage_gb'] }} GB</td>
                     </tr>
                     <tr>
                         <td>Estimado de consumo Meta en dashboard</td>
@@ -2099,35 +2209,8 @@
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                     </tr>
-                   
-                    <tr>
-                        <td>Usuarios admin en el panel</td>
-                        <td class="cell-partial">3</td>
-                        <td class="cell-partial">5</td>
-                        <td class="cell-yes">Ilimitados</td>
-                    </tr>
 
-                    <tr class="category-row"><td colspan="4">Marketing</td></tr>
-                    <tr>
-                        <td>Envío de plantillas masivas / campañas</td>
-                        <td class="cell-no">✕</td>
-                        <td class="cell-yes">✓</td>
-                        <td class="cell-yes">✓</td>
-                    </tr>
-                    <tr>
-                        <td>Segmentación y envío programado</td>
-                        <td class="cell-no">✕</td>
-                        <td class="cell-yes">✓</td>
-                        <td class="cell-yes">✓</td>
-                    </tr>
-                    <tr>
-                        <td>Alertas de monitoreo (nuevo mensaje)</td>
-                        <td class="cell-no">✕</td>
-                        <td class="cell-yes">✓</td>
-                        <td class="cell-yes">✓</td>
-                    </tr>
-
-                    <tr class="category-row"><td colspan="4">Integraciones y soporte</td></tr>
+                    <tr class="category-row"><td colspan="4">Servicio</td></tr>
                     <tr>
                         <td>Integraciones (CRM, ERP, APIs, webhooks)</td>
                         <td class="cell-no">✕</td>
@@ -2163,7 +2246,7 @@
     <section class="meta-panel" id="metaPanel">
         <div class="info-sections">
             <h2 id="costos-meta">¿Cuánto pagarás a Meta por WhatsApp?</h2>
-            <p class="section-lead">Además de tu plan ($60 / $90 / $130+), Meta cobra por cada conversación. Aquí te explicamos en palabras simples qué significa cada tipo de mensaje y cuánto podrías gastar al mes.</p>
+            <p class="section-lead">Además de tu plan ($60 / $90 / $130+, sin IVA), Meta cobra por cada conversación. Aquí te explicamos en palabras simples qué significa cada tipo de mensaje y cuánto podrías gastar al mes.</p>
 
             <div class="meta-rates-grid">
                 @foreach($metaRates['per_conversation'] ?? [] as $key => $rate)
@@ -2212,9 +2295,9 @@
                 <div class="calc-row">
                     <label>Tu plan de plataforma</label>
                     <select id="calcPlan" style="width:100%;padding:12px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:14px;">
-                        <option value="60">Starter — $60/mes</option>
-                        <option value="90" selected>Pro — $90/mes</option>
-                        <option value="130">Enterprise — desde $130/mes</option>
+                        <option value="60">Starter — $60/mes sin IVA</option>
+                        <option value="90" selected>Pro — $90/mes sin IVA</option>
+                        <option value="130">Enterprise — desde $130/mes sin IVA</option>
                     </select>
                 </div>
 
@@ -2395,7 +2478,7 @@
         <div class="faq-item">
             <button type="button" class="faq-q">¿El precio del plan incluye los mensajes de WhatsApp?<span class="arrow">▼</span></button>
             <div class="faq-a">
-                <p><strong>No.</strong> El plan ($60, $90 o $130+) cubre únicamente la plataforma: bot, panel admin, usuarios y funciones descritas. Por separado debes pagar a Meta (directamente o vía proveedor BSP) por:</p>
+                <p><strong>No.</strong> El plan ($60, $90 o $130+, sin IVA) cubre únicamente la plataforma: bot, panel admin, usuarios y funciones descritas. Por separado debes pagar a Meta (directamente o vía proveedor BSP) por:</p>
                 <ul>
                     <li>Conversaciones entrantes y salientes</li>
                     <li>Plantillas de marketing, utilidad y autenticación</li>
@@ -2481,7 +2564,7 @@
     </section>
 
     <p class="footnote">
-        Los precios de planes no incluyen consumos de Meta/WhatsApp. El uso responsable del canal es responsabilidad del cliente.
+        Precios de planes sin IVA. No incluyen consumos de Meta/WhatsApp. El uso responsable del canal es responsabilidad del cliente.
         · <a href="#" data-goto="meta">Costos Meta</a>
     </p>
 </div>
@@ -2490,7 +2573,7 @@
     <div class="selection-bar-inner">
         <div class="selection-info">
             Plan seleccionado: <strong id="selectedPlanName">Pro</strong> —
-            <strong id="selectedPlanPrice">$90</strong>/mes
+            <strong id="selectedPlanPrice">$90</strong>/mes <span style="font-weight:500;color:var(--muted)">sin IVA</span>
         </div>
         <div class="selection-actions">
             <button type="button" class="close-sel" id="clearSelection">Cambiar</button>

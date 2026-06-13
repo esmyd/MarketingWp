@@ -192,11 +192,11 @@ class PricingController extends Controller
 
         $message = match ($plan) {
 
-            'starter' => "Hola! Me interesa el *Plan Starter* (\$60/mes) del bot WhatsApp con panel admin. Quisiera más información para contratar.",
+            'starter' => "Hola! Me interesa el *Plan Starter* (\$60/mes sin IVA) del bot WhatsApp con panel admin. Quisiera más información para contratar.",
 
-            'pro' => "Hola! Me interesa el *Plan Pro* (\$90/mes) del bot WhatsApp con panel admin. Quisiera más información para contratar.",
+            'pro' => "Hola! Me interesa el *Plan Pro* (\$90/mes sin IVA) del bot WhatsApp con panel admin. Quisiera más información para contratar.",
 
-            'enterprise' => "Hola! Me interesa el *Plan Enterprise* (desde \$130/mes) del bot WhatsApp con panel admin. Quisiera una cotización personalizada.",
+            'enterprise' => "Hola! Me interesa el *Plan Enterprise* (desde \$130/mes sin IVA) del bot WhatsApp con panel admin. Quisiera una cotización personalizada.",
 
             default => "Hola! Me interesa contratar el bot WhatsApp con panel admin. Quisiera más información.",
 

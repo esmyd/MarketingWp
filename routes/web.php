@@ -2,13 +2,21 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Auth\LoginController;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/', [LoginController::class, 'login'])->middleware('throttle:login');
+Route::get('/login', fn () => redirect('/'));
+Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:login');
 
 Route::get('/planes', [App\Http\Controllers\PricingController::class, 'index'])->name('pricing.index');
 Route::get('/planes/contratar/{plan}', [App\Http\Controllers\PricingController::class, 'checkout'])->name('pricing.checkout');
+
+Route::prefix('pedido')->name('bulk-order.')->group(function () {
+    Route::get('/{token}', [App\Http\Controllers\BulkOrderController::class, 'show'])->name('show');
+    Route::get('/{token}/catalogo', [App\Http\Controllers\BulkOrderController::class, 'catalog'])->name('catalog');
+    Route::post('/{token}', [App\Http\Controllers\BulkOrderController::class, 'submit'])->name('submit');
+});
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])
@@ -212,9 +220,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::put('/profile/password', [App\Http\Controllers\Admin\UserProfileController::class, 'updatePassword'])->name('profile.password.update');
 });
 
-Route::get('/login', [App\Http\Controllers\Auth\LoginController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [App\Http\Controllers\Auth\LoginController::class, 'login'])->middleware('throttle:login');
-Route::post('/logout', [App\Http\Controllers\Auth\LoginController::class, 'logout'])->name('logout');
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::post('/admin/orders/{id}/status', [App\Http\Controllers\AdminController::class, 'updateOrderStatus'])
     ->middleware(['auth', 'admin', 'permission:orders.update', 'platform.feature:orders']);

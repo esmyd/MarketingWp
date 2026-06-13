@@ -12,7 +12,8 @@ class WhatsappCartItem extends Model
         'whatsapp_price_id',
         'name',
         'price',
-        'quantity'
+        'quantity',
+        'line_note',
     ];
 
     protected $casts = [

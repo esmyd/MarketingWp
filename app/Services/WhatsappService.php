@@ -2261,6 +2261,9 @@ class WhatsappService
                 case 'checkout':
                     $response = $this->finalizarCompra($contact);
                     break;
+                case 'bulk_order_web':
+                    $response = $this->sendBulkWebOrderLink($contact);
+                    break;
 
                 // Procesamiento de imagen
                 case 'cancelar_proceso_imagen':
@@ -2496,6 +2499,59 @@ class WhatsappService
         $message .= "💰 *Total: \${$total}*\n\n";
         $message .= "¿Qué deseas hacer?";
 
+        $buttons = [];
+        $bulkAvailable = app(BulkOrderService::class)->isAvailable();
+
+        if ($bulkAvailable) {
+            $buttons = [
+                [
+                    'type' => 'reply',
+                    'reply' => [
+                        'id' => 'seguir_comprando',
+                        'title' => '🛍️ Seguir comprando',
+                    ],
+                ],
+                [
+                    'type' => 'reply',
+                    'reply' => [
+                        'id' => 'bulk_order_web',
+                        'title' => '📋 Armar lista',
+                    ],
+                ],
+                [
+                    'type' => 'reply',
+                    'reply' => [
+                        'id' => 'finalizar_compra',
+                        'title' => '✅ Finalizar compra',
+                    ],
+                ],
+            ];
+        } else {
+            $buttons = [
+                [
+                    'type' => 'reply',
+                    'reply' => [
+                        'id' => 'seguir_comprando',
+                        'title' => '🛍️ Seguir comprando',
+                    ],
+                ],
+                [
+                    'type' => 'reply',
+                    'reply' => [
+                        'id' => 'finalizar_compra',
+                        'title' => '✅ Finalizar compra',
+                    ],
+                ],
+                [
+                    'type' => 'reply',
+                    'reply' => [
+                        'id' => 'menu_principal',
+                        'title' => '🏠 Menú principal',
+                    ],
+                ],
+            ];
+        }
+
                 return [
                     'type' => 'interactive',
                     'interactive' => [
@@ -2504,33 +2560,116 @@ class WhatsappService
                     'text' => $message
                         ],
                         'action' => [
-                            'buttons' => [
-                                [
-                                    'type' => 'reply',
-                                    'reply' => [
-                                'id' => 'seguir_comprando',
-                                'title' => '🛍️ Seguir comprando'
-                            ]
+                            'buttons' => $buttons,
                         ],
+                    ],
+                ];
+    }
+
+    private function sendBulkWebOrderLink(WhatsappContact $contact): array
+    {
+        $bulkService = app(BulkOrderService::class);
+
+        if (!$bulkService->isAvailable()) {
+            return [
+                'type' => 'text',
+                'text' => ['body' => 'Esta opción no está disponible en tu plan actual.'],
+            ];
+        }
+
+        $token = $bulkService->issueToken($contact);
+        if (!$token) {
+            return [
+                'type' => 'text',
+                'text' => ['body' => 'No pudimos generar el enlace. Intenta de nuevo en unos minutos.'],
+            ];
+        }
+
+        $url = $bulkService->formUrl($token);
+
+        return [
+            'type' => 'interactive',
+            'interactive' => [
+                'type' => 'cta_url',
+                'body' => [
+                    'text' => "📋 *Formulario de pedido*\n\n"
+                        . "Abre el enlace, elige productos, cantidades y notas.\n"
+                        . "Al enviar recibirás tu número de pedido aquí por WhatsApp.",
+                ],
+                'action' => [
+                    'name' => 'cta_url',
+                    'parameters' => [
+                        'display_text' => 'Abrir formulario',
+                        'url' => $url,
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    public function finalizeBulkWebOrder(WhatsappCart $cart): string
+    {
+        $cart->status = WhatsappCart::STATUS_PENDING;
+        $cart->payment_status = 'pending';
+        $cart->save();
+
+        $details = $this->syncOrderDetails($cart);
+
+        return $details['order_number'];
+    }
+
+    public function notifyBulkWebOrderSubmitted(WhatsappContact $contact, WhatsappCart $cart, string $orderNumber): void
+    {
+        $body = "✅ *Pedido registrado*\n\n"
+            . "📦 *Número de pedido:* {$orderNumber}\n"
+            . "💰 *Total:* \${$cart->total}\n\n"
+            . "Guarda este número para consultar el estado. Te contactaremos si hace falta algo más.";
+
+        $this->sendMessageToWhatsApp($contact->phone_number, [
+            'type' => 'text',
+            'text' => ['body' => $body],
+        ]);
+    }
+
+    private function notifyBulkWebOrderSubmittedOld(WhatsappContact $contact, WhatsappCart $cart): void
+    {
+        $cart->loadMissing('items');
+
+        $lines = '';
+        foreach ($cart->items as $item) {
+            $lines .= "• {$item->name} x{$item->quantity}\n";
+            if (!empty($item->line_note)) {
+                $lines .= "  _Nota:_ {$item->line_note}\n";
+            }
+        }
+
+        $body = "✅ *Recibimos tu pedido*\n\n{$lines}\n💰 *Total:* \${$cart->total}\n";
+        if ($cart->note) {
+            $body .= "\n📝 *Nota:* {$cart->note}\n";
+        }
+        $body .= "\nToca el botón para elegir método de pago y confirmar.";
+
+        $payload = [
+            'type' => 'interactive',
+            'interactive' => [
+                'type' => 'button',
+                'body' => ['text' => $body],
+                'action' => [
+                    'buttons' => [
                         [
                             'type' => 'reply',
                             'reply' => [
                                 'id' => 'finalizar_compra',
-                                'title' => '✅ Finalizar compra'
-                            ]
+                                'title' => '✅ Continuar pedido',
+                            ],
                         ],
-                        [
-                            'type' => 'reply',
-                            'reply' => [
-                                'id' => 'menu_principal',
-                                'title' => '🏠 Menú principal'
-                            ]
-                                ]
-                            ]
-                        ]
-                    ]
-                ];
-            }
+                    ],
+                ],
+            ],
+        ];
+
+        $this->sendMessageToWhatsApp($contact->phone_number, $payload);
+    }
 
     private function addToCart(WhatsappContact $contact, $priceId, $quantity = 1)
     {
@@ -2565,45 +2704,78 @@ class WhatsappService
             $cart->total = $cart->items()->sum(DB::raw('price * quantity'));
             $cart->save();
 
+            $buttons = [];
+            $bulkAvailable = app(BulkOrderService::class)->isAvailable();
+
+            if ($bulkAvailable) {
+                $buttons = [
+                    [
+                        'type' => 'reply',
+                        'reply' => [
+                            'id' => 'seguir_comprando',
+                            'title' => '🛍️ Seguir comprando',
+                        ],
+                    ],
+                    [
+                        'type' => 'reply',
+                        'reply' => [
+                            'id' => 'bulk_order_web',
+                            'title' => '📋 Armar lista',
+                        ],
+                    ],
+                    [
+                        'type' => 'reply',
+                        'reply' => [
+                            'id' => 'ver_carrito',
+                            'title' => '🛒 Ver carrito',
+                        ],
+                    ],
+                ];
+            } else {
+                $buttons = [
+                    [
+                        'type' => 'reply',
+                        'reply' => [
+                            'id' => 'ver_carrito',
+                            'title' => '🛒 Ver carrito',
+                        ],
+                    ],
+                    [
+                        'type' => 'reply',
+                        'reply' => [
+                            'id' => 'seguir_comprando',
+                            'title' => '🛍️ Seguir comprando',
+                        ],
+                    ],
+                    [
+                        'type' => 'reply',
+                        'reply' => [
+                            'id' => 'menu_principal',
+                            'title' => '🏠 Menú principal',
+                        ],
+                    ],
+                ];
+            }
+
+            $bodyText = "✅ *Producto agregado al carrito*\n\n" .
+                "• {$price->name}\n" .
+                "• Cantidad: {$quantity}\n" .
+                "• Precio unitario: $" . $unitPrice . "\n" .
+                "• Subtotal: $" . ($unitPrice * $quantity) . "\n" .
+                ($price->is_promo ? "• ¡Aprovecha esta oferta! 🎉\n" : "") . "\n" .
+                "¿Qué deseas hacer?";
+
+            if ($bulkAvailable) {
+                $bodyText .= "\n\n_📋 Armar lista:_ ideal si vas a pedir varios productos de una vez.";
+            }
+
             return [
                 'type' => 'interactive',
                 'interactive' => [
                     'type' => 'button',
-                    'body' => [
-                        'text' => "✅ *Producto agregado al carrito*\n\n" .
-                            "• {$price->name}\n" .
-                            "• Cantidad: {$quantity}\n" .
-                            "• Precio unitario: $" . $unitPrice . "\n" .
-                            "• Subtotal: $" . ($unitPrice * $quantity) . "\n" .
-                            ($price->is_promo ? "• ¡Aprovecha esta oferta! 🎉\n" : "") . "\n" .
-                            "¿Qué deseas hacer?"
-                    ],
-                    'action' => [
-                        'buttons' => [
-                            [
-                                'type' => 'reply',
-                                'reply' => [
-                                    'id' => 'ver_carrito',
-                                    'title' => '🛒 Ver carrito'
-                                ]
-                            ],
-                            [
-                                'type' => 'reply',
-                                'reply' => [
-                                    'id' => 'seguir_comprando',
-                                    'title' => '🛍️ Seguir comprando'
-                                ]
-                            ],
-                            [
-                                'type' => 'reply',
-                                'reply' => [
-                                    'id' => 'menu_principal',
-                                    'title' => '🏠 Menú principal'
-                                ]
-                            ]
-                        ]
-                    ]
-                ]
+                    'body' => ['text' => $bodyText],
+                    'action' => ['buttons' => $buttons],
+                ],
             ];
         } catch (\Exception $e) {
             Log::error('Error al agregar al carrito', [
