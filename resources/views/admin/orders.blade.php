@@ -26,7 +26,7 @@
     .orders-top .lead { margin: 0; font-size: .875rem; color: #64748b; }
 
     .orders-priority {
-        display: grid; grid-template-columns: repeat(5, 1fr);
+        display: grid; grid-template-columns: repeat(4, 1fr);
         gap: .65rem; margin-bottom: .85rem;
     }
     @media (max-width: 900px) { .orders-priority { grid-template-columns: repeat(2, 1fr); } }
@@ -85,8 +85,6 @@
         vertical-align: middle; color: #334155;
     }
     .orders-table tbody tr:hover { background: #fafbfc; }
-    .orders-table tbody tr.invoice-pending { background: #fffbeb; }
-    .orders-table tbody tr.invoice-pending:hover { background: #fef9c3; }
     .orders-table tbody tr:last-child td { border-bottom: none; }
 
     .order-cell-name { font-weight: 700; color: #0f172a; white-space: nowrap; }
@@ -99,7 +97,6 @@
         font-size: .62rem; font-weight: 700; padding: .15rem .4rem; border-radius: 999px;
         display: inline-flex; align-items: center; gap: .2rem; white-space: nowrap;
     }
-    .o-tag.invoice { background: #fef3c7; color: #92400e; }
     .o-tag.notes { background: #e0e7ff; color: #3730a3; }
     .o-tag.feedback { background: #dcfce7; color: #166534; }
     .o-tag.empty { color: #cbd5e1; }
@@ -210,14 +207,10 @@
 <div class="orders-page">
     <div class="orders-top">
         <h2><i class="fas fa-shopping-bag me-1 text-success"></i> Pedidos</h2>
-        <p class="lead">Estado, facturación, observaciones internas y seguimiento con el cliente.</p>
+        <p class="lead">Estado, observaciones internas y seguimiento con el cliente.</p>
     </div>
 
     <div class="orders-priority">
-        <div class="prio-card urgent">
-            <div class="lbl">Facturas pendientes</div>
-            <div class="val">{{ $stats['invoice_pending'] ?? 0 }}</div>
-        </div>
         <div class="prio-card">
             <div class="lbl">Pendientes</div>
             <div class="val">{{ $stats['pending'] ?? 0 }}</div>
@@ -293,11 +286,9 @@
                     @foreach($orders as $order)
                         @php
                             $itemsCount = $order->items->count();
-                            $invoicePending = $order->requires_invoice && in_array($order->invoice_status, ['requested', 'data_ready'], true);
-                            $hasTags = $order->requires_invoice || ($order->internal_notes_count ?? 0) > 0 || ($order->feedback_count ?? 0) > 0;
+                            $hasTags = ($order->internal_notes_count ?? 0) > 0 || ($order->feedback_count ?? 0) > 0;
                         @endphp
-                        <tr class="{{ $invoicePending ? 'invoice-pending' : '' }}"
-                            id="order-row-{{ $order->id }}"
+                        <tr id="order-row-{{ $order->id }}"
                             data-search="{{ strtolower(($order->contact->name ?? '') . ' ' . ($order->contact->phone_number ?? '')) }}">
                             <td><span class="order-cell-id">#{{ $order->id }}</span></td>
                             <td><span class="order-cell-name">{{ $order->contact->name ?? 'Cliente' }}</span></td>
@@ -307,9 +298,6 @@
                             <td>{{ $itemsCount }}</td>
                             <td>
                                 <div class="order-tags">
-                                    @if($order->requires_invoice)
-                                        <span class="o-tag invoice"><i class="fas fa-file-invoice"></i>{{ $invoiceLabels[$order->invoice_status] ?? 'Factura' }}</span>
-                                    @endif
                                     @if(($order->internal_notes_count ?? 0) > 0)
                                         <span class="o-tag notes"><i class="fas fa-sticky-note"></i>{{ $order->internal_notes_count }}</span>
                                     @endif
