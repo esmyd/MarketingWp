@@ -26,6 +26,20 @@ class ClientInsightsService
         'pending_reply' => 'Esperando respuesta',
     ];
 
+    /** Texto de ayuda por segmento (tooltips en listado de clientes). */
+    public const SEGMENT_HINTS = [
+        '' => 'Todos los clientes con conversación o al menos un pedido cerrado.',
+        'frequent_buyer' => '3 o más pedidos cerrados. No cuenta carritos activos ni abandonados.',
+        'vip' => '5 o más pedidos cerrados, o más de $500 gastados en total.',
+        'new' => 'Contacto registrado en los últimos 7 días.',
+        'inactive' => 'Sin mensajes de actividad en más de 30 días.',
+        'needs_agent' => 'Pidió hablar con un asesor humano; el bot lo marcó en el chat.',
+        'bot_off' => 'El bot automático está pausado para ese contacto.',
+        'has_orders' => 'Al menos un pedido cerrado (confirmado, pagado, completado, etc.).',
+        'no_orders' => 'Sin pedidos cerrados; solo conversó o tiene carrito abierto.',
+        'pending_reply' => 'El último mensaje del cliente aún no tiene respuesta del bot ni de un agente.',
+    ];
+
     public const SORT_OPTIONS = [
         'recent' => 'Actividad más reciente',
         'orders_desc' => 'Más pedidos',
@@ -61,6 +75,9 @@ class ClientInsightsService
             'needs_agent' => (clone $base)
                 ->whereRaw("JSON_EXTRACT(metadata, '$.needs_agent') = true")
                 ->count(),
+            'pending_reply' => (clone $base)
+                ->whereRaw($this->pendingReplySql())
+                ->count(),
         ];
     }
 
@@ -81,6 +98,12 @@ class ClientInsightsService
             ->limit(30)
             ->get();
 
+        $notes = $contact->notes()
+            ->with('user:id,name')
+            ->latest('created_at')
+            ->limit(50)
+            ->get();
+
         $messagesByMonth = WhatsappMessage::where('contact_id', $contact->id)
             ->where('created_at', '>=', now()->subMonths(6))
             ->selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month')
@@ -95,6 +118,7 @@ class ClientInsightsService
             'indicators' => $this->indicators($contact),
             'orders' => $orders,
             'recent_messages' => $recentMessages,
+            'contact_notes' => $notes,
             'messages_by_month' => $messagesByMonth,
             'response_rate' => $this->responseRateFromMetrics($contact),
             'response_metrics' => $this->responseMetricsForContact($contact->id),
@@ -353,7 +377,9 @@ class ClientInsightsService
         if ($search = trim((string) $request->input('q', ''))) {
             $query->where(function (Builder $q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('phone_number', 'like', "%{$search}%");
+                    ->orWhere('phone_number', 'like', "%{$search}%")
+                    ->orWhere('national_id', 'like', "%{$search}%")
+                    ->orWhere('address', 'like', "%{$search}%");
             });
         }
 

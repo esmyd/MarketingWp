@@ -60,6 +60,11 @@ class WhatsappService
         ];
     }
 
+    protected function botMayRespondToContact($contact): bool
+    {
+        return app(PlatformBillingService::class)->botMayRespondToContact($contact);
+    }
+
     public function __construct()
     {
         $this->baseUrl = config('whatsapp.api_url', 'https://graph.facebook.com');
@@ -1095,8 +1100,8 @@ class WhatsappService
             $contact->refresh();
 
             // Verificar si el bot está habilitado para este contacto
-            if (!$contact->bot_enabled) {
-                Log::info('[handleChatbotResponse] 🛑 Bot detenido - Bot deshabilitado manualmente', [
+            if (!$this->botMayRespondToContact($contact)) {
+                Log::info('[handleChatbotResponse] 🛑 Bot detenido - suspendido o deshabilitado', [
                     'contact_id' => $contact->id,
                     'message_id' => $message->id,
                     'message_content' => substr($message->content, 0, 100),
@@ -1899,7 +1904,7 @@ class WhatsappService
     {
         $contact->refresh();
 
-        if (!$contact->bot_enabled) {
+        if (!$this->botMayRespondToContact($contact)) {
             return;
         }
 
@@ -2020,7 +2025,7 @@ class WhatsappService
             $contact->refresh();
 
             // Verificar si el bot está habilitado para este contacto ANTES de procesar cualquier respuesta
-            if (!$contact->bot_enabled) {
+            if (!$this->botMayRespondToContact($contact)) {
                 $this->markMessageAsRead($messageId, $from);
                 Log::info('[handleInteractiveMessage] 🛑 Bot detenido - Bot deshabilitado manualmente', [
                     'contact_id' => $contact->id,
@@ -2861,7 +2866,7 @@ class WhatsappService
             if (preg_match('/(catalogo|catálogo|productos|precios|lista de precios|ver productos)/i', $text)) {
                 if ($contact) {
                     $contact->refresh();
-                    if (!$contact->bot_enabled) {
+                    if (!$this->botMayRespondToContact($contact)) {
                         Log::info('[handleTextMessage] 🛑 Catálogo no enviado - Bot deshabilitado manualmente', [
                             'contact_id' => $contact->id,
                             'phone' => substr($from, 0, 4) . '****' . substr($from, -4)
@@ -2872,7 +2877,7 @@ class WhatsappService
                         $this->rememberInboundMessage($contact, $messageId);
                     }
                 }
-                if ($contact?->bot_enabled && $messageId) {
+                if ($contact && $this->botMayRespondToContact($contact) && $messageId) {
                     $this->prepareBotReply($contact, $messageId);
                 }
                 $this->sendCatalog($from);
@@ -3020,7 +3025,7 @@ class WhatsappService
                 $contact->refresh();
 
                 // Verificar si el bot está habilitado para este contacto ANTES de generar respuesta
-                if (!$contact->bot_enabled) {
+                if (!$this->botMayRespondToContact($contact)) {
                     Log::info('[handleTextMessage] 🛑 Bot detenido - Bot deshabilitado manualmente', [
                         'contact_id' => $contact->id,
                         'phone' => substr($from, 0, 4) . '****' . substr($from, -4),
@@ -4914,7 +4919,7 @@ class WhatsappService
             $contact->refresh();
 
             // Verificar si el bot está habilitado para este contacto
-            if (!$contact->bot_enabled) {
+            if (!$this->botMayRespondToContact($contact)) {
                 Log::info('[sendCatalog] 🛑 Catálogo no enviado - Bot deshabilitado manualmente', [
                     'to' => substr($to, 0, 4) . '****' . substr($to, -4),
                     'contact_id' => $contact->id,

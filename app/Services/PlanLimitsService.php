@@ -6,8 +6,6 @@ use App\Models\PricingSetting;
 use App\Models\WhatsappChatbotConfig;
 use App\Models\WhatsappMenuItem;
 use App\Models\WhatsappPrice;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
 
 class PlanLimitsService
 {
@@ -67,12 +65,14 @@ class PlanLimitsService
             || isset($legacy['max_products_limit'])
             || isset($legacy['max_categories_limit'])
             || isset($legacy['storage_gb_limit'])
+            || isset($legacy['storage_gb_used'])
         ) {
             return [
                 'subscription_plan' => $legacy['subscription_plan'] ?? 'starter',
                 'max_products_limit' => $legacy['max_products_limit'] ?? null,
                 'max_categories_limit' => $legacy['max_categories_limit'] ?? null,
                 'storage_gb_limit' => $legacy['storage_gb_limit'] ?? null,
+                'storage_gb_used' => $legacy['storage_gb_used'] ?? null,
             ];
         }
 
@@ -81,31 +81,41 @@ class PlanLimitsService
 
     public function savePlatformLimits(array $data): void
     {
-        PricingSetting::current()->update([
-            'platform_limits' => [
-                'subscription_plan' => $data['subscription_plan'] ?? 'starter',
-                'max_products_limit' => array_key_exists('max_products_limit', $data)
-                    ? max(0, (int) $data['max_products_limit'])
-                    : null,
-                'max_categories_limit' => array_key_exists('max_categories_limit', $data)
-                    ? max(0, (int) $data['max_categories_limit'])
-                    : null,
-                'storage_gb_limit' => array_key_exists('storage_gb_limit', $data)
-                    ? max(0, (float) $data['storage_gb_limit'])
-                    : null,
-            ],
-        ]);
+        $limits = $this->platformLimitsRaw();
+
+        if (array_key_exists('subscription_plan', $data)) {
+            $limits['subscription_plan'] = $data['subscription_plan'] ?? 'starter';
+        }
+        if (array_key_exists('max_products_limit', $data)) {
+            $limits['max_products_limit'] = max(0, (int) $data['max_products_limit']);
+        }
+        if (array_key_exists('max_categories_limit', $data)) {
+            $limits['max_categories_limit'] = max(0, (int) $data['max_categories_limit']);
+        }
+        if (array_key_exists('storage_gb_limit', $data)) {
+            $limits['storage_gb_limit'] = max(0, (float) $data['storage_gb_limit']);
+        }
+        if (array_key_exists('storage_gb_used', $data)) {
+            $limits['storage_gb_used'] = max(0, (float) $data['storage_gb_used']);
+        }
+
+        PricingSetting::current()->update(['platform_limits' => $limits]);
     }
 
     public function usage(): array
     {
-        $bytes = $this->calculateStorageBytes();
+        $meta = $this->platformLimitsRaw();
+        $storageGbUsed = max(0, (float) ($meta['storage_gb_used'] ?? 0));
+        $bytes = (int) round($storageGbUsed * (1024 ** 3));
 
         return [
             'products' => WhatsappPrice::query()->count(),
             'categories' => WhatsappMenuItem::catalogCategories()->count(),
             'storage_bytes' => $bytes,
+            'storage_mb' => round($bytes / (1024 ** 2), 2),
             'storage_gb' => $this->bytesToGb($bytes),
+            'storage_human' => $this->formatStorage($bytes),
+            'storage_manual' => true,
         ];
     }
 
@@ -116,19 +126,21 @@ class PlanLimitsService
 
         $maxProducts = max(1, $limits['max_products']);
         $maxCategories = max(1, $limits['max_categories']);
-        $maxStorageGb = max(0.01, $limits['storage_gb']);
+        $maxStorageBytes = (int) max(1, $limits['storage_gb'] * (1024 ** 3));
+        $storageBytes = (int) ($usage['storage_bytes'] ?? 0);
 
         return array_merge($limits, [
             'usage' => $usage,
             'products_remaining' => max(0, $limits['max_products'] - $usage['products']),
             'categories_remaining' => max(0, $limits['max_categories'] - $usage['categories']),
-            'storage_remaining_gb' => max(0, round($limits['storage_gb'] - $usage['storage_gb'], 2)),
+            'storage_remaining_gb' => max(0, round($limits['storage_gb'] - $usage['storage_gb'], 3)),
+            'storage_remaining_human' => $this->formatStorage(max(0, $maxStorageBytes - $storageBytes)),
             'products_at_limit' => $usage['products'] >= $limits['max_products'],
             'categories_at_limit' => $usage['categories'] >= $limits['max_categories'],
-            'storage_at_limit' => $usage['storage_gb'] >= $limits['storage_gb'],
+            'storage_at_limit' => $storageBytes >= $maxStorageBytes,
             'products_percent' => min(100, (int) round($usage['products'] / $maxProducts * 100)),
             'categories_percent' => min(100, (int) round($usage['categories'] / $maxCategories * 100)),
-            'storage_percent' => min(100, (int) round($usage['storage_gb'] / $maxStorageGb * 100)),
+            'storage_percent' => min(100, (int) round($storageBytes / $maxStorageBytes * 100)),
         ]);
     }
 
@@ -207,35 +219,6 @@ class PlanLimitsService
 
     private function bytesToGb(int $bytes): float
     {
-        return round($bytes / (1024 ** 3), 2);
-    }
-
-    private function calculateStorageBytes(): int
-    {
-        try {
-            $disk = Storage::disk('public');
-            $total = 0;
-
-            foreach ($disk->allFiles() as $file) {
-                $total += $disk->size($file);
-            }
-
-            return $total;
-        } catch (\Throwable) {
-            $path = storage_path('app/public');
-
-            return is_dir($path) ? $this->directorySize($path) : 0;
-        }
-    }
-
-    private function directorySize(string $path): int
-    {
-        $size = 0;
-
-        foreach (File::allFiles($path) as $file) {
-            $size += $file->getSize();
-        }
-
-        return $size;
+        return round($bytes / (1024 ** 3), 3);
     }
 }

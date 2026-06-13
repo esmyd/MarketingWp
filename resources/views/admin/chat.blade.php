@@ -30,6 +30,17 @@
         display: none !important;
     }
 
+    /* Menú admin por encima del panel de chat en móvil */
+    @media (max-width: 991.98px) {
+        body.chat-page .sidebar.show {
+            z-index: 2100;
+        }
+
+        body.chat-page .sidebar-overlay.show {
+            z-index: 2099;
+        }
+    }
+
     body.chat-page .main-wrapper {
         min-height: 100vh;
     }
@@ -1364,8 +1375,11 @@
         <div class="wa-chat-panel">
             <!-- Header -->
             <div class="wa-chat-header">
-                <button class="wa-mobile-toggle" id="waOpenSidebar" title="Abrir lista de chats" style="display: none;">
-                    <i class="fas fa-bars"></i>
+                <button type="button" class="wa-mobile-toggle" id="waOpenAdminMenu" title="Menú principal">
+                    <i class="fas fa-th-large"></i>
+                </button>
+                <button type="button" class="wa-mobile-toggle" id="waOpenSidebar" title="Lista de chats">
+                    <i class="fas fa-arrow-left"></i>
                 </button>
                 <div class="wa-chat-avatar" id="waChatAvatarToggle" title="Ver contactos">{{ strtoupper(mb_substr($contact->name ?? 'C', 0, 1)) }}</div>
                 <div class="wa-chat-header-info">
@@ -3626,15 +3640,56 @@
             imgElement.parentElement.insertBefore(placeholder, imgElement);
         }
 
-        // Mobile Sidebar Toggle
+        // Menú principal del admin (móvil, desde vista de chat)
+        (function() {
+            const adminSidebar = document.getElementById('sidebar');
+            const adminOverlay = document.getElementById('sidebarOverlay');
+            const openAdminBtn = document.getElementById('waOpenAdminMenu');
+            const waSidebar = document.getElementById('waSidebar');
+            const waOverlay = document.getElementById('waSidebarOverlay');
+
+            function closeWaChatSidebar() {
+                if (waSidebar) waSidebar.classList.remove('show');
+                if (waOverlay) waOverlay.classList.remove('show');
+            }
+
+            function toggleAdminMenu() {
+                if (!adminSidebar || !adminOverlay) return;
+                const willOpen = !adminSidebar.classList.contains('show');
+                if (willOpen) {
+                    closeWaChatSidebar();
+                }
+                adminSidebar.classList.toggle('show');
+                adminOverlay.classList.toggle('show');
+                document.body.style.overflow = adminSidebar.classList.contains('show') ? 'hidden' : '';
+            }
+
+            if (openAdminBtn) {
+                openAdminBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleAdminMenu();
+                });
+            }
+        })();
+
+        // Mobile Sidebar Toggle (lista de chats)
         (function() {
             const sidebar = document.getElementById('waSidebar');
             const overlay = document.getElementById('waSidebarOverlay');
             const openBtn = document.getElementById('waOpenSidebar');
             const closeBtn = document.getElementById('waCloseSidebar');
             const avatarToggle = document.getElementById('waChatAvatarToggle');
+            const adminSidebar = document.getElementById('sidebar');
+            const adminOverlay = document.getElementById('sidebarOverlay');
+
+            function closeAdminMenu() {
+                if (adminSidebar) adminSidebar.classList.remove('show');
+                if (adminOverlay) adminOverlay.classList.remove('show');
+            }
 
             function openSidebar() {
+                closeAdminMenu();
                 if (sidebar) sidebar.classList.add('show');
                 if (overlay) overlay.classList.add('show');
                 document.body.style.overflow = 'hidden';

@@ -28,6 +28,8 @@ return [
                 'clients.menu' => ['label' => 'Ver en menú', 'type' => 'menu'],
                 'clients.view' => ['label' => 'Ver listado de clientes', 'type' => 'action'],
                 'clients.detail' => ['label' => 'Ver detalle del cliente', 'type' => 'action'],
+                'clients.update' => ['label' => 'Editar datos del cliente', 'type' => 'action'],
+                'clients.notes' => ['label' => 'Agregar observaciones', 'type' => 'action'],
             ],
         ],
         'orders' => [
@@ -37,6 +39,15 @@ return [
                 'orders.menu' => ['label' => 'Ver en menú', 'type' => 'menu'],
                 'orders.view' => ['label' => 'Ver pedidos', 'type' => 'action'],
                 'orders.update' => ['label' => 'Cambiar estado de pedidos', 'type' => 'action'],
+            ],
+        ],
+        'wallet' => [
+            'label' => 'Billetera',
+            'icon' => 'fa-wallet',
+            'permissions' => [
+                'wallet.menu' => ['label' => 'Ver en menú', 'type' => 'menu'],
+                'wallet.view' => ['label' => 'Ver billetera y pagos', 'type' => 'action'],
+                'wallet.submit' => ['label' => 'Enviar comprobantes de pago', 'type' => 'action'],
             ],
         ],
         'marketing_flow' => [
@@ -127,8 +138,9 @@ return [
             'permissions' => [
                 'dashboard.menu', 'dashboard.view',
                 'chats.menu', 'chats.view', 'chats.open', 'chats.send', 'chats.toggle_bot',
-                'clients.menu', 'clients.view', 'clients.detail',
+                'clients.menu', 'clients.view', 'clients.detail', 'clients.update', 'clients.notes',
                 'orders.menu', 'orders.view', 'orders.update',
+                'wallet.menu', 'wallet.view', 'wallet.submit',
                 'marketing_flow.menu', 'marketing_flow.view', 'marketing_flow.update',
                 'menus.menu', 'menus.view', 'menus.update',
                 'products.menu', 'products.view', 'products.update',
@@ -144,8 +156,9 @@ return [
             'permissions' => [
                 'dashboard.menu', 'dashboard.view',
                 'chats.menu', 'chats.view', 'chats.open', 'chats.send', 'chats.toggle_bot',
-                'clients.menu', 'clients.view', 'clients.detail',
+                'clients.menu', 'clients.view', 'clients.detail', 'clients.update', 'clients.notes',
                 'orders.menu', 'orders.view', 'orders.update',
+                'wallet.menu', 'wallet.view', 'wallet.submit',
             ],
         ],
         'viewer' => [
@@ -157,6 +170,7 @@ return [
                 'chats.menu', 'chats.view', 'chats.open',
                 'clients.menu', 'clients.view', 'clients.detail',
                 'orders.menu', 'orders.view',
+                'wallet.menu', 'wallet.view',
             ],
         ],
     ],

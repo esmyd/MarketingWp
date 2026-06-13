@@ -4,92 +4,149 @@
 
 @section('content')
 @php
-    $statusLabels = [
-        'pending' => 'Pendiente',
-        'confirmed' => 'Confirmado',
-        'completed' => 'Completado',
-        'cancelled' => 'Cancelado',
-        'payment_pending' => 'Pago pend.',
-        'paid' => 'Pagado',
-    ];
+    use App\Services\ClientInsightsService;
+
     $fmt = fn ($dt) => $dt ? \Carbon\Carbon::parse($dt)->format('d/m/Y H:i') : '—';
+    $fmtShort = fn ($dt) => $dt ? \Carbon\Carbon::parse($dt)->format('d/m H:i') : '—';
+    $hasFilters = collect($filters ?? [])->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
+    $attentionTotal = ($summary['pending_reply'] ?? 0) + ($summary['needs_agent'] ?? 0);
+    $segmentHints = ClientInsightsService::SEGMENT_HINTS;
+    $currentSegment = $filters['segment'] ?? '';
+    $currentSegmentHint = $segmentHints[$currentSegment] ?? $segmentHints[''];
 @endphp
 
 <style>
-    .clients-page { --wa-dark: #128c7e; --wa-teal: #075e54; }
+    .clients-page { max-width: 1140px; margin: 0 auto; }
 
-    .clients-hero {
-        background: linear-gradient(135deg, var(--wa-dark) 0%, var(--wa-teal) 100%);
-        color: #fff;
-        border-radius: 14px;
-        padding: 1.5rem 1.75rem;
-        margin-bottom: 1.25rem;
+    .clients-top {
+        display: flex; flex-wrap: wrap; align-items: flex-start;
+        justify-content: space-between; gap: 1rem; margin-bottom: .85rem;
     }
-
-    .clients-hero h2 { font-size: 1.35rem; font-weight: 600; margin: 0 0 .25rem; }
-    .clients-hero p { margin: 0; opacity: .9; font-size: .9rem; }
-
-    .clients-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: .75rem;
-        margin-bottom: 1.25rem;
+    .clients-top h2 {
+        margin: 0 0 .3rem; font-size: 1.35rem; font-weight: 800;
+        color: #0f172a; letter-spacing: -.02em;
     }
+    .clients-top .lead { margin: 0; font-size: .875rem; color: #64748b; max-width: 520px; }
 
-    .clients-stat {
-        background: #fff;
-        border: 1px solid #e9ecef;
-        border-radius: 12px;
-        padding: 1rem;
+    .clients-priority {
+        display: grid; grid-template-columns: repeat(4, 1fr);
+        gap: .65rem; margin-bottom: .85rem;
     }
+    @media (max-width: 900px) { .clients-priority { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .clients-priority { grid-template-columns: 1fr; } }
 
-    .clients-stat .lbl { font-size: .72rem; color: #6c757d; text-transform: uppercase; letter-spacing: .04em; }
-    .clients-stat .val { font-size: 1.35rem; font-weight: 700; color: #212529; margin-top: .2rem; }
-
-    .clients-filters {
-        background: #fff;
-        border: 1px solid #e9ecef;
-        border-radius: 12px;
-        padding: 1rem 1.15rem;
-        margin-bottom: 1rem;
+    .prio-card {
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+        padding: .85rem 1rem; min-height: 78px;
+        box-shadow: 0 1px 3px rgba(15,23,42,.04);
     }
+    .prio-card .lbl {
+        font-size: .68rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .04em; color: #64748b; margin-bottom: .2rem;
+    }
+    .prio-card .val { font-size: 1.25rem; font-weight: 800; color: #0f172a; line-height: 1.2; }
+    .prio-card .sub { font-size: .72rem; color: #94a3b8; margin-top: .15rem; }
+    .prio-card.urgent { border-color: #fecaca; background: linear-gradient(180deg, #fef2f2, #fff); }
+    .prio-card.urgent .val { color: #dc2626; }
+    .prio-card.accent { border-color: #99f6e4; background: linear-gradient(180deg, #f0fdfa, #fff); }
+    .prio-card.accent .val { color: #047857; }
 
-    .clients-filters .row { row-gap: .75rem; }
+    .clients-toolbar {
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
+        padding: .85rem 1rem; margin-bottom: .85rem;
+        box-shadow: 0 1px 3px rgba(15,23,42,.04);
+    }
+    .clients-toolbar-main {
+        display: flex; flex-wrap: wrap; align-items: flex-end; gap: .65rem;
+    }
+    .clients-toolbar-main .field { flex: 1; min-width: 160px; }
+    .clients-toolbar-main .field.search { flex: 2; min-width: 220px; }
+    .clients-toolbar-main label {
+        display: block; font-size: .72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .04em; color: #64748b; margin-bottom: .25rem;
+    }
+    .segment-label-row {
+        display: flex; align-items: center; gap: .35rem; margin-bottom: .25rem;
+    }
+    .segment-label-row .lbl-text {
+        font-size: .72rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .04em; color: #64748b;
+    }
+    .segment-info-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 18px; height: 18px; padding: 0; border: none; background: transparent;
+        color: #94a3b8; cursor: help; border-radius: 50%; font-size: .78rem;
+        line-height: 1; flex-shrink: 0;
+    }
+    .segment-info-btn:hover { color: #128c7e; }
+    .segment-hint {
+        font-size: .72rem; color: #64748b; line-height: 1.35;
+        margin: .35rem 0 0; min-height: 2.5em;
+    }
+    .segment-field { max-width: 220px; }
+    .clients-toolbar-actions { display: flex; gap: .4rem; flex-shrink: 0; }
+
+    .clients-collapse {
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+        margin-bottom: .85rem; overflow: hidden;
+    }
+    .clients-collapse summary {
+        padding: .65rem 1rem; cursor: pointer; font-weight: 600;
+        font-size: .84rem; color: #475569; list-style: none;
+        display: flex; align-items: center; gap: .45rem; background: #f8fafc;
+    }
+    .clients-collapse summary::-webkit-details-marker { display: none; }
+    .clients-collapse summary::after {
+        content: '▾'; margin-left: auto; color: #94a3b8; font-size: .75rem;
+    }
+    .clients-collapse[open] summary::after { transform: rotate(180deg); }
+    .clients-collapse .inner {
+        padding: .85rem 1rem 1rem; border-top: 1px solid #f1f5f9;
+    }
+    .clients-collapse .filter-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: .65rem; align-items: end;
+    }
 
     .clients-table-wrap {
-        background: #fff;
-        border: 1px solid #e9ecef;
-        border-radius: 12px;
-        overflow: hidden;
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+        overflow-x: auto; box-shadow: 0 1px 3px rgba(15,23,42,.04);
     }
+    .clients-table {
+        width: 100%; border-collapse: collapse; font-size: .82rem;
+    }
+    .clients-table th {
+        padding: .55rem .65rem; text-align: left; font-size: .68rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .03em; color: #64748b;
+        background: #f8fafc; border-bottom: 1px solid #e5e7eb; white-space: nowrap;
+    }
+    .clients-table td {
+        padding: .5rem .65rem; border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle; color: #334155;
+    }
+    .clients-table tbody tr:hover { background: #fafbfc; }
+    .clients-table tbody tr.needs-attention { background: #fffafa; }
+    .clients-table tbody tr.needs-attention:hover { background: #fef2f2; }
+    .clients-table tbody tr:last-child td { border-bottom: none; }
 
-    .clients-table { margin: 0; font-size: .84rem; }
-    .clients-table thead th {
-        background: #f8f9fa;
-        font-size: .72rem;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        color: #6c757d;
-        border-bottom: 1px solid #e9ecef;
+    .client-cell-name { font-weight: 700; color: #0f172a; white-space: nowrap; }
+    .client-cell-muted { font-size: .78rem; color: #64748b; white-space: nowrap; }
+    .client-cell-money { font-weight: 700; color: #047857; white-space: nowrap; }
+
+    .client-status {
+        display: inline-flex; align-items: center; gap: .25rem;
+        font-size: .68rem; font-weight: 700; padding: .18rem .45rem; border-radius: 999px;
         white-space: nowrap;
     }
+    .client-status.pending { background: #ffedd5; color: #c2410c; }
+    .client-status.agent { background: #fee2e2; color: #991b1b; }
+    .client-status.ok { background: #ecfdf5; color: #047857; }
 
-    .clients-table tbody td { vertical-align: middle; }
-    .clients-table .client-name { font-weight: 600; color: #212529; }
-    .clients-table .client-phone { font-size: .78rem; color: #6c757d; }
-
-    .client-badges { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .35rem; }
     .client-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: .25rem;
-        font-size: .65rem;
-        font-weight: 600;
-        padding: .15rem .45rem;
-        border-radius: 999px;
+        display: inline-flex; align-items: center; gap: .2rem;
+        font-size: .62rem; font-weight: 600; padding: .15rem .4rem; border-radius: 999px;
         white-space: nowrap;
     }
-
     .client-badge.green { background: #dcfce7; color: #166534; }
     .client-badge.purple { background: #f3e8ff; color: #6b21a8; }
     .client-badge.blue { background: #dbeafe; color: #1e40af; }
@@ -100,157 +157,256 @@
     .client-badge.slate { background: #e2e8f0; color: #475569; }
     .client-badge.teal { background: #ccfbf1; color: #115e59; }
 
-    .metric-pill {
-        display: inline-block;
-        min-width: 2rem;
-        text-align: center;
-        font-weight: 700;
-        color: #111827;
+    .client-row-actions { display: flex; gap: .3rem; align-items: center; justify-content: flex-end; white-space: nowrap; }
+    .c-btn {
+        display: inline-flex; align-items: center; gap: .25rem;
+        padding: .35rem .55rem; border-radius: 8px; font-size: .75rem;
+        font-weight: 600; text-decoration: none; border: 1px solid #e2e8f0;
+        background: #fff; color: #475569;
     }
+    .c-btn:hover { background: #f8fafc; color: #0f172a; }
+    .c-btn.primary {
+        background: linear-gradient(135deg, #128c7e, #075e54);
+        border-color: transparent; color: #fff !important;
+    }
+    .c-btn.primary:hover { color: #fff; }
 
-    .dt-cell { font-size: .78rem; color: #374151; line-height: 1.35; }
-    .dt-cell .lbl { color: #9ca3af; font-size: .68rem; text-transform: uppercase; }
-
-    .clients-actions { display: flex; flex-wrap: wrap; gap: .35rem; }
-    .clients-actions .btn { font-size: .75rem; padding: .3rem .55rem; }
+    .clients-empty {
+        text-align: center; padding: 3rem 1.5rem;
+        background: #fff; border: 1px dashed #e2e8f0; border-radius: 14px; color: #64748b;
+    }
+    .clients-pagination {
+        margin-top: 1rem; padding: .75rem 1rem;
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+    }
 </style>
 
 <div class="clients-page">
-    <div class="clients-hero">
-        <h2><i class="fas fa-users me-2"></i>Clientes</h2>
-        <p>Trazabilidad de conversaciones y compras · el total comprado suma pedidos confirmados o pagados</p>
+    {{-- 1. Contexto breve --}}
+    <div class="clients-top">
+        <div>
+            <h2><i class="fas fa-users me-1 text-success"></i> Clientes</h2>
+            <p class="lead">Quién necesita atención, quién compra y cuándo habló por última vez.</p>
+        </div>
     </div>
 
-    <div class="clients-stats">
-        <div class="clients-stat">
-            <div class="lbl">Total clientes</div>
-            <div class="val">{{ number_format($summary['total']) }}</div>
+    {{-- 2. KPIs accionables --}}
+    <div class="clients-priority">
+        <div class="prio-card {{ $attentionTotal > 0 ? 'urgent' : '' }}">
+            <div class="lbl">Atención pendiente</div>
+            <div class="val">{{ number_format($attentionTotal) }}</div>
+            <div class="sub">{{ $summary['pending_reply'] ?? 0 }} sin responder · {{ $summary['needs_agent'] ?? 0 }} piden agente</div>
         </div>
-        <div class="clients-stat">
+        <div class="prio-card accent">
             <div class="lbl">Activos (7 días)</div>
             <div class="val">{{ number_format($summary['active_7d']) }}</div>
+            <div class="sub">de {{ number_format($summary['total']) }} clientes</div>
         </div>
-        <div class="clients-stat">
+        <div class="prio-card">
             <div class="lbl">Compradores frecuentes</div>
             <div class="val">{{ number_format($summary['frequent_buyers']) }}</div>
+            <div class="sub">3+ pedidos cerrados</div>
         </div>
-        <div class="clients-stat">
-            <div class="lbl">Requieren agente</div>
-            <div class="val">{{ number_format($summary['needs_agent']) }}</div>
+        <div class="prio-card">
+            <div class="lbl">Total en lista</div>
+            <div class="val">{{ number_format($summary['total']) }}</div>
+            <div class="sub">Con conversación o pedidos</div>
         </div>
     </div>
 
-    <form class="clients-filters" method="get" action="{{ route('admin.clients.index') }}">
-        <div class="row g-2 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label small mb-1">Buscar</label>
-                <input type="text" name="q" class="form-control form-control-sm" placeholder="Nombre o teléfono" value="{{ $filters['q'] ?? '' }}">
+    {{-- 3. Búsqueda rápida --}}
+    <form class="clients-toolbar" method="get" action="{{ route('admin.clients.index') }}">
+        <div class="clients-toolbar-main">
+            <div class="field search">
+                <label for="q">Buscar</label>
+                <input type="text" id="q" name="q" class="form-control form-control-sm"
+                    placeholder="Nombre, teléfono, cédula o dirección" value="{{ $filters['q'] ?? '' }}">
             </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">Segmento</label>
-                <select name="segment" class="form-select form-select-sm">
+            <div class="field segment-field">
+                <div class="segment-label-row">
+                    <span class="lbl-text" id="segment-label">Segmento</span>
+                    <button type="button" class="segment-info-btn" id="segment-info-btn"
+                        title="{{ $currentSegmentHint }}" aria-label="Qué significa este segmento">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                </div>
+                <select id="segment" name="segment" class="form-select form-select-sm"
+                    title="{{ $currentSegmentHint }}" aria-describedby="segment-hint">
                     @foreach($segments as $value => $label)
-                        <option value="{{ $value }}" @selected(($filters['segment'] ?? '') === $value)>{{ $label }}</option>
+                        <option value="{{ $value }}"
+                            title="{{ $segmentHints[$value] ?? '' }}"
+                            @selected($currentSegment === $value)>{{ $label }}</option>
                     @endforeach
                 </select>
+                <p class="segment-hint mb-0" id="segment-hint">{{ $currentSegmentHint }}</p>
             </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">Ordenar</label>
-                <select name="sort" class="form-select form-select-sm">
-                    @foreach($sortOptions as $value => $label)
-                        <option value="{{ $value }}" @selected(($filters['sort'] ?? 'recent') === $value)>{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">Actividad desde</label>
-                <input type="date" name="activity_from" class="form-control form-control-sm" value="{{ $filters['activity_from'] ?? '' }}">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">Actividad hasta</label>
-                <input type="date" name="activity_to" class="form-control form-control-sm" value="{{ $filters['activity_to'] ?? '' }}">
-            </div>
-            <div class="col-md-1">
-                <label class="form-label small mb-1">Min. pedidos</label>
-                <input type="number" name="min_orders" min="0" class="form-control form-control-sm" value="{{ $filters['min_orders'] ?? '' }}">
-            </div>
-            <div class="col-md-12 col-lg-auto d-flex gap-2">
-                <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-filter me-1"></i>Filtrar</button>
-                <a href="{{ route('admin.clients.index') }}" class="btn btn-outline-secondary btn-sm">Limpiar</a>
+            <div class="clients-toolbar-actions">
+                <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-search me-1"></i>Buscar</button>
+                @if($hasFilters)
+                    <a href="{{ route('admin.clients.index') }}" class="btn btn-outline-secondary btn-sm">Limpiar</a>
+                @endif
             </div>
         </div>
+
+        @if($filters['sort'] ?? null)
+            <input type="hidden" name="sort" value="{{ $filters['sort'] }}">
+        @endif
+        @if($filters['activity_from'] ?? null)
+            <input type="hidden" name="activity_from" value="{{ $filters['activity_from'] }}">
+        @endif
+        @if($filters['activity_to'] ?? null)
+            <input type="hidden" name="activity_to" value="{{ $filters['activity_to'] }}">
+        @endif
+        @if($filters['min_orders'] ?? null)
+            <input type="hidden" name="min_orders" value="{{ $filters['min_orders'] }}">
+        @endif
     </form>
 
+    {{-- 4. Filtros avanzados (colapsado) --}}
+    <details class="clients-collapse" @if(($filters['sort'] ?? 'recent') !== 'recent' || ($filters['activity_from'] ?? '') || ($filters['activity_to'] ?? '') || ($filters['min_orders'] ?? '')) open @endif>
+        <summary><i class="fas fa-sliders-h text-muted"></i> Orden y filtros avanzados</summary>
+        <div class="inner">
+            <form method="get" action="{{ route('admin.clients.index') }}">
+                <div class="filter-grid">
+                    <div>
+                        <label class="form-label small mb-1">Ordenar</label>
+                        <select name="sort" class="form-select form-select-sm">
+                            @foreach($sortOptions as $value => $label)
+                                <option value="{{ $value }}" @selected(($filters['sort'] ?? 'recent') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label small mb-1">Actividad desde</label>
+                        <input type="date" name="activity_from" class="form-control form-control-sm" value="{{ $filters['activity_from'] ?? '' }}">
+                    </div>
+                    <div>
+                        <label class="form-label small mb-1">Actividad hasta</label>
+                        <input type="date" name="activity_to" class="form-control form-control-sm" value="{{ $filters['activity_to'] ?? '' }}">
+                    </div>
+                    <div>
+                        <label class="form-label small mb-1">Mín. pedidos</label>
+                        <input type="number" name="min_orders" min="0" class="form-control form-control-sm" value="{{ $filters['min_orders'] ?? '' }}">
+                    </div>
+                    <div class="d-flex align-items-end gap-2">
+                        <input type="hidden" name="q" value="{{ $filters['q'] ?? '' }}">
+                        <input type="hidden" name="segment" value="{{ $filters['segment'] ?? '' }}">
+                        <button type="submit" class="btn btn-outline-success btn-sm w-100">Aplicar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </details>
+
+    {{-- 5. Lista de clientes (tabla) --}}
     <div class="clients-table-wrap">
-        <div class="table-responsive">
-            <table class="table clients-table table-hover mb-0">
+        @if($clients->isEmpty())
+            <div class="clients-empty">
+                <i class="fas fa-user-slash fa-2x mb-2 opacity-50"></i>
+                <p class="mb-0">No hay clientes que coincidan con los filtros.</p>
+            </div>
+        @else
+            <table class="clients-table">
                 <thead>
                     <tr>
                         <th>Cliente</th>
-                        <th class="text-center">Pedidos</th>
-                        <th class="text-center">Msj. cliente</th>
-                        <th class="text-center">Respuestas</th>
-                        <th>Último msj. cliente</th>
-                        <th>Última respuesta</th>
-                        <th title="Suma de pedidos cerrados (no carritos activos ni cancelados)">Total comprado</th>
-                        <th>Acciones</th>
+                        <th>Teléfono</th>
+                        <th>Segmento</th>
+                        <th>Estado</th>
+                        <th>Pedidos</th>
+                        <th>Comprado</th>
+                        <th>Último msg.</th>
+                        <th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($clients as $client)
-                        @php $badges = $insights->indicators($client); @endphp
-                        <tr>
+                    @foreach($clients as $client)
+                        @php
+                            $badges = $insights->indicators($client);
+                            $pendingReply = collect($badges)->contains(fn ($b) => ($b['key'] ?? '') === 'pending');
+                            $needsAgent = !empty($client->needs_agent_flag);
+                            $needsAttention = $pendingReply || $needsAgent;
+                            $segmentBadge = collect($badges)->first(fn ($b) => !in_array($b['key'] ?? '', ['pending', 'agent'], true));
+                        @endphp
+                        <tr class="{{ $needsAttention ? 'needs-attention' : '' }}">
                             <td>
-                                <div class="client-name">{{ $client->name ?: 'Sin nombre' }}</div>
-                                <div class="client-phone">{{ $client->phone_number }}</div>
-                                @if($badges)
-                                    <div class="client-badges">
-                                        @foreach(array_slice($badges, 0, 3) as $badge)
-                                            <span class="client-badge {{ $badge['tone'] }}">
-                                                <i class="fas {{ $badge['icon'] }}"></i>{{ $badge['label'] }}
-                                            </span>
-                                        @endforeach
-                                    </div>
+                                <span class="client-cell-name">{{ $client->name ?: 'Sin nombre' }}</span>
+                                @if($client->national_id)
+                                    <div class="client-cell-muted"><i class="fas fa-id-card me-1"></i>{{ $client->national_id }}</div>
                                 @endif
                             </td>
-                            <td class="text-center"><span class="metric-pill">{{ $client->orders_count ?? 0 }}</span></td>
-                            <td class="text-center"><span class="metric-pill">{{ $client->client_messages_count ?? 0 }}</span></td>
-                            <td class="text-center"><span class="metric-pill">{{ $client->replied_messages_count ?? 0 }}</span></td>
-                            <td class="dt-cell">{{ $fmt($client->last_client_message_at) }}</td>
-                            <td class="dt-cell">{{ $fmt($client->last_reply_message_at) }}</td>
+                            <td class="client-cell-muted"><i class="fab fa-whatsapp text-success me-1"></i>{{ $client->phone_number }}</td>
                             <td>
-                                @if(($client->orders_count ?? 0) > 0)
-                                    ${{ number_format((float) ($client->total_spent ?? 0), 2) }}
+                                @if($segmentBadge)
+                                    <span class="client-badge {{ $segmentBadge['tone'] }}">
+                                        <i class="fas {{ $segmentBadge['icon'] }}"></i>{{ $segmentBadge['label'] }}
+                                    </span>
                                 @else
-                                    <span class="text-muted" title="Sin pedidos cerrados aún">—</span>
+                                    <span class="client-cell-muted">—</span>
                                 @endif
                             </td>
                             <td>
-                                <div class="clients-actions">
+                                @if($pendingReply)
+                                    <span class="client-status pending"><i class="fas fa-clock"></i> Sin responder</span>
+                                @elseif($needsAgent)
+                                    <span class="client-status agent"><i class="fas fa-headset"></i> Pide agente</span>
+                                @else
+                                    <span class="client-status ok"><i class="fas fa-check-circle"></i> Al día</span>
+                                @endif
+                            </td>
+                            <td>{{ $client->orders_count ?? 0 }}</td>
+                            <td class="client-cell-money">
+                                @if(($client->orders_count ?? 0) > 0)
+                                    ${{ number_format((float) ($client->total_spent ?? 0), 0) }}
+                                @else
+                                    <span class="client-cell-muted">—</span>
+                                @endif
+                            </td>
+                            <td class="client-cell-muted">{{ $fmtShort($client->last_client_message_at) }}</td>
+                            <td>
+                                <div class="client-row-actions">
                                     @perm('chats.open')
-                                    <a href="{{ route('admin.chat', $client->id) }}" class="btn btn-outline-success btn-sm">
-                                        <i class="fas fa-comments"></i> Chat
-                                    </a>
+                                        <a href="{{ route('admin.chat', $client->id) }}" class="c-btn primary" title="Abrir chat">
+                                            <i class="fas fa-comments"></i>
+                                        </a>
                                     @endperm
-                                    <a href="{{ route('admin.clients.show', $client) }}" class="btn btn-outline-primary btn-sm">
-                                        <i class="fas fa-eye"></i> Detalle
+                                    <a href="{{ route('admin.clients.show', $client) }}" class="c-btn" title="Ver detalle">
+                                        <i class="fas fa-arrow-right"></i>
                                     </a>
                                 </div>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="8" class="text-center text-muted py-5">
-                                No hay clientes que coincidan con los filtros.
-                            </td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
-        </div>
-        @if($clients->hasPages())
-            <div class="p-3 border-top">{{ $clients->links() }}</div>
         @endif
     </div>
+
+    @if($clients->hasPages())
+        <div class="clients-pagination">{{ $clients->links() }}</div>
+    @endif
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    const segmentHints = @json($segmentHints);
+    const select = document.getElementById('segment');
+    const hintEl = document.getElementById('segment-hint');
+    const infoBtn = document.getElementById('segment-info-btn');
+
+    if (!select || !hintEl) return;
+
+    function updateSegmentHint() {
+        const hint = segmentHints[select.value] ?? segmentHints[''] ?? '';
+        hintEl.textContent = hint;
+        select.title = hint;
+        if (infoBtn) infoBtn.title = hint;
+    }
+
+    select.addEventListener('change', updateSegmentHint);
+    select.addEventListener('mouseenter', updateSegmentHint);
+})();
+</script>
+@endpush

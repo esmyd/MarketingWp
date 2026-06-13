@@ -392,6 +392,7 @@
 @endphp
 
 <div class="dash-wrap">
+
     <div class="dash-top">
         <div>
             <h1>Resumen del negocio</h1>
@@ -413,7 +414,7 @@
         </form>
     </div>
 
-    @include('admin.partials.plan-limits-widget', ['planLimits' => $planLimits])
+
 
     @perm('demo.reset')
     <section class="demo-reset-panel" aria-label="Reiniciar demo">
@@ -550,6 +551,8 @@
             </div>
         </div>
     </div>
+    @include('admin.partials.plan-limits-widget', ['planLimits' => $planLimits])
+    @include('admin.partials.platform-billing-reminder')
 </div>
 
 <script>

@@ -218,6 +218,12 @@
             font-weight: 500;
         }
 
+        .sidebar .nav-link-disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
         .sidebar .nav-link i {
             width: 24px;
             font-size: 1rem;
@@ -983,10 +989,18 @@
             <nav class="sidebar-nav sidebar-nav-main">
                 <div class="sidebar-section sidebar-text">Principal</div>
                 @perm('orders.menu')
-                <a href="{{ route('admin.orders') }}" class="nav-link {{ request()->routeIs('admin.orders*') ? 'active' : '' }}">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span class="sidebar-text">Pedidos</span>
-                </a>
+                @if($platformFeatureAccess['orders_blocked'] ?? false)
+                    <span class="nav-link nav-link-disabled" title="Módulo de pedidos suspendido">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="sidebar-text">Pedidos</span>
+                        <span class="sidebar-nav-badge" style="background:#fecaca;color:#991b1b;">Off</span>
+                    </span>
+                @else
+                    <a href="{{ route('admin.orders') }}" class="nav-link {{ request()->routeIs('admin.orders*') ? 'active' : '' }}">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="sidebar-text">Pedidos</span>
+                    </a>
+                @endif
                 @endperm
                 @perm('clients.menu')
                 <a href="{{ route('admin.clients.index') }}" class="nav-link {{ request()->routeIs('admin.clients*') ? 'active' : '' }}">
@@ -995,17 +1009,31 @@
                 </a>
                 @endperm
                 @perm('chats.menu')
-                <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chat*') ? 'active' : '' }}">
-                    <i class="fas fa-comments"></i>
-                    <span class="sidebar-text">Chats</span>
-                    <span id="sidebar-chats-agent-count" class="sidebar-nav-badge hidden"></span>
-                </a>
+                @if($platformFeatureAccess['chat_blocked'] ?? false)
+                    <span class="nav-link nav-link-disabled" title="Interfaz de chat suspendida">
+                        <i class="fas fa-comments"></i>
+                        <span class="sidebar-text">Chats</span>
+                        <span class="sidebar-nav-badge" style="background:#fecaca;color:#991b1b;">Off</span>
+                    </span>
+                @else
+                    <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chat*') ? 'active' : '' }}">
+                        <i class="fas fa-comments"></i>
+                        <span class="sidebar-text">Chats</span>
+                        <span id="sidebar-chats-agent-count" class="sidebar-nav-badge hidden"></span>
+                    </a>
+                @endif
                 @endperm
 
                 @perm('dashboard.menu')
                 <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
                     <i class="fas fa-chart-line"></i>
                     <span class="sidebar-text">Dashboard</span>
+                </a>
+                @endperm
+                @perm('wallet.menu')
+                <a href="{{ route('admin.wallet.index') }}" class="nav-link {{ request()->routeIs('admin.wallet*') ? 'active' : '' }}">
+                    <i class="fas fa-wallet"></i>
+                    <span class="sidebar-text">Billetera</span>
                 </a>
                 @endperm
             </nav>
@@ -1192,6 +1220,24 @@
                             <li>{{ $error }}</li>
                         @endforeach
                     </ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            @endif
+
+            @if(($platformFeatureAccess['chat_blocked'] ?? false) || ($platformFeatureAccess['orders_blocked'] ?? false) || ($platformFeatureAccess['bot_blocked'] ?? false))
+                <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
+                    <i class="fas fa-ban me-2"></i>
+                    <strong>Servicio suspendido:</strong>
+                    @if($platformFeatureAccess['bot_blocked'] ?? false) bot @endif
+                    @if($platformFeatureAccess['chat_blocked'] ?? false) · chat @endif
+                    @if($platformFeatureAccess['orders_blocked'] ?? false) · pedidos @endif
+                    — desactiva las suspensiones manuales en
+                    @perm('pricing_settings.view')
+                        <a href="{{ route('admin.pricing-settings.edit') }}#billing" class="alert-link">Parámetros → Facturación</a>
+                    @else
+                        Parámetros de plataforma
+                    @endperm
+                    o regulariza el pago en Billetera.
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             @endif

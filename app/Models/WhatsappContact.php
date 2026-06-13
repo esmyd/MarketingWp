@@ -13,6 +13,12 @@ class WhatsappContact extends Model
         'business_profile_id',
         'phone_number',
         'name',
+        'national_id',
+        'address',
+        'birth_date',
+        'billing_type',
+        'billing_id',
+        'billing_legal_name',
         'status',
         'bot_enabled',
         'last_inbound_message_id',
@@ -24,6 +30,7 @@ class WhatsappContact extends Model
         'metadata' => 'array',
         'bot_enabled' => 'boolean',
         'last_inbound_at' => 'datetime',
+        'birth_date' => 'date',
     ];
 
     public function businessProfile()
@@ -49,6 +56,11 @@ class WhatsappContact extends Model
     public function carts()
     {
         return $this->hasMany(WhatsappCart::class, 'contact_id');
+    }
+
+    public function notes()
+    {
+        return $this->hasMany(WhatsappContactNote::class, 'contact_id');
     }
 
     public function needsAgent(): bool

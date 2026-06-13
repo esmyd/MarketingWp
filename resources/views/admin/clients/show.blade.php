@@ -15,29 +15,50 @@
         'paid' => 'Pagado',
     ];
     $fmt = fn ($dt) => $dt ? \Carbon\Carbon::parse($dt)->format('d/m/Y H:i') : '—';
+    $initials = collect(explode(' ', $contact->name ?: '?'))->map(fn ($w) => mb_substr($w, 0, 1))->take(2)->join('');
+    $needsAttention = $response_metrics['pending_reply'] || !empty($contact->needs_agent_flag);
+    $memberTenure = $contact->created_at
+        ? $contact->created_at->locale('es')->diffForHumans(now(), ['parts' => 2, 'syntax' => \Carbon\CarbonInterface::DIFF_ABSOLUTE, 'join' => ' y '])
+        : null;
 @endphp
 
 <style>
-    .client-detail { max-width: 1100px; margin: 0 auto; }
-    .client-back { margin-bottom: 1rem; }
-    .client-header {
+    .client-detail { max-width: 1140px; margin: 0 auto; }
+
+    /* —— 1. Identidad —— */
+    .client-hero {
         background: #fff;
-        border: 1px solid #e9ecef;
-        border-radius: 14px;
-        padding: 1.25rem 1.5rem;
-        margin-bottom: 1rem;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        justify-content: space-between;
-        align-items: flex-start;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 1.15rem 1.35rem;
+        margin-bottom: .85rem;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 1rem 1.25rem;
+        align-items: center;
+        box-shadow: 0 1px 3px rgba(15,23,42,.04);
     }
-    .client-header h2 { margin: 0 0 .25rem; font-size: 1.35rem; font-weight: 700; }
-    .client-header .phone { color: #6c757d; font-size: .9rem; }
-    .client-badges { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .65rem; }
+    @media (max-width: 768px) {
+        .client-hero { grid-template-columns: auto 1fr; }
+        .client-hero-actions { grid-column: 1 / -1; }
+    }
+    .client-avatar {
+        width: 52px; height: 52px; border-radius: 14px;
+        background: linear-gradient(135deg, #128c7e, #25d366);
+        color: #fff; font-weight: 800; font-size: 1.1rem;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .client-hero h1 { margin: 0; font-size: 1.3rem; font-weight: 800; color: #0f172a; letter-spacing: -.02em; }
+    .client-chips { display: flex; flex-wrap: wrap; gap: .35rem .5rem; margin-top: .45rem; }
+    .client-chip {
+        font-size: .78rem; color: #475569; background: #f8fafc;
+        border: 1px solid #e2e8f0; border-radius: 8px; padding: .2rem .55rem;
+        display: inline-flex; align-items: center; gap: .35rem;
+    }
+    .client-badges { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .5rem; }
     .client-badge {
-        display: inline-flex; align-items: center; gap: .3rem;
-        font-size: .72rem; font-weight: 600; padding: .25rem .55rem; border-radius: 999px;
+        display: inline-flex; align-items: center; gap: .25rem;
+        font-size: .68rem; font-weight: 600; padding: .18rem .5rem; border-radius: 999px;
     }
     .client-badge.green { background: #dcfce7; color: #166534; }
     .client-badge.purple { background: #f3e8ff; color: #6b21a8; }
@@ -49,75 +70,148 @@
     .client-badge.slate { background: #e2e8f0; color: #475569; }
     .client-badge.teal { background: #ccfbf1; color: #115e59; }
 
-    .detail-stats {
+    /* —— 2. Alerta urgente —— */
+    .client-alert {
+        border-radius: 12px; padding: .75rem 1rem; margin-bottom: .85rem;
+        display: flex; align-items: center; gap: .65rem; font-size: .875rem; font-weight: 600;
+    }
+    .client-alert.danger { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+    .client-alert.warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+
+    /* —— 3. Lo esencial (4 métricas) —— */
+    .client-priority {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: .75rem;
-        margin-bottom: 1rem;
+        grid-template-columns: repeat(4, 1fr);
+        gap: .65rem;
+        margin-bottom: .85rem;
     }
-    .detail-stat {
-        background: #fff;
-        border: 1px solid #e9ecef;
-        border-radius: 12px;
-        padding: 1rem;
-    }
-    .detail-stat .lbl { font-size: .72rem; color: #6c757d; text-transform: uppercase; }
-    .detail-stat .val { font-size: 1.25rem; font-weight: 700; margin-top: .2rem; color: #111827; }
-    .detail-stat .sub { font-size: .75rem; color: #9ca3af; margin-top: .15rem; }
-    .detail-stat .sub.responder-bot { color: #059669; }
-    .detail-stat .sub.responder-agent { color: #b45309; }
-    .detail-stat .sub.responder-pending { color: #dc2626; }
-    .detail-stat.highlight-response {
-        border-color: #bbf7d0;
-        background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%);
-    }
+    @media (max-width: 900px) { .client-priority { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .client-priority { grid-template-columns: 1fr; } }
 
-    .detail-panel {
-        background: #fff;
-        border: 1px solid #e9ecef;
-        border-radius: 12px;
-        padding: 1.1rem 1.25rem;
-        margin-bottom: 1rem;
+    .prio-card {
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+        padding: .85rem 1rem; min-height: 88px;
     }
-    .detail-panel h3 { font-size: .95rem; font-weight: 600; margin: 0 0 1rem; }
+    .prio-card .lbl {
+        font-size: .68rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .04em; color: #64748b; margin-bottom: .25rem;
+    }
+    .prio-card .val { font-size: 1.15rem; font-weight: 800; color: #0f172a; line-height: 1.2; }
+    .prio-card .sub { font-size: .72rem; color: #94a3b8; margin-top: .2rem; }
+    .prio-card.accent { border-color: #99f6e4; background: linear-gradient(180deg, #f0fdfa, #fff); }
+    .prio-card.urgent { border-color: #fecaca; background: linear-gradient(180deg, #fef2f2, #fff); }
+    .prio-card.urgent .val { color: #dc2626; }
+    .prio-card .sub.ok { color: #059669; }
+    .prio-card .sub.agent { color: #b45309; }
 
-    .timeline { max-height: 420px; overflow-y: auto; }
+    /* —— Paneles —— */
+    .client-section {
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
+        margin-bottom: .85rem; overflow: hidden;
+        box-shadow: 0 1px 3px rgba(15,23,42,.04);
+    }
+    .client-section-head {
+        padding: .85rem 1.15rem; border-bottom: 1px solid #f1f5f9;
+        display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+    }
+    .client-section-head h2 {
+        margin: 0; font-size: .92rem; font-weight: 700; color: #0f172a;
+    }
+    .client-section-head .hint { font-size: .72rem; color: #94a3b8; font-weight: 400; }
+    .client-section-body { padding: 1rem 1.15rem; }
+
+    .client-grid-2 {
+        display: grid; grid-template-columns: 1fr 1fr; gap: .85rem;
+    }
+    @media (max-width: 992px) { .client-grid-2 { grid-template-columns: 1fr; } }
+
+    /* Observaciones */
+    .notes-list { max-height: 280px; overflow-y: auto; }
+    .note-item { padding: .65rem 0; border-bottom: 1px solid #f1f5f9; }
+    .note-item:first-child { padding-top: 0; }
+    .note-item:last-child { border-bottom: none; }
+    .note-head { display: flex; flex-wrap: wrap; gap: .35rem .65rem; font-size: .75rem; margin-bottom: .25rem; }
+    .note-author { font-weight: 700; color: #0f172a; }
+    .note-date { color: #94a3b8; }
+    .note-body { font-size: .84rem; color: #334155; white-space: pre-wrap; line-height: 1.45; }
+    .note-form textarea { border-radius: 10px; font-size: .84rem; min-height: 72px; }
+
+    /* Timeline */
+    .timeline { max-height: 320px; overflow-y: auto; }
     .timeline-item {
-        display: flex;
-        gap: .75rem;
-        padding: .65rem 0;
-        border-bottom: 1px solid #f1f3f5;
-        font-size: .84rem;
+        display: flex; gap: .65rem; padding: .55rem 0;
+        border-bottom: 1px solid #f8fafc; font-size: .82rem;
     }
     .timeline-item:last-child { border-bottom: none; }
     .timeline-icon {
-        width: 28px; height: 28px; border-radius: 50%;
+        width: 26px; height: 26px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-size: .7rem; flex-shrink: 0;
+        font-size: .65rem; flex-shrink: 0;
     }
     .timeline-icon.client { background: #dbeafe; color: #1d4ed8; }
     .timeline-icon.system { background: #dcfce7; color: #15803d; }
     .timeline-icon.humano { background: #fef3c7; color: #b45309; }
-    .timeline-meta { font-size: .72rem; color: #9ca3af; margin-top: .15rem; }
+    .timeline-meta { font-size: .68rem; color: #94a3b8; margin-top: .1rem; }
 
-    .orders-mini-table { font-size: .84rem; }
-    .orders-mini-table th { font-size: .72rem; text-transform: uppercase; color: #6c757d; }
+    .orders-mini-table { font-size: .82rem; margin: 0; }
+    .orders-mini-table th { font-size: .68rem; text-transform: uppercase; color: #64748b; }
+
+    /* Colapsables (menos importante) */
+    .client-collapse {
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+        margin-bottom: .65rem; overflow: hidden;
+    }
+    .client-collapse summary {
+        padding: .75rem 1.1rem; cursor: pointer; font-weight: 600;
+        font-size: .88rem; color: #334155; list-style: none;
+        display: flex; align-items: center; gap: .5rem;
+        background: #f8fafc;
+    }
+    .client-collapse summary::-webkit-details-marker { display: none; }
+    .client-collapse summary::after {
+        content: '▾'; margin-left: auto; color: #94a3b8; font-size: .75rem;
+    }
+    .client-collapse[open] summary::after { transform: rotate(180deg); }
+    .client-collapse .inner { padding: 1rem 1.15rem; border-top: 1px solid #f1f5f9; }
+
+    .profile-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .75rem;
+    }
+    .profile-grid .form-label { font-size: .78rem; font-weight: 600; color: #475569; }
+    .profile-phone {
+        font-size: .82rem; color: #64748b; padding: .5rem .65rem;
+        background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;
+    }
 </style>
 
 <div class="client-detail">
-    <div class="client-back">
+    <div class="mb-3">
         <a href="{{ route('admin.clients.index') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="fas fa-arrow-left me-1"></i> Volver a clientes
+            <i class="fas fa-arrow-left me-1"></i> Clientes
         </a>
     </div>
 
-    <div class="client-header">
+    {{-- 1. IDENTIDAD + ACCIÓN PRINCIPAL --}}
+    <div class="client-hero">
+        <div class="client-avatar" aria-hidden="true">{{ strtoupper($initials) }}</div>
         <div>
-            <h2>{{ $contact->name ?: 'Sin nombre' }}</h2>
-            <div class="phone"><i class="fas fa-phone me-1"></i>{{ $contact->phone_number }}</div>
-            <div class="phone mt-1">
-                Cliente desde {{ $contact->created_at?->format('d/m/Y') ?? '—' }}
-                · Bot {{ $contact->bot_enabled ? 'activo' : 'pausado' }}
+            <h1>{{ $contact->name ?: 'Sin nombre' }}</h1>
+            <div class="client-chips">
+                <span class="client-chip"><i class="fab fa-whatsapp text-success"></i>{{ $contact->phone_number }}</span>
+                @if($memberTenure)
+                    <span class="client-chip" title="Cliente desde {{ $contact->created_at->format('d/m/Y') }}">
+                        <i class="fas fa-clock"></i>{{ $memberTenure }} como cliente
+                    </span>
+                @endif
+                @if($contact->national_id)
+                    <span class="client-chip"><i class="fas fa-id-card"></i>{{ $contact->national_id }}</span>
+                @endif
+                @if($contact->address)
+                    <span class="client-chip"><i class="fas fa-map-marker-alt"></i>{{ \Illuminate\Support\Str::limit($contact->address, 40) }}</span>
+                @endif
+                @if($contact->birth_date)
+                    <span class="client-chip"><i class="fas fa-birthday-cake"></i>{{ $contact->birth_date->format('d/m/Y') }}</span>
+                @endif
             </div>
             @if($indicators)
                 <div class="client-badges">
@@ -129,175 +223,261 @@
                 </div>
             @endif
         </div>
-        <div class="d-flex flex-wrap gap-2">
+        <div class="client-hero-actions">
             @perm('chats.open')
-            <a href="{{ route('admin.chat', $contact->id) }}" class="btn btn-success">
-                <i class="fas fa-comments me-1"></i> Ir al chat
-            </a>
+                <a href="{{ route('admin.chat', $contact->id) }}" class="btn btn-success btn-lg">
+                    <i class="fas fa-comments me-1"></i> Abrir chat
+                </a>
             @endperm
         </div>
     </div>
 
-    <div class="detail-stats">
-        <div class="detail-stat">
-            <div class="lbl">Pedidos</div>
-            <div class="val">{{ $contact->orders_count ?? 0 }}</div>
-            <div class="sub">{{ $contact->recent_orders_count ?? 0 }} en últimos 90 días</div>
+    {{-- 2. ALERTAS (solo si aplica) --}}
+    @if($response_metrics['pending_reply'])
+        <div class="client-alert danger">
+            <i class="fas fa-clock"></i>
+            Esperando respuesta desde {{ $fmt($contact->last_client_message_at) }}
         </div>
-        <div class="detail-stat">
-            <div class="lbl">Mensajes del cliente</div>
-            <div class="val">{{ $contact->client_messages_count ?? 0 }}</div>
+    @elseif(!empty($contact->needs_agent_flag))
+        <div class="client-alert warn">
+            <i class="fas fa-headset"></i>
+            Solicita hablar con un asesor humano
         </div>
-        <div class="detail-stat">
-            <div class="lbl">Respuestas (bot + humano)</div>
-            <div class="val">{{ $contact->replied_messages_count ?? 0 }}</div>
-            <div class="sub">Ratio {{ number_format($response_rate, 1) }}%</div>
-        </div>
-        <div class="detail-stat">
-            <div class="lbl">Total comprado</div>
-            <div class="val">${{ number_format((float) ($contact->total_spent ?? 0), 2) }}</div>
-            @if(($contact->orders_count ?? 0) === 0)
-                <div class="sub">Sin pedidos cerrados</div>
+    @endif
+
+    {{-- 3. LO ESENCIAL EN 4 TARJETAS --}}
+    <div class="client-priority">
+        <div class="prio-card {{ $needsAttention ? 'urgent' : 'accent' }}">
+            <div class="lbl">Atención</div>
+            @if($response_metrics['pending_reply'])
+                <div class="val">Pendiente</div>
+                <div class="sub">Responder en chat</div>
+            @else
+                <div class="val" style="font-size:1rem;color:#059669;">Al día</div>
+                <div class="sub ok">Sin mensajes sin contestar</div>
             @endif
         </div>
-        <div class="detail-stat">
-            <div class="lbl">Último mensaje cliente</div>
-            <div class="val" style="font-size:1rem;">{{ $fmt($contact->last_client_message_at) }}</div>
+        <div class="prio-card">
+            <div class="lbl">Comercial</div>
+            <div class="val">${{ number_format((float) ($contact->total_spent ?? 0), 0) }}</div>
+            <div class="sub">{{ $contact->orders_count ?? 0 }} pedido(s) · {{ $contact->recent_orders_count ?? 0 }} recientes</div>
         </div>
-        <div class="detail-stat highlight-response">
-            <div class="lbl">Tiempo de respuesta (último)</div>
-            @if($response_metrics['pending_reply'])
-                <div class="val" style="font-size:1rem; color:#dc2626;">Esperando</div>
-                <div class="sub responder-pending">Sin respuesta aún al último mensaje</div>
-            @elseif($response_metrics['last_seconds'] !== null)
+        <div class="prio-card">
+            <div class="lbl">Último mensaje</div>
+            <div class="val" style="font-size:.95rem;">{{ $fmt($contact->last_client_message_at) }}</div>
+            <div class="sub">{{ $contact->client_messages_count ?? 0 }} mensajes del cliente</div>
+        </div>
+        <div class="prio-card">
+            <div class="lbl">Tiempo de respuesta</div>
+            @if($response_metrics['last_seconds'] !== null)
                 <div class="val">{{ $response_metrics['last_formatted'] }}</div>
-                <div class="sub {{ $response_metrics['last_responder_kind'] === 'agent' ? 'responder-agent' : 'responder-bot' }}">
-                    <i class="fas fa-{{ $response_metrics['last_responder_kind'] === 'agent' ? 'headset' : 'robot' }} me-1"></i>
-                    Por {{ $response_metrics['last_responder_label'] }}
-                    @if($response_metrics['last_reply_at'])
-                        · {{ $response_metrics['last_reply_at']->format('d/m/Y H:i') }}
+                <div class="sub {{ $response_metrics['last_responder_kind'] === 'agent' ? 'agent' : 'ok' }}">
+                    {{ $response_metrics['last_responder_label'] }}
+                    @if($response_metrics['sample_count'] > 0)
+                        · prom. {{ $response_metrics['avg_formatted'] }}
                     @endif
                 </div>
             @else
                 <div class="val" style="font-size:1rem;">—</div>
-                <div class="sub">Sin intercambios registrados</div>
+                <div class="sub">Sin respuestas aún</div>
             @endif
         </div>
-        <div class="detail-stat">
-            <div class="lbl">Promedio respuesta (90 días)</div>
-            <div class="val">{{ $response_metrics['avg_formatted'] }}</div>
-            @if($response_metrics['sample_count'] > 0)
-                <div class="sub">
-                    <span class="responder-bot"><i class="fas fa-robot me-1"></i>Bot {{ $response_metrics['avg_bot_formatted'] }}</span>
-                    ·
-                    <span class="responder-agent"><i class="fas fa-headset me-1"></i>Agente {{ $response_metrics['avg_agent_formatted'] }}</span>
+    </div>
+
+    {{-- 4. OPERATIVO: observaciones + mensajes recientes --}}
+    <div class="client-grid-2">
+        <div class="client-section">
+            <div class="client-section-head">
+                <h2><i class="fas fa-sticky-note text-warning me-1"></i> Observaciones</h2>
+                <span class="hint">{{ $contact_notes->count() }} nota(s)</span>
+            </div>
+            <div class="client-section-body">
+                @perm('clients.notes')
+                    <form method="POST" action="{{ route('admin.clients.notes.store', $contact) }}" class="note-form mb-3">
+                        @csrf
+                        <textarea name="body" class="form-control mb-2" placeholder="Nota para el equipo..." required>{{ old('body') }}</textarea>
+                        <button type="submit" class="btn btn-outline-success btn-sm"><i class="fas fa-plus me-1"></i>Agregar</button>
+                    </form>
+                @endperm
+                <div class="notes-list">
+                    @forelse($contact_notes as $note)
+                        <article class="note-item">
+                            <div class="note-head">
+                                <span class="note-author">{{ $note->user?->name ?? 'Agente' }}</span>
+                                <span class="note-date">{{ $note->created_at->format('d/m/Y H:i') }}</span>
+                            </div>
+                            <div class="note-body">{{ $note->body }}</div>
+                        </article>
+                    @empty
+                        <p class="text-muted mb-0 small">Sin observaciones. Agrega contexto para quien atienda después.</p>
+                    @endforelse
                 </div>
+            </div>
+        </div>
+
+        <div class="client-section">
+            <div class="client-section-head">
+                <h2><i class="fas fa-comment-dots text-success me-1"></i> Últimos mensajes</h2>
+                @perm('chats.open')
+                    <a href="{{ route('admin.chat', $contact->id) }}" class="hint text-decoration-none">Ver chat →</a>
+                @endperm
+            </div>
+            <div class="client-section-body">
+                <div class="timeline">
+                    @forelse($recent_messages->take(8) as $message)
+                        @php
+                            $iconClass = match($message->senderKind()) {
+                                'client' => 'client', 'agent' => 'humano', default => 'system',
+                            };
+                            $senderLabel = $message->senderBadgeLabel($contact->name ?? null);
+                            $badgeIcon = match($message->senderKind()) {
+                                'client' => 'user', 'agent' => 'headset', default => 'robot',
+                            };
+                            $preview = WhatsappMessageFormatter::displayText($message->content, $message->type, $message->metadata ?? []);
+                        @endphp
+                        <div class="timeline-item">
+                            <div class="timeline-icon {{ $iconClass }}"><i class="fas fa-{{ $badgeIcon }}"></i></div>
+                            <div style="flex:1;min-width:0;">
+                                <strong>{{ $senderLabel }}</strong>
+                                <div>{{ \Illuminate\Support\Str::limit($preview, 90) }}</div>
+                                <div class="timeline-meta">{{ $message->created_at->format('d/m/Y H:i') }}</div>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-muted mb-0 small">Sin mensajes.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- 5. PEDIDOS --}}
+    <div class="client-section">
+        <div class="client-section-head">
+            <h2><i class="fas fa-shopping-cart text-success me-1"></i> Pedidos recientes</h2>
+        </div>
+        <div class="client-section-body pt-2 pb-2">
+            @if($orders->isEmpty())
+                <p class="text-muted mb-0 small px-1">Sin pedidos registrados.</p>
             @else
-                <div class="sub">Sin datos en el periodo</div>
+                <div class="table-responsive">
+                    <table class="table orders-mini-table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Fecha</th>
+                                <th>Estado</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($orders->take(8) as $order)
+                                <tr>
+                                    <td>{{ $order->id }}</td>
+                                    <td>{{ $order->created_at->format('d/m/Y H:i') }}</td>
+                                    <td>{{ $statusLabels[$order->status] ?? $order->status }}</td>
+                                    <td class="text-end">${{ number_format((float) $order->total, 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             @endif
         </div>
     </div>
 
-    <div class="row g-3">
-        <div class="col-lg-6">
-            <div class="detail-panel">
-                <h3><i class="fas fa-shopping-cart me-1 text-success"></i> Pedidos recientes</h3>
-                @if($orders->isEmpty())
-                    <p class="text-muted mb-0">Este cliente aún no tiene pedidos registrados.</p>
-                @else
-                    <div class="table-responsive">
-                        <table class="table orders-mini-table table-sm mb-0">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Fecha</th>
-                                    <th>Estado</th>
-                                    <th class="text-end">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($orders as $order)
-                                    <tr>
-                                        <td>{{ $order->id }}</td>
-                                        <td>{{ $order->created_at->format('d/m/Y H:i') }}</td>
-                                        <td>{{ $statusLabels[$order->status] ?? $order->status }}</td>
-                                        <td class="text-end">${{ number_format((float) $order->total, 2) }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+    {{-- 6. MENOS URGENTE: datos editables --}}
+    @perm('clients.update')
+    <details class="client-collapse">
+        <summary><i class="fas fa-user-edit me-1 text-muted"></i> Editar datos del cliente</summary>
+        <div class="inner">
+            <p class="text-muted small mb-3">Campos opcionales. El teléfono WhatsApp no se modifica.</p>
+            <form method="POST" action="{{ route('admin.clients.update', $contact) }}">
+                @csrf
+                @method('PUT')
+                <div class="profile-grid">
+                    <div>
+                        <label class="form-label">Nombre completo</label>
+                        <input type="text" name="name" class="form-control form-control-sm" value="{{ old('name', $contact->name) }}">
                     </div>
-                @endif
-            </div>
-        </div>
-
-        <div class="col-lg-6">
-            <div class="detail-panel">
-                <h3><i class="fas fa-chart-bar me-1 text-primary"></i> Actividad (6 meses)</h3>
-                @if($messages_by_month->isEmpty())
-                    <p class="text-muted mb-0">Sin actividad registrada.</p>
-                @else
-                    <div class="table-responsive">
-                        <table class="table table-sm mb-0" style="font-size:.84rem;">
-                            <thead>
-                                <tr>
-                                    <th>Mes</th>
-                                    <th class="text-center">Cliente</th>
-                                    <th class="text-center">Respuestas</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($messages_by_month as $row)
-                                    <tr>
-                                        <td>{{ $row->month }}</td>
-                                        <td class="text-center">{{ $row->inbound }}</td>
-                                        <td class="text-center">{{ $row->outbound }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                    <div>
+                        <label class="form-label">Cédula / documento</label>
+                        <input type="text" name="national_id" class="form-control form-control-sm" value="{{ old('national_id', $contact->national_id) }}">
                     </div>
-                @endif
-            </div>
-        </div>
-    </div>
-
-    <div class="detail-panel">
-        <h3><i class="fas fa-history me-1"></i> Trazabilidad — últimos mensajes</h3>
-        <div class="timeline">
-            @forelse($recent_messages as $message)
-                @php
-                    $iconClass = match($message->senderKind()) {
-                        'client' => 'client',
-                        'agent' => 'humano',
-                        default => 'system',
-                    };
-                    $senderLabel = $message->senderBadgeLabel($contact->name ?? null);
-                    $badgeIcon = match($message->senderKind()) {
-                        'client' => 'user',
-                        'agent' => 'headset',
-                        default => 'robot',
-                    };
-                    $preview = WhatsappMessageFormatter::displayText(
-                        $message->content,
-                        $message->type,
-                        $message->metadata ?? []
-                    );
-                @endphp
-                <div class="timeline-item">
-                    <div class="timeline-icon {{ $iconClass }}">
-                        <i class="fas fa-{{ $message->sender_type === 'client' ? 'user' : ($message->sender_type === 'humano' ? 'headset' : 'robot') }}"></i>
+                    <div>
+                        <label class="form-label">Fecha de nacimiento</label>
+                        <input type="date" name="birth_date" class="form-control form-control-sm" value="{{ old('birth_date', $contact->birth_date?->format('Y-m-d')) }}">
                     </div>
-                    <div style="flex:1; min-width:0;">
-                        <strong><i class="fas fa-{{ $badgeIcon }} me-1 opacity-75"></i>{{ $senderLabel }}</strong>
-                        <div>{{ \Illuminate\Support\Str::limit($preview, 120) }}</div>
-                        <div class="timeline-meta">{{ $message->created_at->format('d/m/Y H:i:s') }}</div>
+                    <div>
+                        <label class="form-label">Teléfono WhatsApp</label>
+                        <div class="profile-phone"><i class="fab fa-whatsapp me-1 text-success"></i>{{ $contact->phone_number }}</div>
+                    </div>
+                    <div style="grid-column:1/-1;">
+                        <label class="form-label">Dirección</label>
+                        <input type="text" name="address" class="form-control form-control-sm" value="{{ old('address', $contact->address) }}">
+                    </div>
+                    <div style="grid-column:1/-1;" class="mt-1 pt-2 border-top">
+                        <p class="text-muted small mb-2"><i class="fas fa-file-invoice me-1"></i> Datos para factura (se guardan en el perfil)</p>
+                    </div>
+                    <div>
+                        <label class="form-label">Tipo de factura</label>
+                        <select name="billing_type" class="form-select form-select-sm">
+                            <option value="">— Sin definir —</option>
+                            <option value="cedula" @selected(old('billing_type', $contact->billing_type) === 'cedula')>Con cédula</option>
+                            <option value="ruc" @selected(old('billing_type', $contact->billing_type) === 'ruc')>Con RUC</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Cédula o RUC</label>
+                        <input type="text" name="billing_id" class="form-control form-control-sm" value="{{ old('billing_id', $contact->billing_id ?? $contact->national_id) }}">
+                    </div>
+                    <div style="grid-column:1/-1;">
+                        <label class="form-label">Nombre / Razón social (factura)</label>
+                        <input type="text" name="billing_legal_name" class="form-control form-control-sm" value="{{ old('billing_legal_name', $contact->billing_legal_name ?? $contact->name) }}">
                     </div>
                 </div>
-            @empty
-                <p class="text-muted mb-0">No hay mensajes registrados.</p>
-            @endforelse
+                <button type="submit" class="btn btn-success btn-sm mt-3"><i class="fas fa-save me-1"></i>Guardar</button>
+            </form>
         </div>
-    </div>
+    </details>
+    @endperm
+
+    {{-- 7. ANALÍTICA HISTÓRICA --}}
+    <details class="client-collapse">
+        <summary><i class="fas fa-chart-bar me-1 text-muted"></i> Actividad mensual (6 meses)</summary>
+        <div class="inner">
+            @if($messages_by_month->isEmpty())
+                <p class="text-muted mb-0 small">Sin actividad registrada.</p>
+            @else
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0" style="font-size:.84rem;">
+                        <thead>
+                            <tr>
+                                <th>Mes</th>
+                                <th class="text-center">Cliente</th>
+                                <th class="text-center">Respuestas</th>
+                                <th class="text-center">Ratio</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($messages_by_month as $row)
+                                <tr>
+                                    <td>{{ $row->month }}</td>
+                                    <td class="text-center">{{ $row->inbound }}</td>
+                                    <td class="text-center">{{ $row->outbound }}</td>
+                                    <td class="text-center">{{ $row->inbound > 0 ? round($row->outbound / $row->inbound * 100) : 0 }}%</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+            <p class="text-muted small mt-2 mb-0">
+                Cliente desde {{ $contact->created_at?->format('d/m/Y') ?? '—' }}
+                · Bot {{ $contact->bot_enabled ? 'activo' : 'pausado' }}
+                · {{ $contact->replied_messages_count ?? 0 }} respuestas totales (ratio {{ number_format($response_rate, 0) }}%)
+            </p>
+        </div>
+    </details>
 </div>
 @endsection

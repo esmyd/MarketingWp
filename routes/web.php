@@ -16,16 +16,22 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
         ->name('dashboard');
 
     Route::get('/orders', [App\Http\Controllers\AdminController::class, 'orders'])
-        ->middleware('permission:orders.view,orders.menu')
+        ->middleware(['permission:orders.view,orders.menu', 'platform.feature:orders'])
         ->name('orders');
     Route::get('/messages', [App\Http\Controllers\AdminController::class, 'messages'])
-        ->middleware('permission:chats.view,chats.menu')
+        ->middleware(['permission:chats.view,chats.menu', 'platform.feature:chat'])
         ->name('messages');
     Route::get('/orders/{id}/details', [App\Http\Controllers\AdminController::class, 'orderDetails'])
-        ->middleware('permission:orders.view,orders.menu')
+        ->middleware(['permission:orders.view,orders.menu', 'platform.feature:orders'])
         ->name('orders.details');
+    Route::put('/orders/{id}', [App\Http\Controllers\AdminController::class, 'updateOrder'])
+        ->middleware(['permission:orders.update', 'platform.feature:orders'])
+        ->name('orders.update');
+    Route::post('/orders/{id}/notes', [App\Http\Controllers\AdminController::class, 'storeOrderNote'])
+        ->middleware(['permission:orders.update', 'platform.feature:orders'])
+        ->name('orders.notes.store');
     Route::get('/chats', [App\Http\Controllers\AdminController::class, 'chats'])
-        ->middleware('permission:chats.view,chats.menu')
+        ->middleware(['permission:chats.view,chats.menu', 'platform.feature:chat'])
         ->name('chats');
 
     Route::get('/clients', [App\Http\Controllers\Admin\ClientController::class, 'index'])
@@ -34,38 +40,44 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/clients/{client}', [App\Http\Controllers\Admin\ClientController::class, 'show'])
         ->middleware('permission:clients.detail,clients.view')
         ->name('clients.show');
+    Route::put('/clients/{client}', [App\Http\Controllers\Admin\ClientController::class, 'update'])
+        ->middleware('permission:clients.update')
+        ->name('clients.update');
+    Route::post('/clients/{client}/notes', [App\Http\Controllers\Admin\ClientController::class, 'storeNote'])
+        ->middleware('permission:clients.notes')
+        ->name('clients.notes.store');
 
     Route::get('/chats/{contact}', [App\Http\Controllers\AdminController::class, 'chat'])
-        ->middleware('permission:chats.open,chats.view')
+        ->middleware(['permission:chats.open,chats.view', 'platform.feature:chat'])
         ->name('chat');
     Route::get('/chats/{contact}/messages', [App\Http\Controllers\AdminController::class, 'chat'])
-        ->middleware('permission:chats.open,chats.view')
+        ->middleware(['permission:chats.open,chats.view', 'platform.feature:chat'])
         ->name('chat.messages');
     Route::get('/chats/{contact}/new-messages', [App\Http\Controllers\AdminController::class, 'getNewMessages'])
-        ->middleware('permission:chats.open,chats.view')
+        ->middleware(['permission:chats.open,chats.view', 'platform.feature:chat'])
         ->name('chat.new-messages');
     Route::get('/chats/list/update', [App\Http\Controllers\AdminController::class, 'getContactsList'])
-        ->middleware('permission:chats.view,chats.menu')
+        ->middleware(['permission:chats.view,chats.menu', 'platform.feature:chat'])
         ->name('chat.contacts.update');
     Route::get('/agent-requests/poll', [App\Http\Controllers\AdminController::class, 'pollAgentRequests'])
-        ->middleware('permission:chats.view,chats.menu')
+        ->middleware(['permission:chats.view,chats.menu', 'platform.feature:chat'])
         ->name('agent-requests.poll');
     Route::post('/chats/send', [App\Http\Controllers\AdminController::class, 'sendMessage'])
-        ->middleware('permission:chats.send')
+        ->middleware(['permission:chats.send', 'platform.feature:chat'])
         ->name('chat.send');
     Route::post('/chats/typing', [App\Http\Controllers\AdminController::class, 'typingIndicator'])
-        ->middleware('permission:chats.send')
+        ->middleware(['permission:chats.send', 'platform.feature:chat'])
         ->name('chat.typing');
     Route::get('/messages/{message}/image', [App\Http\Controllers\AdminController::class, 'getImage'])
-        ->middleware('permission:chats.view,chats.open')
+        ->middleware(['permission:chats.view,chats.open', 'platform.feature:chat'])
         ->name('message.image');
     Route::get('/contacts/{id}', [App\Http\Controllers\AdminController::class, 'contactDetails'])
-        ->middleware('permission:chats.view');
+        ->middleware(['permission:chats.view', 'platform.feature:chat']);
     Route::post('/contacts/{contact}/toggle-bot', [App\Http\Controllers\AdminController::class, 'toggleBot'])
-        ->middleware('permission:chats.toggle_bot')
+        ->middleware(['permission:chats.toggle_bot', 'platform.feature:chat'])
         ->name('contact.toggle-bot');
     Route::post('/contacts/{contact}/dismiss-agent', [App\Http\Controllers\AdminController::class, 'dismissAgentRequest'])
-        ->middleware('permission:chats.send')
+        ->middleware(['permission:chats.send', 'platform.feature:chat'])
         ->name('contact.dismiss-agent');
 
     Route::get('/menus', [App\Http\Controllers\Admin\ChatbotController::class, 'menus'])
@@ -139,6 +151,19 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::put('/pricing-settings', [App\Http\Controllers\Admin\PricingSettingsController::class, 'update'])
         ->middleware('permission:pricing_settings.update')
         ->name('pricing-settings.update');
+    Route::put('/pricing-settings/billing', [App\Http\Controllers\Admin\PricingSettingsController::class, 'updateBilling'])
+        ->middleware('permission:pricing_settings.update')
+        ->name('pricing-settings.billing.update');
+    Route::post('/platform-receipts/{receipt}/review', [App\Http\Controllers\Admin\PricingSettingsController::class, 'reviewReceipt'])
+        ->middleware('permission:pricing_settings.update')
+        ->name('platform-receipts.review');
+
+    Route::get('/wallet', [App\Http\Controllers\Admin\WalletController::class, 'index'])
+        ->middleware('permission:wallet.view,wallet.menu')
+        ->name('wallet.index');
+    Route::post('/wallet/receipts', [App\Http\Controllers\Admin\WalletController::class, 'store'])
+        ->middleware('permission:wallet.submit')
+        ->name('wallet.receipts.store');
 
     Route::get('/roles', [App\Http\Controllers\Admin\RoleController::class, 'index'])
         ->middleware('permission:roles.view,roles.menu')
@@ -189,4 +214,4 @@ Route::post('/login', [App\Http\Controllers\Auth\LoginController::class, 'login'
 Route::post('/logout', [App\Http\Controllers\Auth\LoginController::class, 'logout'])->name('logout');
 
 Route::post('/admin/orders/{id}/status', [App\Http\Controllers\AdminController::class, 'updateOrderStatus'])
-    ->middleware(['auth', 'admin', 'permission:orders.update']);
+    ->middleware(['auth', 'admin', 'permission:orders.update', 'platform.feature:orders']);

@@ -92,9 +92,9 @@
         <div class="plan-limit-item {{ ($planLimits['storage_percent'] ?? 0) >= 100 ? 'is-danger' : (($planLimits['storage_percent'] ?? 0) >= 80 ? 'is-warning' : '') }}">
             <div class="pl-label">
                 <span>Espacio en servidor</span>
-                <strong>{{ number_format($usage['storage_gb'] ?? 0, 2) }} / {{ number_format($planLimits['storage_gb'] ?? 0, 0) }} GB</strong>
+                <strong>{{ $usage['storage_human'] ?? '0 B' }} / {{ number_format($planLimits['storage_gb'] ?? 0, 0) }} GB</strong>
             </div>
-            <div class="plan-limit-bar"><span style="width: {{ $planLimits['storage_percent'] ?? 0 }}%"></span></div>
+            <div class="plan-limit-bar"><span style="width: {{ max(1, $planLimits['storage_percent'] ?? 0) }}%"></span></div>
         </div>
     </div>
 </div>

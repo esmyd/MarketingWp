@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\WhatsappCart;
+use App\Models\WhatsappCartNote;
 use App\Models\WhatsappMessage;
 use App\Models\WhatsappContact;
 use App\Models\WhatsappConversation;
+use App\Services\OrderAdminService;
 use App\Services\WhatsappService;
 use App\Helpers\WhatsappMessageFormatter;
 use Illuminate\Http\Request;
@@ -25,6 +27,10 @@ class AdminController extends Controller
     {
         $orders = WhatsappCart::reportable()
             ->with(['items', 'contact'])
+            ->withCount([
+                'notes as internal_notes_count' => fn ($q) => $q->where('type', WhatsappCartNote::TYPE_INTERNAL),
+                'notes as feedback_count' => fn ($q) => $q->where('type', WhatsappCartNote::TYPE_FEEDBACK),
+            ])
             ->latest()
             ->paginate(10);
 
@@ -33,6 +39,10 @@ class AdminController extends Controller
             'pending' => WhatsappCart::reportable()->where('status', WhatsappCart::STATUS_PENDING)->count(),
             'confirmed' => WhatsappCart::reportable()->where('status', WhatsappCart::STATUS_CONFIRMED)->count(),
             'completed' => WhatsappCart::reportable()->where('status', WhatsappCart::STATUS_COMPLETED)->count(),
+            'invoice_pending' => WhatsappCart::reportable()
+                ->where('requires_invoice', true)
+                ->whereIn('invoice_status', ['requested', 'data_ready'])
+                ->count(),
             'revenue' => WhatsappCart::reportable()->whereIn('status', [
                 WhatsappCart::STATUS_CONFIRMED,
                 WhatsappCart::STATUS_COMPLETED,
@@ -52,10 +62,65 @@ class AdminController extends Controller
         return view('admin.messages', compact('messages'));
     }
 
-    public function orderDetails($id)
+    public function orderDetails($id, OrderAdminService $orders)
     {
-        $order = WhatsappCart::with(['items', 'contact'])->findOrFail($id);
-        return response()->json($order);
+        $order = WhatsappCart::reportable()->findOrFail($id);
+
+        return response()->json($orders->orderPayload($order));
+    }
+
+    public function updateOrder(Request $request, $id, OrderAdminService $orders)
+    {
+        $order = WhatsappCart::reportable()->findOrFail($id);
+
+        $validated = $request->validate([
+            'status' => ['nullable', 'string', 'in:pending,confirmed,payment_pending,paid,completed,cancelled'],
+            'requires_invoice' => ['nullable', 'boolean'],
+            'invoice_status' => ['nullable', 'string', 'in:none,requested,data_ready,issued'],
+            'billing_type' => ['nullable', 'string', 'in:cedula,ruc'],
+            'billing_id' => ['nullable', 'string', 'max:20'],
+            'billing_legal_name' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'sync_profile' => ['nullable', 'boolean'],
+        ]);
+
+        $orders->updateOrder($order, $validated, (bool) ($validated['sync_profile'] ?? true));
+
+        return response()->json([
+            'success' => true,
+            'order' => $orders->orderPayload($order->fresh()),
+        ]);
+    }
+
+    public function storeOrderNote(Request $request, $id)
+    {
+        $order = WhatsappCart::reportable()->findOrFail($id);
+
+        $validated = $request->validate([
+            'type' => ['required', 'string', 'in:internal,feedback'],
+            'body' => ['required', 'string', 'min:2', 'max:5000'],
+        ]);
+
+        $note = WhatsappCartNote::create([
+            'whatsapp_cart_id' => $order->id,
+            'user_id' => auth()->id(),
+            'type' => $validated['type'],
+            'body' => trim($validated['body']),
+        ]);
+
+        $note->load('user:id,name');
+
+        return response()->json([
+            'success' => true,
+            'note' => [
+                'id' => $note->id,
+                'type' => $note->type,
+                'type_label' => $note->typeLabel(),
+                'body' => $note->body,
+                'author' => $note->user?->name ?? 'Agente',
+                'created_at' => $note->created_at,
+            ],
+        ]);
     }
 
     public function chats()

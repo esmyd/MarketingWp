@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\PermissionService;
+use App\Services\PlatformBillingService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
@@ -35,6 +36,15 @@ class AppServiceProvider extends ServiceProvider
             $view->with('canPerm', function (string $permission) use ($user) {
                 return $user && app(PermissionService::class)->userCan($user, $permission);
             });
+
+            if ($user) {
+                $billing = app(PlatformBillingService::class);
+                $view->with('platformFeatureAccess', [
+                    'chat_blocked' => $billing->isChatSuspended($user),
+                    'orders_blocked' => $billing->isOrdersSuspended($user),
+                    'bot_blocked' => $billing->isBotSuspended(null),
+                ]);
+            }
         });
     }
 }

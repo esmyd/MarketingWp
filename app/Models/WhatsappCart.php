@@ -22,12 +22,17 @@ class WhatsappCart extends Model
         'note',
         'payment_status',
         'payment_method',
-        'payment_reference'
+        'payment_reference',
+        'requires_invoice',
+        'invoice_status',
+        'invoice_data',
     ];
 
     protected $casts = [
         'metadata' => 'array',
-        'total' => 'decimal:2'
+        'invoice_data' => 'array',
+        'total' => 'decimal:2',
+        'requires_invoice' => 'boolean',
     ];
 
     public function contact(): BelongsTo
@@ -37,7 +42,12 @@ class WhatsappCart extends Model
 
     public function items()
     {
-        return $this->hasMany(WhatsappCartItem::class);
+        return $this->hasMany(WhatsappCartItem::class, 'whatsapp_cart_id');
+    }
+
+    public function notes()
+    {
+        return $this->hasMany(WhatsappCartNote::class, 'whatsapp_cart_id');
     }
 
     /**

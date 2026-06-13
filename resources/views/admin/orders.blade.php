@@ -4,6 +4,8 @@
 
 @section('content')
 @php
+    use App\Services\OrderAdminService;
+
     $statusLabels = [
         'pending' => 'Pendiente',
         'confirmed' => 'Confirmado',
@@ -13,1013 +15,570 @@
         'paid' => 'Pagado',
     ];
     $statusOptions = ['pending', 'confirmed', 'payment_pending', 'paid', 'completed', 'cancelled'];
+    $invoiceLabels = OrderAdminService::INVOICE_STATUSES;
+    $canUpdate = auth()->user()?->hasPermission('orders.update') ?? false;
 @endphp
 
 <style>
-    .orders-page {
-        --wa-green: #25d366;
-        --wa-dark: #128c7e;
-        --wa-teal: #075e54;
-    }
+    .orders-page { max-width: 1140px; margin: 0 auto; }
+    .orders-top { margin-bottom: .85rem; }
+    .orders-top h2 { margin: 0 0 .3rem; font-size: 1.35rem; font-weight: 800; color: #0f172a; }
+    .orders-top .lead { margin: 0; font-size: .875rem; color: #64748b; }
 
-    .orders-hero {
-        background: linear-gradient(135deg, var(--wa-dark) 0%, var(--wa-teal) 100%);
-        color: #fff;
-        border-radius: 14px;
-        padding: 1.5rem 1.75rem;
-        margin-bottom: 1.25rem;
-        box-shadow: 0 4px 14px rgba(7, 94, 84, 0.2);
+    .orders-priority {
+        display: grid; grid-template-columns: repeat(5, 1fr);
+        gap: .65rem; margin-bottom: .85rem;
     }
-
-    .orders-hero h2 {
-        font-size: 1.35rem;
-        font-weight: 600;
-        margin: 0 0 0.25rem;
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
+    @media (max-width: 900px) { .orders-priority { grid-template-columns: repeat(2, 1fr); } }
+    .prio-card {
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+        padding: .85rem 1rem; box-shadow: 0 1px 3px rgba(15,23,42,.04);
     }
-
-    .orders-hero p {
-        margin: 0;
-        opacity: 0.9;
-        font-size: 0.9rem;
-    }
-
-    .orders-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 0.75rem;
-        margin-bottom: 1.25rem;
-    }
-
-    .orders-stat-card {
-        background: #fff;
-        border-radius: 12px;
-        padding: 1rem 1.1rem;
-        border: 1px solid #e9ecef;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-    }
-
-    .orders-stat-card .label {
-        font-size: 0.75rem;
-        color: #6c757d;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        margin-bottom: 0.25rem;
-    }
-
-    .orders-stat-card .value {
-        font-size: 1.35rem;
-        font-weight: 700;
-        color: #212529;
-        line-height: 1.2;
-    }
-
-    .orders-stat-card .value.revenue {
-        color: var(--wa-dark);
-    }
-
-    .orders-card {
-        background: #fff;
-        border-radius: 14px;
-        border: 1px solid #e9ecef;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        overflow: hidden;
-    }
+    .prio-card .lbl { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #64748b; }
+    .prio-card .val { font-size: 1.2rem; font-weight: 800; color: #0f172a; margin-top: .15rem; }
+    .prio-card.urgent { border-color: #fde68a; background: linear-gradient(180deg, #fffbeb, #fff); }
+    .prio-card.urgent .val { color: #b45309; }
+    .prio-card.accent .val { color: #047857; }
 
     .orders-toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        padding: 1rem 1.25rem;
-        border-bottom: 1px solid #eef1f4;
-        background: #fafbfc;
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
+        padding: .85rem 1rem; margin-bottom: .85rem;
+        display: flex; flex-wrap: wrap; gap: .75rem; align-items: center;
     }
-
-    .orders-search {
-        position: relative;
-        flex: 1;
-        min-width: 200px;
-        max-width: 320px;
-    }
-
-    .orders-search i {
-        position: absolute;
-        left: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #adb5bd;
-        font-size: 0.85rem;
-    }
-
+    .orders-search { position: relative; flex: 1; min-width: 200px; max-width: 340px; }
+    .orders-search i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: .85rem; }
     .orders-search input {
-        width: 100%;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 0.5rem 0.75rem 0.5rem 2.25rem;
-        font-size: 0.875rem;
-        transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .orders-search input:focus {
-        outline: none;
-        border-color: var(--wa-green);
-        box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.15);
+        width: 100%; border: 1px solid #e2e8f0; border-radius: 10px;
+        padding: .5rem .75rem .5rem 2.1rem; font-size: .875rem;
     }
 
     .orders-table-wrap {
-        overflow-x: auto;
+        background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+        overflow-x: auto; box-shadow: 0 1px 3px rgba(15,23,42,.04);
     }
-
     .orders-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.875rem;
+        width: 100%; border-collapse: collapse; font-size: .82rem;
     }
-
-    .orders-table thead th {
-        background: #f8f9fa;
-        color: #495057;
-        font-weight: 600;
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        padding: 0.85rem 1.25rem;
-        text-align: left;
-        border-bottom: 1px solid #e9ecef;
-        white-space: nowrap;
+    .orders-table th {
+        padding: .55rem .65rem; text-align: left; font-size: .68rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .03em; color: #64748b;
+        background: #f8fafc; border-bottom: 1px solid #e5e7eb; white-space: nowrap;
     }
-
-    .orders-table thead th.text-end { text-align: right; }
-    .orders-table thead th.text-center { text-align: center; }
-
-    .orders-table tbody tr {
-        border-bottom: 1px solid #f1f3f5;
-        transition: background 0.15s;
+    .orders-table td {
+        padding: .5rem .65rem; border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle; color: #334155;
     }
+    .orders-table tbody tr:hover { background: #fafbfc; }
+    .orders-table tbody tr.invoice-pending { background: #fffbeb; }
+    .orders-table tbody tr.invoice-pending:hover { background: #fef9c3; }
+    .orders-table tbody tr:last-child td { border-bottom: none; }
 
-    .orders-table tbody tr:hover {
-        background: #f8fdf9;
-    }
+    .order-cell-name { font-weight: 700; color: #0f172a; white-space: nowrap; }
+    .order-cell-id { font-size: .72rem; color: #94a3b8; font-weight: 600; }
+    .order-cell-muted { font-size: .78rem; color: #64748b; white-space: nowrap; }
+    .order-cell-money { font-weight: 700; color: #0f172a; white-space: nowrap; }
 
-    .orders-table tbody tr:last-child {
-        border-bottom: none;
+    .order-tags { display: flex; flex-wrap: wrap; gap: .25rem; }
+    .o-tag {
+        font-size: .62rem; font-weight: 700; padding: .15rem .4rem; border-radius: 999px;
+        display: inline-flex; align-items: center; gap: .2rem; white-space: nowrap;
     }
-
-    .orders-table tbody td {
-        padding: 1rem 1.25rem;
-        vertical-align: middle;
-    }
-
-    .order-client {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    .order-client-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #25d366, #128c7e);
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        font-size: 0.95rem;
-        flex-shrink: 0;
-    }
-
-    .order-client-name {
-        font-weight: 600;
-        color: #212529;
-        border: none;
-        background: none;
-        padding: 0;
-        cursor: pointer;
-        text-align: left;
-        transition: color 0.15s;
-    }
-
-    .order-client-name:hover {
-        color: var(--wa-dark);
-        text-decoration: underline;
-    }
-
-    .order-client-phone {
-        font-size: 0.8rem;
-        color: #6c757d;
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-        margin-top: 2px;
-    }
-
-    .btn-copy-phone {
-        border: none;
-        background: transparent;
-        color: #adb5bd;
-        padding: 2px 4px;
-        cursor: pointer;
-        border-radius: 4px;
-        transition: color 0.15s, background 0.15s;
-    }
-
-    .btn-copy-phone:hover {
-        color: var(--wa-dark);
-        background: #e8f8ef;
-    }
-
-    .order-date {
-        color: #495057;
-    }
-
-    .order-date small {
-        display: block;
-        color: #adb5bd;
-        font-size: 0.75rem;
-        margin-top: 2px;
-    }
+    .o-tag.invoice { background: #fef3c7; color: #92400e; }
+    .o-tag.notes { background: #e0e7ff; color: #3730a3; }
+    .o-tag.feedback { background: #dcfce7; color: #166534; }
+    .o-tag.empty { color: #cbd5e1; }
 
     .order-status-select {
-        appearance: none;
-        border: none;
-        border-radius: 20px;
-        padding: 0.35rem 2rem 0.35rem 0.85rem;
-        font-size: 0.78rem;
-        font-weight: 600;
-        cursor: pointer;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 0.6rem center;
-        transition: opacity 0.15s, transform 0.15s;
+        appearance: none; border: none; border-radius: 20px;
+        padding: .35rem 1.75rem .35rem .75rem; font-size: .75rem; font-weight: 600; cursor: pointer;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right .5rem center;
     }
+    .order-status-select.status-pending { background-color: #fff8e6; color: #b8860b; }
+    .order-status-select.status-confirmed { background-color: #e7f1ff; color: #0d6efd; }
+    .order-status-select.status-completed { background-color: #e8f8ef; color: #198754; }
+    .order-status-select.status-cancelled { background-color: #fdecea; color: #dc3545; }
+    .order-status-select.status-payment_pending { background-color: #fff3e0; color: #e65100; }
+    .order-status-select.status-paid { background-color: #ede7f6; color: #6f42c1; }
 
-    .order-status-select:hover { opacity: 0.9; }
-    .order-status-select:focus {
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.25);
+    .order-row-actions { display: flex; gap: .3rem; align-items: center; justify-content: flex-end; white-space: nowrap; }
+    .o-btn {
+        display: inline-flex; align-items: center; gap: .3rem; padding: .35rem .55rem;
+        border-radius: 8px; font-size: .75rem; font-weight: 600; border: 1px solid #e2e8f0;
+        background: #fff; color: #475569; cursor: pointer; text-decoration: none;
     }
-
-    .order-status-select.status-pending { background: #fff8e6; color: #b8860b; }
-    .order-status-select.status-confirmed { background: #e7f1ff; color: #0d6efd; }
-    .order-status-select.status-completed { background: #e8f8ef; color: #198754; }
-    .order-status-select.status-cancelled { background: #fdecea; color: #dc3545; }
-    .order-status-select.status-payment_pending { background: #fff3e0; color: #e65100; }
-    .order-status-select.status-paid { background: #ede7f6; color: #6f42c1; }
-
-    .order-total {
-        font-weight: 700;
-        font-size: 1rem;
-        color: #212529;
-        text-align: right;
-    }
-
-    .order-id-tag {
-        font-size: 0.7rem;
-        color: #adb5bd;
-        font-weight: 500;
-    }
-
-    .btn-order-detail {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.45rem 0.9rem;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: var(--wa-dark);
-        background: #e8f8ef;
-        border: 1px solid rgba(37, 211, 102, 0.35);
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-
-    .btn-order-detail:hover {
-        background: var(--wa-green);
-        color: #fff;
-        border-color: var(--wa-green);
-    }
+    .o-btn.primary { background: linear-gradient(135deg, #128c7e, #075e54); border-color: transparent; color: #fff !important; }
 
     .orders-empty {
-        text-align: center;
-        padding: 3rem 1.5rem;
-        color: #6c757d;
+        text-align: center; padding: 3rem; background: #fff; border: 1px dashed #e2e8f0; border-radius: 14px; color: #64748b;
     }
 
-    .orders-empty i {
-        font-size: 2.5rem;
-        color: #dee2e6;
-        margin-bottom: 0.75rem;
-    }
-
-    .orders-pagination {
-        padding: 1rem 1.25rem;
-        border-top: 1px solid #eef1f4;
-    }
-
-    /* Modales */
+    /* Modal */
     .modal-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.45);
-        backdrop-filter: blur(4px);
-        z-index: 1050;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem;
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.2s, visibility 0.2s;
+        position: fixed; inset: 0; background: rgba(15,23,42,.45); backdrop-filter: blur(4px);
+        z-index: 1050; display: flex; align-items: center; justify-content: center; padding: 1rem;
+        opacity: 0; visibility: hidden; transition: opacity .2s, visibility .2s;
     }
-
-    .modal-overlay.is-open {
-        opacity: 1;
-        visibility: visible;
-    }
-
+    .modal-overlay.is-open { opacity: 1; visibility: visible; }
     .modal-panel {
-        background: #fff;
-        border-radius: 16px;
-        width: 100%;
-        max-width: 520px;
-        max-height: 90vh;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-        transform: translateY(12px) scale(0.98);
-        transition: transform 0.2s;
+        background: #fff; border-radius: 16px; width: 100%; max-width: 720px; max-height: 92vh;
+        overflow: hidden; display: flex; flex-direction: column;
+        box-shadow: 0 20px 50px rgba(0,0,0,.2); transform: translateY(12px); transition: transform .2s;
     }
-
-    .modal-overlay.is-open .modal-panel {
-        transform: translateY(0) scale(1);
-    }
-
-    .modal-panel.modal-lg {
-        max-width: 560px;
-    }
-
+    .modal-overlay.is-open .modal-panel { transform: translateY(0); }
     .modal-header {
-        padding: 1.25rem 1.5rem;
-        border-bottom: 1px solid #eef1f4;
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 1rem;
-        background: linear-gradient(135deg, #f8fdf9 0%, #fff 100%);
+        padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9;
+        display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;
+        background: #f8fafc;
     }
-
-    .modal-header h3 {
-        margin: 0;
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #212529;
-    }
-
-    .modal-header .subtitle {
-        font-size: 0.8rem;
-        color: #6c757d;
-        margin-top: 0.2rem;
-    }
-
+    .modal-header h3 { margin: 0; font-size: 1.05rem; font-weight: 700; color: #0f172a; }
+    .modal-header .sub { font-size: .78rem; color: #64748b; margin-top: .15rem; }
     .modal-close {
-        width: 36px;
-        height: 36px;
-        border: none;
-        background: #f1f3f5;
-        border-radius: 50%;
-        color: #495057;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        transition: background 0.15s;
+        width: 34px; height: 34px; border: none; background: #e2e8f0; border-radius: 50%;
+        cursor: pointer; color: #475569;
     }
-
-    .modal-close:hover {
-        background: #e9ecef;
-        color: #212529;
-    }
-
-    .modal-body {
-        padding: 1.25rem 1.5rem;
-        overflow-y: auto;
-        flex: 1;
-    }
-
+    .modal-body { padding: 1rem 1.25rem; overflow-y: auto; flex: 1; }
     .modal-footer {
-        padding: 1rem 1.5rem;
-        border-top: 1px solid #eef1f4;
-        display: flex;
-        gap: 0.75rem;
-        justify-content: flex-end;
-        background: #fafbfc;
+        padding: .85rem 1.25rem; border-top: 1px solid #f1f5f9;
+        display: flex; gap: .5rem; justify-content: flex-end; flex-wrap: wrap; background: #fafbfc;
     }
 
-    .btn-modal-secondary {
-        padding: 0.5rem 1rem;
-        border: 1px solid #dee2e6;
-        background: #fff;
-        border-radius: 8px;
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: #495057;
-        cursor: pointer;
-        transition: background 0.15s;
+    .order-section {
+        border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: .85rem; overflow: hidden;
     }
-
-    .btn-modal-secondary:hover { background: #f8f9fa; }
-
-    .btn-modal-primary {
-        padding: 0.5rem 1.25rem;
-        border: none;
-        background: var(--wa-green);
-        border-radius: 8px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #fff;
-        cursor: pointer;
-        transition: background 0.15s;
+    .order-section-head {
+        padding: .65rem .85rem; background: #f8fafc; border-bottom: 1px solid #f1f5f9;
+        font-size: .82rem; font-weight: 700; color: #334155;
     }
+    .order-section-body { padding: .85rem; }
 
-    .btn-modal-primary:hover { background: var(--wa-dark); }
-
-    .detail-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.75rem;
-        margin-bottom: 1.25rem;
+    .checklist { list-style: none; margin: 0; padding: 0; }
+    .checklist li {
+        display: flex; gap: .6rem; padding: .5rem 0; border-bottom: 1px solid #f8fafc;
+        font-size: .82rem; align-items: flex-start;
     }
-
-    .detail-item {
-        background: #f8f9fa;
-        border-radius: 10px;
-        padding: 0.75rem 1rem;
+    .checklist li:last-child { border-bottom: none; }
+    .checklist .chk {
+        width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; font-size: .65rem;
     }
+    .checklist .chk.done { background: #dcfce7; color: #15803d; }
+    .checklist .chk.pending { background: #f1f5f9; color: #94a3b8; }
 
-    .detail-item.full { grid-column: 1 / -1; }
+    .note-item { padding: .55rem 0; border-bottom: 1px solid #f1f5f9; font-size: .82rem; }
+    .note-item:last-child { border-bottom: none; }
+    .note-meta { font-size: .72rem; color: #94a3b8; margin-bottom: .15rem; }
+    .note-meta strong { color: #475569; }
 
-    .detail-item .label {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #6c757d;
-        margin-bottom: 0.2rem;
-    }
-
-    .detail-item .value {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: #212529;
-    }
-
-    .status-badge {
-        display: inline-block;
-        padding: 0.25rem 0.65rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-
-    .status-badge.status-pending { background: #fff8e6; color: #b8860b; }
-    .status-badge.status-confirmed { background: #e7f1ff; color: #0d6efd; }
-    .status-badge.status-completed { background: #e8f8ef; color: #198754; }
-    .status-badge.status-cancelled { background: #fdecea; color: #dc3545; }
-    .status-badge.status-payment_pending { background: #fff3e0; color: #e65100; }
-    .status-badge.status-paid { background: #ede7f6; color: #6f42c1; }
-
-    .products-section h4 {
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #6c757d;
-        margin: 0 0 0.75rem;
-        font-weight: 600;
-    }
-
-    .products-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.85rem;
-    }
-
-    .products-table th {
-        text-align: left;
-        padding: 0.5rem 0.75rem;
-        background: #f8f9fa;
-        color: #6c757d;
-        font-weight: 600;
-        font-size: 0.7rem;
-        text-transform: uppercase;
-    }
-
-    .products-table th:not(:first-child) { text-align: center; }
-    .products-table th:last-child { text-align: right; }
-
-    .products-table td {
-        padding: 0.65rem 0.75rem;
-        border-bottom: 1px solid #f1f3f5;
-    }
-
-    .products-table td:not(:first-child) { text-align: center; }
-    .products-table td:last-child { text-align: right; font-weight: 600; }
-
-    .products-table tbody tr:last-child td { border-bottom: none; }
-
-    .order-summary {
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 2px dashed #e9ecef;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .order-summary .total-label {
-        font-size: 0.9rem;
-        color: #6c757d;
-    }
-
-    .order-summary .total-amount {
-        font-size: 1.35rem;
-        font-weight: 700;
-        color: var(--wa-dark);
-    }
-
-    .modal-loading {
-        text-align: center;
-        padding: 2.5rem;
-        color: #adb5bd;
-    }
-
-    .modal-loading .spinner {
-        width: 36px;
-        height: 36px;
-        border: 3px solid #e9ecef;
-        border-top-color: var(--wa-green);
-        border-radius: 50%;
-        animation: spin 0.7s linear infinite;
-        margin: 0 auto 0.75rem;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .products-table { width: 100%; font-size: .82rem; border-collapse: collapse; }
+    .products-table th, .products-table td { padding: .45rem .5rem; border-bottom: 1px solid #f1f5f9; }
+    .products-table th { font-size: .68rem; text-transform: uppercase; color: #64748b; text-align: left; }
 
     .toast-orders {
-        position: fixed;
-        bottom: 1.5rem;
-        right: 1.5rem;
-        z-index: 1100;
-        padding: 0.75rem 1.25rem;
-        background: #212529;
-        color: #fff;
-        border-radius: 10px;
-        font-size: 0.875rem;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-        opacity: 0;
-        transform: translateY(10px);
-        transition: opacity 0.25s, transform 0.25s;
-        pointer-events: none;
+        position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1100;
+        padding: .75rem 1.15rem; border-radius: 10px; color: #fff; font-size: .875rem;
+        opacity: 0; transform: translateY(8px); transition: .25s; pointer-events: none;
     }
+    .toast-orders.show { opacity: 1; transform: translateY(0); }
+    .toast-orders.success { background: #15803d; }
+    .toast-orders.error { background: #dc2626; }
 
-    .toast-orders.show {
-        opacity: 1;
-        transform: translateY(0);
+    .modal-loading { text-align: center; padding: 2rem; color: #94a3b8; }
+    .spinner {
+        width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top-color: #128c7e;
+        border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto .65rem;
     }
-
-    .toast-orders.success { background: #198754; }
-    .toast-orders.error { background: #dc3545; }
-
-    @media (max-width: 768px) {
-        .detail-grid { grid-template-columns: 1fr; }
-        .orders-table thead { display: none; }
-        .orders-table tbody tr {
-            display: block;
-            padding: 1rem;
-            margin-bottom: 0.5rem;
-            border: 1px solid #e9ecef;
-            border-radius: 10px;
-        }
-        .orders-table tbody td {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.4rem 0;
-            border: none;
-        }
-        .orders-table tbody td::before {
-            content: attr(data-label);
-            font-weight: 600;
-            font-size: 0.75rem;
-            color: #6c757d;
-            text-transform: uppercase;
-        }
-        .orders-table tbody td.text-end { justify-content: space-between; }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 
 <div class="orders-page">
-    <div class="orders-hero">
-        <h2><i class="fas fa-shopping-bag"></i> Pedidos</h2>
-        <p>Gestiona y da seguimiento a los pedidos realizados por WhatsApp</p>
+    <div class="orders-top">
+        <h2><i class="fas fa-shopping-bag me-1 text-success"></i> Pedidos</h2>
+        <p class="lead">Estado, facturación, observaciones internas y seguimiento con el cliente.</p>
     </div>
 
-    <div class="orders-stats">
-        <div class="orders-stat-card">
-            <div class="label">Total pedidos</div>
-            <div class="value">{{ $stats['total'] ?? 0 }}</div>
+    <div class="orders-priority">
+        <div class="prio-card urgent">
+            <div class="lbl">Facturas pendientes</div>
+            <div class="val">{{ $stats['invoice_pending'] ?? 0 }}</div>
         </div>
-        <div class="orders-stat-card">
-            <div class="label">Pendientes</div>
-            <div class="value">{{ $stats['pending'] ?? 0 }}</div>
+        <div class="prio-card">
+            <div class="lbl">Pendientes</div>
+            <div class="val">{{ $stats['pending'] ?? 0 }}</div>
         </div>
-        <div class="orders-stat-card">
-            <div class="label">Confirmados</div>
-            <div class="value">{{ $stats['confirmed'] ?? 0 }}</div>
+        <div class="prio-card">
+            <div class="lbl">Confirmados</div>
+            <div class="val">{{ $stats['confirmed'] ?? 0 }}</div>
         </div>
-        <div class="orders-stat-card">
-            <div class="label">Completados</div>
-            <div class="value">{{ $stats['completed'] ?? 0 }}</div>
+        <div class="prio-card">
+            <div class="lbl">Completados</div>
+            <div class="val">{{ $stats['completed'] ?? 0 }}</div>
         </div>
-        <div class="orders-stat-card">
-            <div class="label">Ingresos</div>
-            <div class="value revenue">${{ number_format($stats['revenue'] ?? 0, 2) }}</div>
+        <div class="prio-card accent">
+            <div class="lbl">Ingresos</div>
+            <div class="val">${{ number_format($stats['revenue'] ?? 0, 0) }}</div>
         </div>
     </div>
 
-    <div class="orders-card">
-        <div class="orders-toolbar">
-            <div class="orders-search">
-                <i class="fas fa-search"></i>
-                <input type="text" id="orders-search" placeholder="Buscar por cliente o teléfono..." autocomplete="off">
+    <div class="orders-toolbar">
+        <div class="orders-search">
+            <i class="fas fa-search"></i>
+            <input type="text" id="orders-search" placeholder="Buscar por cliente o teléfono..." autocomplete="off">
+        </div>
+        <span class="text-muted small">{{ $orders->total() }} pedido(s)</span>
+    </div>
+
+    <div class="orders-table-wrap" id="orders-list">
+        @if($orders->isEmpty())
+            <div class="orders-empty">
+                <i class="fas fa-inbox fa-2x mb-2 opacity-50 d-block"></i>
+                <p class="mb-0 fw-semibold">No hay pedidos registrados</p>
             </div>
-            <span class="text-muted small">{{ $orders->total() }} pedido(s) en total</span>
-        </div>
-
-        <div class="orders-table-wrap">
-            <table class="orders-table" id="orders-table">
+        @else
+            <table class="orders-table">
                 <thead>
                     <tr>
+                        <th>#</th>
                         <th>Cliente</th>
+                        <th>Teléfono</th>
                         <th>Fecha</th>
+                        <th>Total</th>
+                        <th>Prod.</th>
+                        <th>Etiquetas</th>
                         <th>Estado</th>
-                        <th class="text-end">Total</th>
-                        <th class="text-center">Acciones</th>
+                        <th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($orders as $order)
+                    @foreach($orders as $order)
                         @php
-                            $initial = strtoupper(mb_substr($order->contact->name ?? 'C', 0, 1));
                             $itemsCount = $order->items->count();
+                            $invoicePending = $order->requires_invoice && in_array($order->invoice_status, ['requested', 'data_ready'], true);
+                            $hasTags = $order->requires_invoice || ($order->internal_notes_count ?? 0) > 0 || ($order->feedback_count ?? 0) > 0;
                         @endphp
-                        <tr id="order-row-{{ $order->id }}" data-search="{{ strtolower(($order->contact->name ?? '') . ' ' . ($order->contact->phone_number ?? '')) }}">
-                            <td data-label="Cliente">
-                                <div class="order-client">
-                                    <div class="order-client-avatar">{{ $initial }}</div>
-                                    <div>
-                                        <button type="button" class="order-client-name" onclick="showContactModal({{ $order->contact->id }})">
-                                            {{ $order->contact->name ?? 'Cliente' }}
-                                        </button>
-                                        <div class="order-client-phone">
-                                            <span>{{ $order->contact->phone_number ?? 'Sin teléfono' }}</span>
-                                            @if($order->contact->phone_number)
-                                                <button type="button" class="btn-copy-phone" title="Copiar teléfono" onclick="copyPhone('{{ $order->contact->phone_number }}', this)">
-                                                    <i class="fas fa-copy"></i>
-                                                </button>
-                                            @endif
-                                        </div>
-                                    </div>
+                        <tr class="{{ $invoicePending ? 'invoice-pending' : '' }}"
+                            id="order-row-{{ $order->id }}"
+                            data-search="{{ strtolower(($order->contact->name ?? '') . ' ' . ($order->contact->phone_number ?? '')) }}">
+                            <td><span class="order-cell-id">#{{ $order->id }}</span></td>
+                            <td><span class="order-cell-name">{{ $order->contact->name ?? 'Cliente' }}</span></td>
+                            <td class="order-cell-muted"><i class="fab fa-whatsapp text-success me-1"></i>{{ $order->contact->phone_number ?? '—' }}</td>
+                            <td class="order-cell-muted">{{ $order->created_at->format('d/m/Y H:i') }}</td>
+                            <td class="order-cell-money">${{ number_format($order->total, 0) }}</td>
+                            <td>{{ $itemsCount }}</td>
+                            <td>
+                                <div class="order-tags">
+                                    @if($order->requires_invoice)
+                                        <span class="o-tag invoice"><i class="fas fa-file-invoice"></i>{{ $invoiceLabels[$order->invoice_status] ?? 'Factura' }}</span>
+                                    @endif
+                                    @if(($order->internal_notes_count ?? 0) > 0)
+                                        <span class="o-tag notes"><i class="fas fa-sticky-note"></i>{{ $order->internal_notes_count }}</span>
+                                    @endif
+                                    @if(($order->feedback_count ?? 0) > 0)
+                                        <span class="o-tag feedback"><i class="fas fa-comment"></i>{{ $order->feedback_count }}</span>
+                                    @endif
+                                    @unless($hasTags)
+                                        <span class="o-tag empty">—</span>
+                                    @endunless
                                 </div>
                             </td>
-                            <td data-label="Fecha" class="order-date">
-                                {{ $order->created_at->format('d/m/Y') }}
-                                <small>{{ $order->created_at->format('H:i') }}</small>
+                            <td>
+                                @if($canUpdate)
+                                    <select class="order-status-select status-{{ $order->status }}"
+                                        id="status-select-{{ $order->id }}"
+                                        data-current-status="{{ $order->status }}"
+                                        onchange="changeOrderStatus({{ $order->id }}, this)"
+                                        aria-label="Estado">
+                                        @foreach($statusOptions as $status)
+                                            <option value="{{ $status }}" @selected($order->status === $status)>{{ $statusLabels[$status] }}</option>
+                                        @endforeach
+                                    </select>
+                                @else
+                                    <span class="o-tag">{{ $statusLabels[$order->status] ?? $order->status }}</span>
+                                @endif
                             </td>
-                            <td data-label="Estado">
-                                <select
-                                    class="order-status-select status-{{ $order->status }}"
-                                    id="status-select-{{ $order->id }}"
-                                    data-current-status="{{ $order->status }}"
-                                    onchange="changeOrderStatus({{ $order->id }}, this)"
-                                    aria-label="Estado del pedido"
-                                >
-                                    @foreach($statusOptions as $status)
-                                        <option value="{{ $status }}" @selected($order->status === $status)>
-                                            {{ $statusLabels[$status] ?? ucfirst($status) }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </td>
-                            <td data-label="Total" class="text-end">
-                                <div class="order-total">${{ number_format($order->total, 2) }}</div>
-                                <div class="order-id-tag">#{{ $order->id }} · {{ $itemsCount }} {{ $itemsCount === 1 ? 'producto' : 'productos' }}</div>
-                            </td>
-                            <td data-label="Acciones" class="text-center">
-                                <button type="button" class="btn-order-detail" onclick="showOrderDetails({{ $order->id }})">
-                                    <i class="fas fa-eye"></i> Ver detalles
-                                </button>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5">
-                                <div class="orders-empty">
-                                    <i class="fas fa-inbox d-block"></i>
-                                    <p class="mb-0 fw-semibold">No hay pedidos registrados</p>
-                                    <p class="small text-muted mb-0">Los pedidos de tus clientes aparecerán aquí</p>
+                            <td>
+                                <div class="order-row-actions">
+                                    @perm('chats.open')
+                                        <a href="{{ route('admin.chat', $order->contact_id) }}" class="o-btn" title="Abrir chat"><i class="fas fa-comments"></i></a>
+                                    @endperm
+                                    <button type="button" class="o-btn primary" onclick="showOrderDetails({{ $order->id }})">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
-        </div>
-
-        @if($orders->hasPages())
-            <div class="orders-pagination">
-                {{ $orders->links() }}
-            </div>
         @endif
     </div>
+
+    @if($orders->hasPages())
+        <div class="mt-3">{{ $orders->links() }}</div>
+    @endif
 </div>
 
-<!-- Modal pedido -->
-<div class="modal-overlay" id="orderModal" role="dialog" aria-modal="true" aria-labelledby="orderModalTitle">
-    <div class="modal-panel modal-lg">
-        <div class="modal-header">
-            <div>
-                <h3 id="orderModalTitle">Detalles del pedido</h3>
-                <p class="subtitle mb-0" id="orderModalSubtitle">Cargando...</p>
-            </div>
-            <button type="button" class="modal-close" onclick="closeOrderModal()" aria-label="Cerrar">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="modal-body" id="orderDetails">
-            <div class="modal-loading">
-                <div class="spinner"></div>
-                <span>Cargando pedido...</span>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn-modal-secondary" onclick="closeOrderModal()">Cerrar</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal contacto -->
-<div class="modal-overlay" id="contactModal" role="dialog" aria-modal="true" aria-labelledby="contactModalTitle">
+<div class="modal-overlay" id="orderModal" role="dialog" aria-modal="true">
     <div class="modal-panel">
         <div class="modal-header">
             <div>
-                <h3 id="contactModalTitle">Datos del contacto</h3>
-                <p class="subtitle mb-0" id="contactModalSubtitle"></p>
+                <h3 id="orderModalTitle">Pedido</h3>
+                <p class="sub mb-0" id="orderModalSubtitle"></p>
             </div>
-            <button type="button" class="modal-close" onclick="closeContactModal()" aria-label="Cerrar">
-                <i class="fas fa-times"></i>
-            </button>
+            <button type="button" class="modal-close" onclick="closeOrderModal()" aria-label="Cerrar"><i class="fas fa-times"></i></button>
         </div>
-        <div class="modal-body" id="contactDetails">
-            <div class="modal-loading">
-                <div class="spinner"></div>
-                <span>Cargando contacto...</span>
-            </div>
+        <div class="modal-body" id="orderDetails">
+            <div class="modal-loading"><div class="spinner"></div>Cargando...</div>
         </div>
-        <div class="modal-footer">
-            <button type="button" class="btn-modal-secondary" onclick="closeContactModal()">Cerrar</button>
+        <div class="modal-footer" id="orderModalFooter">
+            <button type="button" class="o-btn" onclick="closeOrderModal()">Cerrar</button>
         </div>
     </div>
 </div>
 
-<div class="toast-orders" id="orders-toast" role="status"></div>
+<div class="toast-orders" id="orders-toast"></div>
 
 <script>
 const STATUS_LABELS = @json($statusLabels);
+const INVOICE_LABELS = @json($invoiceLabels);
+const CHAT_URL_TEMPLATE = @json(url('/admin/chats/__ID__'));
+const CAN_UPDATE = @json($canUpdate);
+const CSRF = @json(csrf_token());
+let currentOrderId = null;
 
-function showToast(message, type = 'success') {
-    const toast = document.getElementById('orders-toast');
-    toast.textContent = message;
-    toast.className = 'toast-orders show ' + type;
-    clearTimeout(toast._timer);
-    toast._timer = setTimeout(() => toast.classList.remove('show'), 2800);
+function showToast(msg, type = 'success') {
+    const t = document.getElementById('orders-toast');
+    t.textContent = msg;
+    t.className = 'toast-orders show ' + type;
+    clearTimeout(t._t);
+    t._t = setTimeout(() => t.classList.remove('show'), 2800);
 }
 
-function copyPhone(phone, btn) {
-    navigator.clipboard.writeText(phone).then(() => {
-        const icon = btn.querySelector('i');
-        if (icon) {
-            icon.className = 'fas fa-check';
-            setTimeout(() => { icon.className = 'fas fa-copy'; }, 1500);
-        }
-        showToast('Teléfono copiado');
-    });
-}
-
-function openModal(id) {
-    const modal = document.getElementById(id);
-    modal.classList.add('is-open');
-    document.body.style.overflow = 'hidden';
-}
-
-function closeModal(id) {
-    const modal = document.getElementById(id);
-    modal.classList.remove('is-open');
-    if (!document.querySelector('.modal-overlay.is-open')) {
-        document.body.style.overflow = '';
-    }
-}
-
-function statusBadgeHtml(status) {
-    const label = STATUS_LABELS[status] || status;
-    return `<span class="status-badge status-${status}">${label}</span>`;
+function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s ?? '';
+    return d.innerHTML;
 }
 
 function formatDate(dateStr) {
     return new Date(dateStr).toLocaleString('es-ES', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
 }
 
-function showOrderDetails(orderId) {
-    openModal('orderModal');
-    const detailsDiv = document.getElementById('orderDetails');
-    const subtitle = document.getElementById('orderModalSubtitle');
-    subtitle.textContent = 'Cargando...';
-    detailsDiv.innerHTML = '<div class="modal-loading"><div class="spinner"></div><span>Cargando pedido...</span></div>';
-
-    fetch(`/admin/orders/${orderId}/details`)
-        .then(res => res.json())
-        .then(order => {
-            subtitle.textContent = `Pedido #${order.id} · ${formatDate(order.created_at)}`;
-            let html = `
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <div class="label">Cliente</div>
-                        <div class="value">${order.contact?.name ?? 'Cliente'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="label">Teléfono</div>
-                        <div class="value">${order.contact?.phone_number ?? '—'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="label">Estado</div>
-                        <div class="value">${statusBadgeHtml(order.status)}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="label">Fecha</div>
-                        <div class="value">${formatDate(order.created_at)}</div>
-                    </div>
-                </div>
-                <div class="products-section">
-                    <h4><i class="fas fa-box-open me-1"></i> Productos</h4>`;
-
-            if (order.items && order.items.length > 0) {
-                html += `<table class="products-table">
-                    <thead><tr>
-                        <th>Producto</th>
-                        <th>Cant.</th>
-                        <th>Precio</th>
-                        <th>Subtotal</th>
-                    </tr></thead><tbody>`;
-                order.items.forEach(item => {
-                    const subtotal = (parseFloat(item.price) * parseInt(item.quantity)).toFixed(2);
-                    html += `<tr>
-                        <td>${item.name}</td>
-                        <td>${item.quantity}</td>
-                        <td>$${parseFloat(item.price).toFixed(2)}</td>
-                        <td>$${subtotal}</td>
-                    </tr>`;
-                });
-                html += `</tbody></table>`;
-            } else {
-                html += `<p class="text-muted small mb-0">Sin productos en este pedido.</p>`;
-            }
-
-            html += `
-                </div>
-                <div class="order-summary">
-                    <span class="total-label">Total del pedido</span>
-                    <span class="total-amount">$${parseFloat(order.total).toFixed(2)}</span>
-                </div>`;
-
-            detailsDiv.innerHTML = html;
-        })
-        .catch(() => {
-            subtitle.textContent = '';
-            detailsDiv.innerHTML = '<p class="text-danger mb-0"><i class="fas fa-exclamation-circle me-1"></i> No se pudo cargar el detalle del pedido.</p>';
-        });
+function openModal() {
+    document.getElementById('orderModal').classList.add('is-open');
+    document.body.style.overflow = 'hidden';
 }
 
 function closeOrderModal() {
-    closeModal('orderModal');
+    document.getElementById('orderModal').classList.remove('is-open');
+    document.body.style.overflow = '';
+    currentOrderId = null;
+}
+
+function renderOrderModal(order) {
+    currentOrderId = order.id;
+    document.getElementById('orderModalTitle').textContent = 'Pedido #' + order.id;
+    document.getElementById('orderModalSubtitle').textContent =
+        (order.contact?.name ?? 'Cliente') + ' · ' + formatDate(order.created_at) + ' · $' + parseFloat(order.total).toFixed(2);
+
+    const b = order.billing || {};
+    let html = '';
+
+    html += `<div class="order-section"><div class="order-section-head"><i class="fas fa-box me-1"></i> Productos</div><div class="order-section-body">`;
+    if (order.items?.length) {
+        html += `<table class="products-table"><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>`;
+        order.items.forEach(item => {
+            const sub = (parseFloat(item.price) * parseInt(item.quantity)).toFixed(2);
+            html += `<tr><td>${esc(item.name)}</td><td>${item.quantity}</td><td>$${parseFloat(item.price).toFixed(2)}</td><td>$${sub}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+    } else {
+        html += `<p class="text-muted small mb-0">Sin líneas de producto registradas.</p>`;
+    }
+    html += `</div></div>`;
+
+    if (order.requires_invoice || CAN_UPDATE) {
+        html += `<div class="order-section"><div class="order-section-head"><i class="fas fa-file-invoice me-1 text-warning"></i> Facturación</div><div class="order-section-body">`;
+        if (CAN_UPDATE) {
+            html += `<form id="invoice-form" onsubmit="saveOrderInvoice(event)">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="requires_invoice" name="requires_invoice" ${order.requires_invoice ? 'checked' : ''}>
+                    <label class="form-check-label" for="requires_invoice">Cliente solicita factura</label>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-md-4">
+                        <label class="form-label small">Estado factura</label>
+                        <select class="form-select form-select-sm" name="invoice_status" id="invoice_status">
+                            ${Object.entries(INVOICE_LABELS).map(([k,v]) => `<option value="${k}" ${order.invoice_status===k?'selected':''}>${esc(v)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Tipo</label>
+                        <select class="form-select form-select-sm" name="billing_type">
+                            <option value="cedula" ${b.billing_type==='cedula'?'selected':''}>Cédula</option>
+                            <option value="ruc" ${b.billing_type==='ruc'?'selected':''}>RUC</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">${b.billing_type==='ruc'?'RUC':'Cédula'}</label>
+                        <input type="text" class="form-control form-control-sm" name="billing_id" value="${esc(b.billing_id || '')}" placeholder="Número">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Nombre / Razón social</label>
+                        <input type="text" class="form-control form-control-sm" name="billing_legal_name" value="${esc(b.billing_legal_name || '')}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Dirección fiscal</label>
+                        <input type="text" class="form-control form-control-sm" name="address" value="${esc(b.address || '')}">
+                    </div>
+                </div>
+                <p class="text-muted small mb-2"><i class="fas fa-info-circle me-1"></i> Al guardar, los datos fiscales se copian al perfil del cliente.</p>
+                <button type="submit" class="o-btn primary btn-sm"><i class="fas fa-save me-1"></i>Guardar facturación</button>
+            </form>`;
+        } else if (order.requires_invoice) {
+            html += `<p class="mb-1"><strong>${esc(order.invoice_status_label)}</strong></p>
+                <p class="small text-muted mb-0">${esc(b.billing_type?.toUpperCase())} ${esc(b.billing_id)} · ${esc(b.billing_legal_name)}</p>`;
+        }
+        if (order.agent_checklist?.length) {
+            html += `<ul class="checklist mt-3 pt-2 border-top">`;
+            order.agent_checklist.forEach(step => {
+                html += `<li>
+                    <span class="chk ${step.done?'done':'pending'}"><i class="fas fa-${step.done?'check':'minus'}"></i></span>
+                    <div><strong>${esc(step.label)}</strong><br><span class="text-muted">${esc(step.hint)}</span></div>
+                </li>`;
+            });
+            html += `</ul>`;
+        }
+        html += `</div></div>`;
+    }
+
+    html += `<div class="order-section"><div class="order-section-head"><i class="fas fa-sticky-note me-1"></i> Observaciones internas</div><div class="order-section-body">`;
+    html += `<div id="internal-notes-list">${renderNotesList(order.notes?.filter(n => n.type === 'internal') || [])}</div>`;
+    if (CAN_UPDATE) {
+        html += `<form class="mt-2" onsubmit="addOrderNote(event, 'internal')">
+            <textarea class="form-control form-control-sm mb-2" name="body" rows="2" placeholder="Nota para el equipo (no la ve el cliente)..." required></textarea>
+            <button type="submit" class="o-btn btn-sm"><i class="fas fa-plus me-1"></i>Agregar observación</button>
+        </form>`;
+    }
+    html += `</div></div>`;
+
+    html += `<div class="order-section"><div class="order-section-head"><i class="fas fa-comment-dots me-1 text-success"></i> Feedback con el cliente</div><div class="order-section-body">`;
+    html += `<div id="feedback-notes-list">${renderNotesList(order.notes?.filter(n => n.type === 'feedback') || [])}</div>`;
+    if (CAN_UPDATE) {
+        html += `<form class="mt-2" onsubmit="addOrderNote(event, 'feedback')">
+            <textarea class="form-control form-control-sm mb-2" name="body" rows="2" placeholder="Ej: Envié factura PDF por WhatsApp, cliente confirmó recepción..." required></textarea>
+            <button type="submit" class="o-btn btn-sm"><i class="fas fa-plus me-1"></i>Registrar feedback</button>
+        </form>`;
+    }
+    html += `</div></div>`;
+
+    document.getElementById('orderDetails').innerHTML = html;
+
+    const footer = document.getElementById('orderModalFooter');
+    footer.innerHTML = `<button type="button" class="o-btn" onclick="closeOrderModal()">Cerrar</button>`;
+    if (order.contact?.id) {
+        footer.innerHTML += `<a href="${CHAT_URL_TEMPLATE.replace('__ID__', order.contact.id)}" class="o-btn primary"><i class="fas fa-comments me-1"></i>Abrir chat</a>`;
+    }
+}
+
+function renderNotesList(notes) {
+    if (!notes.length) return '<p class="text-muted small mb-0">Sin registros aún.</p>';
+    return notes.map(n => `<article class="note-item">
+        <div class="note-meta"><strong>${esc(n.author)}</strong> · ${formatDate(n.created_at)}</div>
+        <div>${esc(n.body).replace(/\n/g, '<br>')}</div>
+    </article>`).join('');
+}
+
+function showOrderDetails(orderId) {
+    openModal();
+    document.getElementById('orderDetails').innerHTML = '<div class="modal-loading"><div class="spinner"></div>Cargando...</div>';
+    fetch(`/admin/orders/${orderId}/details`)
+        .then(r => r.json())
+        .then(renderOrderModal)
+        .catch(() => {
+            document.getElementById('orderDetails').innerHTML = '<p class="text-danger">No se pudo cargar el pedido.</p>';
+        });
+}
+
+function saveOrderInvoice(e) {
+    e.preventDefault();
+    if (!currentOrderId) return;
+    const fd = new FormData(e.target);
+    const payload = {
+        requires_invoice: fd.get('requires_invoice') === 'on',
+        invoice_status: fd.get('invoice_status'),
+        billing_type: fd.get('billing_type'),
+        billing_id: fd.get('billing_id'),
+        billing_legal_name: fd.get('billing_legal_name'),
+        address: fd.get('address'),
+        sync_profile: true,
+    };
+    fetch(`/admin/orders/${currentOrderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Facturación guardada y perfil actualizado');
+            renderOrderModal(data.order);
+        } else showToast('Error al guardar', 'error');
+    })
+    .catch(() => showToast('Error al guardar', 'error'));
+}
+
+function addOrderNote(e, type) {
+    e.preventDefault();
+    if (!currentOrderId) return;
+    const body = e.target.body.value.trim();
+    if (!body) return;
+    fetch(`/admin/orders/${currentOrderId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+        body: JSON.stringify({ type, body }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(type === 'feedback' ? 'Feedback registrado' : 'Observación agregada');
+            showOrderDetails(currentOrderId);
+        } else showToast('Error', 'error');
+    })
+    .catch(() => showToast('Error', 'error'));
 }
 
 function changeOrderStatus(orderId, selectEl) {
     const newStatus = selectEl.value;
-    const prevStatus = selectEl.getAttribute('data-current-status');
-
+    const prev = selectEl.getAttribute('data-current-status');
     fetch(`/admin/orders/${orderId}/status`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ status: newStatus })
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+        body: JSON.stringify({ status: newStatus }),
     })
-    .then(res => res.json())
+    .then(r => r.json())
     .then(data => {
         if (data.success) {
             selectEl.className = 'order-status-select status-' + newStatus;
             selectEl.setAttribute('data-current-status', newStatus);
-            showToast('Estado actualizado correctamente');
-        } else {
-            selectEl.value = prevStatus;
-            showToast('No se pudo actualizar el estado', 'error');
-        }
+            showToast('Estado actualizado');
+        } else { selectEl.value = prev; showToast('Error', 'error'); }
     })
-    .catch(() => {
-        selectEl.value = prevStatus;
-        showToast('Error al actualizar el estado', 'error');
-    });
-}
-
-function showContactModal(contactId) {
-    openModal('contactModal');
-    const detailsDiv = document.getElementById('contactDetails');
-    const subtitle = document.getElementById('contactModalSubtitle');
-    subtitle.textContent = '';
-    detailsDiv.innerHTML = '<div class="modal-loading"><div class="spinner"></div><span>Cargando contacto...</span></div>';
-
-    fetch(`/admin/contacts/${contactId}`)
-        .then(res => res.json())
-        .then(contact => {
-            subtitle.textContent = contact.phone_number ?? '';
-            let html = `
-                <div class="detail-grid">
-                    <div class="detail-item full">
-                        <div class="label">Nombre</div>
-                        <div class="value">${contact.name ?? 'Sin nombre'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="label">Teléfono</div>
-                        <div class="value">${contact.phone_number ?? '—'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="label">Email</div>
-                        <div class="value">${contact.email ?? '—'}</div>
-                    </div>
-                    <div class="detail-item full">
-                        <div class="label">Registrado</div>
-                        <div class="value">${contact.created_at ? formatDate(contact.created_at) : '—'}</div>
-                    </div>
-                </div>`;
-            if (contact.phone_number) {
-                html += `<button type="button" class="btn-order-detail w-100 justify-content-center" onclick="copyPhone('${contact.phone_number}', this)">
-                    <i class="fas fa-copy"></i> Copiar teléfono
-                </button>`;
-            }
-            detailsDiv.innerHTML = html;
-        })
-        .catch(() => {
-            detailsDiv.innerHTML = '<p class="text-danger mb-0">No se pudo cargar el contacto.</p>';
-        });
-}
-
-function closeContactModal() {
-    closeModal('contactModal');
+    .catch(() => { selectEl.value = prev; showToast('Error', 'error'); });
 }
 
 document.getElementById('orders-search')?.addEventListener('input', function() {
     const q = this.value.trim().toLowerCase();
-    document.querySelectorAll('#orders-table tbody tr[id^="order-row-"]').forEach(row => {
-        const text = row.getAttribute('data-search') || '';
-        row.style.display = !q || text.includes(q) ? '' : 'none';
+    document.querySelectorAll('[id^="order-row-"]').forEach(row => {
+        row.style.display = !q || (row.getAttribute('data-search') || '').includes(q) ? '' : 'none';
     });
 });
 
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', e => {
-        if (e.target === overlay) {
-            overlay.classList.remove('is-open');
-            document.body.style.overflow = '';
-        }
-    });
+document.getElementById('orderModal')?.addEventListener('click', e => {
+    if (e.target.id === 'orderModal') closeOrderModal();
 });
-
-document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-        closeOrderModal();
-        closeContactModal();
-    }
-});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeOrderModal(); });
 </script>
 @endsection

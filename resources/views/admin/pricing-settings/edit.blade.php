@@ -46,6 +46,42 @@
     }
     .usage-box strong { color: #065f46; }
     .usage-over { color: #dc2626; font-weight: 700; }
+    .usage-meter { margin-bottom: .65rem; }
+    .usage-meter:last-child { margin-bottom: 0; }
+    .usage-meter-head {
+        display: flex;
+        justify-content: space-between;
+        font-size: .78rem;
+        margin-bottom: .25rem;
+        color: #4b5563;
+    }
+    .usage-meter-bar {
+        height: 7px;
+        background: #d1fae5;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .usage-meter-bar > span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, #059669, #10b981);
+        border-radius: 999px;
+    }
+    .usage-meter.is-warning .usage-meter-bar > span { background: linear-gradient(90deg, #d97706, #f59e0b); }
+    .usage-meter.is-danger .usage-meter-bar > span { background: linear-gradient(90deg, #dc2626, #ef4444); }
+    .usage-breakdown {
+        margin-top: .75rem;
+        padding-top: .65rem;
+        border-top: 1px dashed #a7f3d0;
+        font-size: .75rem;
+        color: #4b5563;
+    }
+    .usage-breakdown div {
+        display: flex;
+        justify-content: space-between;
+        gap: .5rem;
+        padding: .15rem 0;
+    }
     .platform-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
@@ -68,6 +104,11 @@
         border-radius: 8px;
         padding: .5rem .65rem;
         font-size: .875rem;
+    }
+    .platform-field input[type="checkbox"],
+    .platform-field input[type="radio"] {
+        width: auto;
+        padding: 0;
     }
     .platform-field .hint {
         font-size: .72rem;
@@ -105,9 +146,10 @@
         </p>
     </div>
 
-    <form action="{{ route('admin.pricing-settings.update') }}" method="POST">
+    <form action="{{ route('admin.pricing-settings.update') }}" method="POST" id="form-capacidades">
         @csrf
         @method('PUT')
+        <input type="hidden" name="_section" value="capacidades">
 
         {{-- SECCIÓN 1: Plan y capacidades --}}
         <section class="platform-section" id="capacidades">
@@ -132,17 +174,35 @@
 
                     <div class="usage-box">
                         <div class="font-semibold text-gray-800 mb-2">Uso actual del cliente</div>
-                        <div>Productos:
-                            <strong class="{{ $limits['products_at_limit'] ? 'usage-over' : '' }}">{{ $limits['usage']['products'] }}</strong>
-                            / {{ $limits['max_products'] }}
+
+                        <div class="usage-meter {{ ($limits['products_percent'] ?? 0) >= 100 ? 'is-danger' : (($limits['products_percent'] ?? 0) >= 80 ? 'is-warning' : '') }}">
+                            <div class="usage-meter-head">
+                                <span>Productos</span>
+                                <strong class="{{ $limits['products_at_limit'] ? 'usage-over' : '' }}">{{ $limits['usage']['products'] }} / {{ $limits['max_products'] }}</strong>
+                            </div>
+                            <div class="usage-meter-bar"><span style="width: {{ $limits['products_percent'] ?? 0 }}%"></span></div>
                         </div>
-                        <div>Categorías:
-                            <strong class="{{ $limits['categories_at_limit'] ? 'usage-over' : '' }}">{{ $limits['usage']['categories'] }}</strong>
-                            / {{ $limits['max_categories'] }}
+
+                        <div class="usage-meter {{ ($limits['categories_percent'] ?? 0) >= 100 ? 'is-danger' : (($limits['categories_percent'] ?? 0) >= 80 ? 'is-warning' : '') }}">
+                            <div class="usage-meter-head">
+                                <span>Categorías</span>
+                                <strong class="{{ $limits['categories_at_limit'] ? 'usage-over' : '' }}">{{ $limits['usage']['categories'] }} / {{ $limits['max_categories'] }}</strong>
+                            </div>
+                            <div class="usage-meter-bar"><span style="width: {{ $limits['categories_percent'] ?? 0 }}%"></span></div>
                         </div>
-                        <div>Espacio en servidor:
-                            <strong>{{ number_format($limits['usage']['storage_gb'], 2) }} GB</strong>
-                            / {{ number_format($limits['storage_gb'], 0) }} GB permitidos
+
+                        <div class="usage-meter {{ ($limits['storage_percent'] ?? 0) >= 100 ? 'is-danger' : (($limits['storage_percent'] ?? 0) >= 80 ? 'is-warning' : '') }}">
+                            <div class="usage-meter-head">
+                                <span>Espacio en servidor</span>
+                                <strong class="{{ $limits['storage_at_limit'] ? 'usage-over' : '' }}">
+                                    {{ $limits['usage']['storage_human'] ?? '0 B' }}
+                                    / {{ number_format($limits['storage_gb'], 0) }} GB
+                                </strong>
+                            </div>
+                            <div class="usage-meter-bar"><span style="width: {{ max(1, $limits['storage_percent'] ?? 0) }}%"></span></div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                Valor registrado manualmente · {{ number_format($limits['usage']['storage_gb'] ?? 0, 3) }} GB
+                            </div>
                         </div>
                     </div>
 
@@ -161,18 +221,40 @@
                         @error('max_categories_limit')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                     </div>
 
-                    <div class="platform-field" style="grid-column: 1 / -1;">
-                        <label for="storage_gb_limit">Espacio en servidor (GB)</label>
+                    <div class="platform-field">
+                        <label for="storage_gb_used">Espacio usado en servidor (GB)</label>
+                        <input type="number" id="storage_gb_used" name="storage_gb_used" min="0" max="10000" step="0.001" required
+                            value="{{ old('storage_gb_used', $raw['storage_gb_used'] ?? $limits['usage']['storage_gb'] ?? 0) }}">
+                        <p class="hint">Indica cuánto espacio ocupa este cliente hoy. Actualízalo cuando subas archivos o crezca el uso.</p>
+                        @error('storage_gb_used')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div class="platform-field">
+                        <label for="storage_gb_limit">Espacio máximo contratado (GB)</label>
                         <input type="number" id="storage_gb_limit" name="storage_gb_limit" min="0" max="10000" step="0.5" required
                             value="{{ old('storage_gb_limit', $raw['storage_gb_limit'] ?? $effective['storage_gb']) }}">
-                        <p class="hint">Incluye imágenes del bot, flujo de marketing y archivos subidos. Se muestra en el dashboard del cliente.</p>
+                        <p class="hint">Límite del plan. Se muestra en el dashboard del cliente junto al espacio usado.</p>
                         @error('storage_gb_limit')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
                     </div>
                 </div>
             </div>
+            <div class="platform-save-bar" style="border-top: 1px solid #f1f5f9; border-radius: 0; margin: 0;">
+                <p class="text-xs text-gray-500 mb-0">Plan, productos, categorías y espacio en disco.</p>
+                <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg border-0">
+                    <i class="fas fa-save"></i> Guardar plan y límites
+                </button>
+            </div>
         </section>
+    </form>
 
-        {{-- SECCIÓN 2: Costos Meta --}}
+    {{-- SECCIÓN 2: Facturación (formulario independiente) --}}
+    @include('admin.partials.platform-billing-admin')
+
+    <form action="{{ route('admin.pricing-settings.update') }}" method="POST" id="form-meta">
+        @csrf
+        @method('PUT')
+        <input type="hidden" name="_section" value="meta">
+
         <section class="platform-section" id="costos-meta">
             <div class="platform-section-head">
                 <h2>💬 Costos Meta WhatsApp</h2>
@@ -267,12 +349,13 @@
 
         <div class="platform-save-bar">
             <p class="text-xs text-gray-500 mb-0 max-w-lg">
-                Los cambios de capacidad afectan de inmediato al cliente. Las tarifas Meta pueden guardarse aunque un tipo de conversación esté desactivado.
+                Tarifas Meta y tipos de conversación visibles en el dashboard del cliente.
             </p>
-            <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg">
-                <i class="fas fa-save"></i> Guardar parámetros
+            <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg border-0">
+                <i class="fas fa-save"></i> Guardar costos Meta
             </button>
         </div>
+        </section>
     </form>
 </div>
 @endsection
@@ -295,5 +378,12 @@ document.getElementById('subscription_plan')?.addEventListener('change', functio
         }
     });
 });
+
+if (window.location.hash) {
+    const target = document.querySelector(window.location.hash);
+    if (target) {
+        setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    }
+}
 </script>
 @endpush
