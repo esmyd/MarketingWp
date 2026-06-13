@@ -77,11 +77,9 @@ class ClientInsightsService
 
         $recentMessages = WhatsappMessage::where('contact_id', $contact->id)
             ->with('adminUser:id,name')
-            ->latest()
+            ->latest('created_at')
             ->limit(30)
-            ->get()
-            ->sortBy('created_at')
-            ->values();
+            ->get();
 
         $messagesByMonth = WhatsappMessage::where('contact_id', $contact->id)
             ->where('created_at', '>=', now()->subMonths(6))
