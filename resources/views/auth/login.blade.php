@@ -1,7 +1,10 @@
 @php
-    $demoNumber = preg_replace('/[^0-9]/', '', config('whatsapp.demo_whatsapp_number', ''));
-    $demoMessage = rawurlencode('Hola, me interesa conocer el bot de ventas por WhatsApp. ¿Podrían agendarme una demo?');
+    $demoNumber = preg_replace('/[^0-9]/', '', config('pricing.demo.whatsapp_number', config('whatsapp.demo_whatsapp_number', '')));
+    $demoMessage = rawurlencode(config('pricing.demo.whatsapp_message', '¡Hola! Quiero probar el demo del bot de WhatsApp 🤖'));
     $demoWhatsappUrl = $demoNumber ? "https://wa.me/{$demoNumber}?text={$demoMessage}" : null;
+    $demoPanelUser = config('pricing.demo.panel_user', 'gosorio');
+    $demoPanelPassword = config('pricing.demo.panel_password', 'go123');
+    $isDemoLogin = request()->boolean('demo');
 @endphp
 <!DOCTYPE html>
 <html lang="es">
@@ -99,6 +102,31 @@
             color: rgba(233,237,239,.85);
         }
         .brand-feature i { color: #25d366; width: 18px; text-align: center; }
+        .brand-pricing-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .6rem;
+            margin-top: 2rem;
+            padding: .85rem 1.4rem;
+            border-radius: 12px;
+            background: rgba(255,255,255,.1);
+            border: 1px solid rgba(255,255,255,.28);
+            color: #fff;
+            font-size: .92rem;
+            font-weight: 600;
+            text-decoration: none;
+            backdrop-filter: blur(6px);
+            transition: background .15s, border-color .15s, transform .12s, box-shadow .15s;
+            box-shadow: 0 4px 20px rgba(0,0,0,.15);
+        }
+        .brand-pricing-btn:hover {
+            background: rgba(255,255,255,.18);
+            border-color: #25d366;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(0,0,0,.22);
+        }
+        .brand-pricing-btn i { color: #25d366; font-size: 1rem; }
         .brand-footer {
             position: relative;
             z-index: 1;
@@ -253,6 +281,78 @@
             transform: translateY(-1px);
         }
         .btn-demo i { font-size: 1.1rem; }
+        .btn-demo-panel {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            width: 100%;
+            margin-top: .65rem;
+            padding: .8rem 1rem;
+            border-radius: 10px;
+            border: 2px solid #128c7e;
+            background: #fff;
+            color: #075e54;
+            font-size: .92rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background .15s, color .15s, transform .12s;
+        }
+        .btn-demo-panel:hover {
+            background: #128c7e;
+            color: #fff;
+            transform: translateY(-1px);
+        }
+        .btn-pricing {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            width: 100%;
+            margin-top: 1rem;
+            padding: .8rem 1rem;
+            border-radius: 10px;
+            border: 2px solid #111b21;
+            background: #111b21;
+            color: #fff;
+            font-size: .92rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background .15s, color .15s, transform .12s, box-shadow .15s;
+            box-shadow: 0 4px 14px rgba(17, 27, 33, .18);
+        }
+        .btn-pricing:hover {
+            background: #075e54;
+            border-color: #075e54;
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(7, 94, 84, .28);
+        }
+        .btn-pricing i { font-size: .95rem; opacity: .9; }
+        .demo-panel-box {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 10px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            font-size: .85rem;
+            color: #166534;
+        }
+        .demo-panel-box strong {
+            font-family: ui-monospace, monospace;
+            color: #14532d;
+        }
+        .demo-panel-box .demo-title {
+            font-weight: 700;
+            margin-bottom: .5rem;
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+        }
+        .demo-actions-login {
+            display: grid;
+            gap: .65rem;
+        }
         .login-divider {
             display: flex;
             align-items: center;
@@ -312,6 +412,10 @@
                     <div class="brand-feature"><i class="fas fa-chart-line"></i> Panel de ventas y conversaciones en vivo</div>
                     <div class="brand-feature"><i class="fas fa-shield-halved"></i> Acceso seguro solo para tu equipo</div>
                 </div>
+                <a href="{{ route('pricing.index') }}" class="brand-pricing-btn">
+                    <i class="fas fa-tags"></i>
+                    Ver planes y precios
+                </a>
             </div>
             <div class="brand-footer">&copy; {{ date('Y') }} WhatsApp Marketing · Uso exclusivo de personal autorizado</div>
         </aside>
@@ -418,18 +522,40 @@
                             </button>
                         </form>
 
-                        @if ($demoWhatsappUrl)
-                            <div class="login-divider">o</div>
-                            <a
-                                href="{{ $demoWhatsappUrl }}"
-                                class="btn-demo"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                <i class="fab fa-whatsapp"></i>
-                                Solicitar una demo
-                            </a>
-                        @endif
+                        <div class="login-divider">Prueba la demo</div>
+
+                        <div class="demo-actions-login">
+                            @if ($demoWhatsappUrl)
+                                <a
+                                    href="{{ $demoWhatsappUrl }}"
+                                    class="btn-demo"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <i class="fab fa-whatsapp"></i>
+                                    Probar bot en WhatsApp
+                                </a>
+                            @endif
+
+                            @if ($isDemoLogin)
+                                <div class="demo-panel-box">
+                                    <div class="demo-title"><i class="fas fa-desktop"></i> Credenciales demo del panel</div>
+                                    <div>Usuario: <strong>{{ $demoPanelUser }}</strong></div>
+                                    <div>Contraseña: <strong>{{ $demoPanelPassword }}</strong></div>
+                                    <div style="margin-top:.5rem;font-size:.8rem;opacity:.85">Los campos ya están completados — pulsa «Acceder al panel».</div>
+                                </div>
+                            @else
+                                <a href="{{ route('login', ['demo' => 1]) }}" class="btn-demo-panel">
+                                    <i class="fas fa-desktop"></i>
+                                    Demo del panel ({{ $demoPanelUser }})
+                                </a>
+                            @endif
+                        </div>
+
+                        <a href="{{ route('pricing.index') }}" class="btn-pricing">
+                            <i class="fas fa-tags"></i>
+                            Ver planes y precios
+                        </a>
 
                         <p class="login-footer-note">
                             <i class="fas fa-lock"></i> Conexión cifrada · Protección anti-bots activa
@@ -448,6 +574,17 @@
             const form = document.getElementById('login-form');
             const submitBtn = document.getElementById('submit-btn');
             const loadedAtField = document.getElementById('_form_loaded_at');
+            const usernameInput = document.getElementById('username');
+            const isDemoLogin = @json($isDemoLogin);
+            const demoUser = @json($demoPanelUser);
+            const demoPass = @json($demoPanelPassword);
+
+            if (isDemoLogin && usernameInput) {
+                usernameInput.value = demoUser;
+                if (passwordInput) {
+                    passwordInput.value = demoPass;
+                }
+            }
 
             if (loadedAtField && !loadedAtField.value) {
                 loadedAtField.value = Math.floor(Date.now() / 1000);

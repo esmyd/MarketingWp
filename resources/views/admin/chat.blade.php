@@ -429,6 +429,93 @@
         animation: pulse 2s infinite;
     }
 
+    .wa-agent-alert-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #f15c6d;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 10px;
+        margin-left: 6px;
+        white-space: nowrap;
+        animation: agentPulse 1.5s infinite;
+        flex-shrink: 0;
+    }
+
+    .wa-sidebar-contact.has-agent-request {
+        background: rgba(241, 92, 109, 0.12);
+        border-left: 3px solid #f15c6d;
+    }
+
+    .wa-sidebar-contact.has-agent-request .wa-sidebar-name {
+        color: #f15c6d;
+    }
+
+    .wa-agent-requests-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        margin-left: 8px;
+        border-radius: 10px;
+        background: #f15c6d;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .wa-agent-requests-count.hidden {
+        display: none;
+    }
+
+    .wa-agent-handoff-banner {
+        background: linear-gradient(90deg, #f15c6d 0%, #c0392b 100%);
+        color: #fff;
+        padding: 10px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 13px;
+        z-index: 2;
+        position: relative;
+    }
+
+    .wa-agent-handoff-banner.hidden {
+        display: none;
+    }
+
+    .wa-agent-handoff-banner button {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        color: #fff;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .wa-agent-handoff-banner button:hover {
+        background: rgba(255, 255, 255, 0.25);
+    }
+
+    @keyframes agentPulse {
+        0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.85;
+            transform: scale(1.03);
+        }
+    }
+
     @keyframes pulse {
         0%, 100% {
             opacity: 1;
@@ -1151,7 +1238,11 @@
                 <button class="wa-mobile-toggle" id="waCloseSidebar" title="Cerrar">
                     <i class="fas fa-times"></i>
                 </button>
-                <div class="wa-sidebar-header-title">Chats</div>
+                <div class="wa-sidebar-header-title">
+                    Chats
+                    @php $agentRequestsCount = $contacts->filter(fn($c) => $c->needsAgent())->count(); @endphp
+                    <span id="agent-requests-count" class="wa-agent-requests-count{{ $agentRequestsCount > 0 ? '' : ' hidden' }}">{{ $agentRequestsCount > 0 ? $agentRequestsCount : '' }}</span>
+                </div>
             </div>
             <div class="wa-sidebar-search">
                 <i class="fas fa-search"></i>
@@ -1159,11 +1250,14 @@
             </div>
             <div class="wa-sidebar-contacts" id="wa-sidebar-contacts">
             @foreach($contacts as $c)
-                <a href="javascript:void(0)" data-contact-id="{{ $c->id }}" class="wa-sidebar-contact{{ $contact->id === $c->id ? ' active' : '' }}">
+                <a href="javascript:void(0)" data-contact-id="{{ $c->id }}" class="wa-sidebar-contact{{ $contact->id === $c->id ? ' active' : '' }}{{ $c->needsAgent() ? ' has-agent-request' : '' }}">
                     <div class="wa-sidebar-avatar">{{ strtoupper(mb_substr($c->name ?? 'C', 0, 1)) }}</div>
                         <div class="wa-sidebar-contact-info">
                             <div class="wa-sidebar-top">
                                 <div class="wa-sidebar-name">{{ $c->name ?? 'Cliente' }}</div>
+                                @if($c->needsAgent())
+                                    <span class="wa-agent-alert-badge" title="Solicita asesor humano">👤 Asesor</span>
+                                @endif
                                 @if(!empty($c->last_message_date))
                                     <div class="wa-sidebar-time" title="{{ $c->last_message_date->format('d/m/Y H:i') }}">
                                         {{ \App\Helpers\WhatsappMessageFormatter::formatSidebarDateTime($c->last_message_date) }}
@@ -1217,6 +1311,10 @@
                         <i class="fas fa-chart-line"></i>
                     </button>
                 </div>
+            </div>
+            <div id="wa-agent-handoff-banner" class="wa-agent-handoff-banner{{ $contact->needsAgent() ? '' : ' hidden' }}">
+                <span><i class="fas fa-headset"></i> Este cliente solicita hablar con un asesor humano.</span>
+                <button type="button" id="wa-dismiss-agent-btn">Marcar atendido</button>
             </div>
             <!-- Mensajes -->
             <div class="wa-chat-messages" id="chat-messages">
@@ -2322,6 +2420,7 @@
                     }
 
                     updateContactsList();
+                    updateAgentHandoffBanner(false);
                 } else {
                     console.error('16. ❌ Respuesta indica fallo:', data);
                     alert('Error al enviar el mensaje: ' + (data.message || 'Error desconocido'));
@@ -2693,6 +2792,8 @@
                     if (botStatusText && data.contact.bot_enabled !== undefined) {
                         botStatusText.textContent = data.contact.bot_enabled ? 'Activo' : 'Inactivo';
                     }
+
+                    updateAgentHandoffBanner(!!data.contact.needs_agent);
 
                     // Actualizar ID del contacto en el formulario
                     const contactIdInput = document.querySelector('input[name="contact_id"]');
@@ -3462,6 +3563,56 @@
         let contactsUpdateInterval = null;
         let currentContactId = {{ $contact->id }};
 
+        function updateAgentHandoffBanner(needsAgent) {
+            const banner = document.getElementById('wa-agent-handoff-banner');
+            if (!banner) return;
+            banner.classList.toggle('hidden', !needsAgent);
+        }
+
+        function updateAgentRequestsCount(count) {
+            const counter = document.getElementById('agent-requests-count');
+            if (!counter) return;
+
+            if (count > 0) {
+                counter.textContent = count;
+                counter.classList.remove('hidden');
+            } else {
+                counter.textContent = '';
+                counter.classList.add('hidden');
+            }
+        }
+
+        function dismissAgentRequest(contactId) {
+            const csrfToken = document.querySelector('input[name="_token"]')?.value
+                || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            return fetch(`/admin/contacts/${contactId}/dismiss-agent`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateAgentHandoffBanner(false);
+                    updateContactsList();
+                }
+                return data;
+            });
+        }
+
+        document.getElementById('wa-dismiss-agent-btn')?.addEventListener('click', function() {
+            const contactIdInput = document.getElementById('current-contact-id');
+            const contactId = contactIdInput ? contactIdInput.value : currentContactId;
+            if (contactId) {
+                dismissAgentRequest(contactId);
+            }
+        });
+
         function updateContactsList() {
             // Obtener el ID del contacto actual dinámicamente
             const currentContactIdInput = document.getElementById('current-contact-id');
@@ -3479,6 +3630,10 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.contacts) {
+                    if (typeof data.agent_requests_count !== 'undefined') {
+                        updateAgentRequestsCount(data.agent_requests_count);
+                    }
+
                     const contactsContainer = document.querySelector('.wa-sidebar-contacts');
                     if (!contactsContainer) return;
 
@@ -3489,17 +3644,27 @@
                     // Reconstruir la lista de contactos (más reciente primero)
                     contactsContainer.innerHTML = '';
                     const sortedContacts = [...data.contacts].sort((a, b) => {
+                        const agentA = a.needs_agent ? 1 : 0;
+                        const agentB = b.needs_agent ? 1 : 0;
+                        if (agentA !== agentB) {
+                            return agentB - agentA;
+                        }
                         const timeA = Number(a.last_message_sort) || new Date(a.last_message_timestamp || a.last_message_date || 0).getTime();
                         const timeB = Number(b.last_message_sort) || new Date(b.last_message_timestamp || b.last_message_date || 0).getTime();
                         return timeB - timeA;
                     });
+
+                    const activeContactData = sortedContacts.find(c => c.id == actualCurrentContactId);
+                    if (activeContactData) {
+                        updateAgentHandoffBanner(!!activeContactData.needs_agent);
+                    }
 
                     sortedContacts.forEach(contact => {
                         const isActive = contact.id == actualCurrentContactId;
                         const contactElement = document.createElement('a');
                         contactElement.href = 'javascript:void(0)';
                         contactElement.setAttribute('data-contact-id', contact.id);
-                        contactElement.className = `wa-sidebar-contact${isActive ? ' active' : ''}`;
+                        contactElement.className = `wa-sidebar-contact${isActive ? ' active' : ''}${contact.needs_agent ? ' has-agent-request' : ''}`;
 
                         // Avatar
                         const avatar = document.createElement('div');
@@ -3518,6 +3683,14 @@
                         name.className = 'wa-sidebar-name';
                         name.textContent = contact.name || 'Cliente';
                         top.appendChild(name);
+
+                        if (contact.needs_agent) {
+                            const agentBadge = document.createElement('span');
+                            agentBadge.className = 'wa-agent-alert-badge';
+                            agentBadge.title = 'Solicita asesor humano';
+                            agentBadge.textContent = '👤 Asesor';
+                            top.appendChild(agentBadge);
+                        }
 
                         if (contact.last_message_timestamp || contact.last_message_date) {
                             const time = document.createElement('div');

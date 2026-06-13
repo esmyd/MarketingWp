@@ -2047,12 +2047,8 @@ class WhatsappService
             }
 
             $flowAction = $this->resolveFlowButtonAction($buttonId);
-            if ($flowAction === MarketingButtonAction::AGENT) {
-                $agentMessage = $this->buildMarketingStepPayload(MarketingStepKey::AGENT_HANDOFF, $contact)
-                    ?? ['type' => 'text', 'text' => ['body' => 'Te conectamos con un asesor. Espera un momento, por favor.']];
-                $contact->update(['bot_enabled' => false]);
-                $this->sendMessage($from, $agentMessage);
-
+            if ($flowAction === MarketingButtonAction::AGENT || $this->isAgentRequestButton($buttonId, $buttonTitle)) {
+                $this->triggerAgentHandoff($contact, $from, 'button:' . $buttonId);
                 return;
             }
 
@@ -2997,6 +2993,20 @@ class WhatsappService
 
             // Si no se procesó como SKU, generar respuesta del chatbot
             if (!$processHandled) {
+                if ($this->isAgentRequestText($text)) {
+                    if ($messageId) {
+                        $this->sendTypingIndicator($messageId);
+                    }
+                    $this->triggerAgentHandoff($contact, $from, 'text');
+
+                    Log::info('[handleTextMessage] ✅ Solicitud de asesor por texto', [
+                        'contact_id' => $contact->id,
+                        'phone' => substr($from, 0, 4) . '****' . substr($from, -4),
+                    ]);
+
+                    return;
+                }
+
                 // Refrescar el contacto desde la base de datos para obtener el valor actualizado de bot_enabled
                 $contact->refresh();
 
@@ -5443,5 +5453,69 @@ class WhatsappService
         ]);
 
         return $this->buildPaymentProofSuccessPayload($contact, $cart);
+    }
+
+    private function triggerAgentHandoff(WhatsappContact $contact, string $phone, string $source = 'unknown'): void
+    {
+        $contact->requestAgentHandoff($source);
+        $contact->update(['bot_enabled' => false]);
+
+        $agentMessage = $this->buildMarketingStepPayload(MarketingStepKey::AGENT_HANDOFF, $contact)
+            ?? ['type' => 'text', 'text' => ['body' => 'Te conectamos con un asesor. Espera un momento, por favor.']];
+
+        Log::info('[triggerAgentHandoff] Solicitud de asesor registrada', [
+            'contact_id' => $contact->id,
+            'phone' => substr($phone, 0, 4) . '****' . substr($phone, -4),
+            'source' => $source,
+        ]);
+
+        $this->sendMessage($phone, $agentMessage);
+    }
+
+    private function isAgentRequestButton(string $buttonId, ?string $buttonTitle = null): bool
+    {
+        $buttonId = strtolower(trim($buttonId));
+
+        if (in_array($buttonId, ['menu_agent', 'agent', 'hablar_asesor', 'hablar_con_asesor'], true)) {
+            return true;
+        }
+
+        if (!$buttonTitle) {
+            return false;
+        }
+
+        $title = mb_strtolower(trim($buttonTitle));
+
+        return str_contains($title, 'asesor')
+            || str_contains($title, 'humano')
+            || str_contains($title, 'agente');
+    }
+
+    private function isAgentRequestText(string $text): bool
+    {
+        $normalized = mb_strtolower(trim(preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $text)));
+        $patterns = [
+            'asesor',
+            'agente',
+            'humano',
+            'persona real',
+            'atencion humana',
+            'atención humana',
+            'hablar con asesor',
+            'hablar con un asesor',
+            'hablar con humano',
+            'necesito un asesor',
+            'quiero un asesor',
+            'quiero hablar con',
+            'especialista',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (str_contains($normalized, $pattern)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

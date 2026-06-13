@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planes — Bot WhatsApp MarketingWp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0f14;
+            --surface: #121a22;
+            --surface-2: #1a2530;
+            --border: rgba(255,255,255,.08);
+            --text: #e8edf2;
+            --muted: #8b9aab;
+            --accent: #25d366;
+            --accent-dim: rgba(37,211,102,.12);
+            --blue: #3b82f6;
+            --purple: #a855f7;
+            --gold: #f59e0b;
+            --red: #f15c6d;
+            --radius: 16px;
+            --shadow: 0 24px 48px rgba(0,0,0,.35);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'DM Sans', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37,211,102,.15), transparent),
+                radial-gradient(ellipse 60% 40% at 100% 50%, rgba(59,130,246,.08), transparent),
+                radial-gradient(ellipse 50% 30% at 0% 80%, rgba(168,85,247,.06), transparent);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .wrap {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+
+        /* Header */
+        .hero {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--accent-dim);
+            color: var(--accent);
+            font-size: 13px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 999px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(37,211,102,.25);
+        }
+
+        .hero h1 {
+            font-family: 'Instrument Serif', Georgia, serif;
+            font-size: clamp(2.2rem, 5vw, 3.2rem);
+            font-weight: 400;
+            line-height: 1.15;
+            margin-bottom: 16px;
+        }
+
+        .hero h1 em {
+            font-style: italic;
+            color: var(--accent);
+        }
+
+        .hero p {
+            color: var(--muted);
+            font-size: 1.05rem;
+            max-width: 620px;
+            margin: 0 auto 32px;
+        }
+
+        /* Billing toggle */
+        .billing-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 6px;
+        }
+
+        .billing-toggle button {
+            background: none;
+            border: none;
+            color: var(--muted);
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all .25s;
+        }
+
+        .billing-toggle button.active {
+            background: var(--accent);
+            color: #0a0f14;
+        }
+
+        .save-tag {
+            font-size: 12px;
+            color: var(--gold);
+            font-weight: 600;
+        }
+
+        /* View tabs */
+        .view-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 40px 0 32px;
+            flex-wrap: wrap;
+        }
+
+        .view-tabs button {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 22px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .view-tabs button.active {
+            background: var(--surface-2);
+            color: var(--text);
+            border-color: rgba(255,255,255,.15);
+        }
+
+        .view-tabs button:hover:not(.active) {
+            color: var(--text);
+            border-color: rgba(255,255,255,.12);
+        }
+
+        /* Plans grid */
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            align-items: stretch;
+        }
+
+        @media (max-width: 960px) {
+            .plans-grid { grid-template-columns: 1fr; max-width: 420px; margin: 0 auto; }
+        }
+
+        .plan-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 32px 28px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: transform .3s, box-shadow .3s, border-color .3s;
+            cursor: pointer;
+        }
+
+        .plan-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow);
+        }
+
+        .plan-card.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px var(--accent), var(--shadow);
+        }
+
+        .plan-card.featured {
+            border-color: rgba(37,211,102,.4);
+            background: linear-gradient(180deg, rgba(37,211,102,.06) 0%, var(--surface) 40%);
+        }
+
+        .plan-card.featured::before {
+            content: 'Más popular';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent);
+            color: #0a0f14;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            padding: 4px 14px;
+            border-radius: 999px;
+        }
+
+        .plan-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+
+        .plan-card[data-plan="starter"] .plan-icon { background: rgba(59,130,246,.15); }
+        .plan-card[data-plan="pro"] .plan-icon { background: rgba(37,211,102,.15); }
+        .plan-card[data-plan="enterprise"] .plan-icon { background: rgba(168,85,247,.15); }
+
+        .plan-name {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .plan-title {
+            font-family: 'Instrument Serif', Georgia, serif;
+            font-size: 1.75rem;
+            font-weight: 400;
+            margin-bottom: 6px;
+        }
+
+        .plan-desc {
+            font-size: 14px;
+            color: var(--muted);
+            margin-bottom: 24px;
+            min-height: 44px;
+        }
+
+        .plan-price {
+            margin-bottom: 8px;
+        }
+
+        .plan-price .amount {
+            font-size: 2.75rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .plan-price .currency {
+            font-size: 1.25rem;
+            font-weight: 600;
+            vertical-align: super;
+            margin-right: 2px;
+        }
+
+        .plan-price .period {
+            font-size: 14px;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .plan-price .from-label {
+            font-size: 13px;
+            color: var(--muted);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .annual-note {
+            font-size: 12px;
+            color: var(--gold);
+            margin-bottom: 24px;
+            min-height: 18px;
+        }
+
+        .plan-cta {
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all .2s;
+            margin-bottom: 28px;
+        }
+
+        .plan-card[data-plan="starter"] .plan-cta {
+            background: var(--surface-2);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .plan-card[data-plan="pro"] .plan-cta {
+            background: var(--accent);
+            color: #0a0f14;
+        }
+
+        .plan-card[data-plan="enterprise"] .plan-cta {
+            background: linear-gradient(135deg, #a855f7, #6366f1);
+            color: #fff;
+        }
+
+        .plan-cta:hover { filter: brightness(1.08); transform: scale(1.01); }
+
+        .features-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: var(--muted);
+            margin-bottom: 14px;
+        }
+
+        .feature-list {
+            list-style: none;
+            flex: 1;
+        }
+
+        .feature-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 14px;
+            padding: 7px 0;
+            border-bottom: 1px solid rgba(255,255,255,.04);
+        }
+
+        .feature-list li:last-child { border-bottom: none; }
+
+        .feature-list .icon {
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            margin-top: 2px;
+        }
+
+        .feature-list .icon.yes { background: rgba(37,211,102,.2); color: var(--accent); }
+        .feature-list .icon.no { background: rgba(241,92,109,.15); color: var(--red); }
+        .feature-list .icon.partial { background: rgba(245,158,11,.15); color: var(--gold); }
+
+        .feature-list li.excluded { color: var(--muted); }
+
+        .feature-list .tag {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .tag-limited { background: rgba(245,158,11,.15); color: var(--gold); }
+        .tag-full { background: rgba(37,211,102,.15); color: var(--accent); }
+
+        /* Comparison table */
+        .comparison-panel {
+            display: none;
+            animation: fadeIn .4s ease;
+        }
+
+        .comparison-panel.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .comparison-table-wrap {
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface);
+        }
+
+        table.comparison {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        table.comparison th,
+        table.comparison td {
+            padding: 14px 18px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        table.comparison th {
+            background: var(--surface-2);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        table.comparison th:first-child,
+        table.comparison td:first-child {
+            min-width: 240px;
+            color: var(--muted);
+        }
+
+        table.comparison td:not(:first-child) { text-align: center; }
+
+        table.comparison tr:last-child td { border-bottom: none; }
+
+        table.comparison tr:hover td { background: rgba(255,255,255,.02); }
+
+        .cell-yes { color: var(--accent); font-weight: 600; }
+        .cell-no { color: var(--red); opacity: .7; }
+        .cell-partial { color: var(--gold); font-weight: 500; }
+
+        .category-row td {
+            background: rgba(255,255,255,.03) !important;
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--muted) !important;
+        }
+
+        /* Selected plan summary */
+        .selection-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(18,26,34,.95);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid var(--border);
+            padding: 16px 24px;
+            transform: translateY(100%);
+            transition: transform .35s cubic-bezier(.4,0,.2,1);
+            z-index: 100;
+        }
+
+        .selection-bar.visible { transform: translateY(0); }
+
+        .selection-bar-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .selection-info strong { color: var(--accent); }
+
+        .selection-bar button {
+            background: var(--accent);
+            color: #0a0f14;
+            border: none;
+            font-family: inherit;
+            font-weight: 700;
+            padding: 12px 28px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .selection-bar .close-sel {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        /* FAQ */
+        .faq {
+            margin-top: 64px;
+        }
+
+        .faq h2 {
+            font-family: 'Instrument Serif', Georgia, serif;
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .faq-item {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            background: var(--surface);
+        }
+
+        .faq-q {
+            width: 100%;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            text-align: left;
+            padding: 18px 22px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .faq-q:hover { background: rgba(255,255,255,.02); }
+
+        .faq-q .arrow {
+            transition: transform .25s;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .faq-item.open .faq-q .arrow { transform: rotate(180deg); }
+
+        .faq-a {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height .35s ease;
+        }
+
+        .faq-item.open .faq-a { max-height: 600px; }
+
+        .faq-a p,
+        .faq-a ul {
+            padding: 0 22px 18px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .faq-a ul {
+            padding-left: 40px;
+            margin-top: -8px;
+        }
+
+        .faq-a li { margin-bottom: 6px; }
+
+        .faq-a p:last-child,
+        .faq-a ul:last-child { padding-bottom: 18px; }
+
+        /* Costos y riesgos */
+        .info-sections {
+            margin-top: 64px;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+
+        .info-sections > h2 {
+            font-family: 'Instrument Serif', Georgia, serif;
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .info-sections > .section-lead {
+            text-align: center;
+            color: var(--muted);
+            font-size: 15px;
+            max-width: 720px;
+            margin: 0 auto 24px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .info-grid { grid-template-columns: 1fr; }
+        }
+
+        .info-card {
+            border-radius: var(--radius);
+            padding: 28px;
+            border: 1px solid var(--border);
+        }
+
+        .info-card.costs {
+            background: linear-gradient(135deg, rgba(59,130,246,.08), var(--surface));
+            border-color: rgba(59,130,246,.25);
+        }
+
+        .info-card.risks {
+            background: linear-gradient(135deg, rgba(241,92,109,.08), var(--surface));
+            border-color: rgba(241,92,109,.25);
+        }
+
+        .info-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-card .card-sub {
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 20px;
+        }
+
+        .info-card ul {
+            list-style: none;
+            font-size: 14px;
+        }
+
+        .info-card ul li {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,.05);
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .info-card ul li:last-child { border-bottom: none; }
+
+        .info-card .li-icon { flex-shrink: 0; margin-top: 2px; }
+
+        .cost-table {
+            width: 100%;
+            font-size: 13px;
+            margin: 16px 0;
+            border-collapse: collapse;
+        }
+
+        .cost-table th,
+        .cost-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,.06);
+        }
+
+        .cost-table th {
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+        }
+
+        .cost-table td:last-child { text-align: right; white-space: nowrap; }
+
+        .disclaimer-box {
+            background: rgba(245,158,11,.08);
+            border: 1px solid rgba(245,158,11,.25);
+            border-radius: 12px;
+            padding: 16px 20px;
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 20px;
+        }
+
+        .disclaimer-box strong { color: var(--gold); }
+
+        .risk-level {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .risk-high { background: rgba(241,92,109,.2); color: var(--red); }
+        .risk-med { background: rgba(245,158,11,.2); color: var(--gold); }
+        .risk-low { background: rgba(37,211,102,.15); color: var(--accent); }
+
+        .tips-list {
+            margin-top: 16px;
+            padding: 16px;
+            background: rgba(37,211,102,.06);
+            border-radius: 10px;
+            border: 1px solid rgba(37,211,102,.15);
+        }
+
+        .tips-list h4 {
+            font-size: 13px;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .tips-list ul {
+            font-size: 13px;
+            color: var(--muted);
+            padding-left: 18px;
+            list-style: disc;
+        }
+
+        .tips-list li { margin-bottom: 4px; border: none; padding: 0; display: list-item; }
+
+        .hero-notice {
+            display: inline-flex;
+            align-items: flex-start;
+            gap: 10px;
+            text-align: left;
+            max-width: 640px;
+            margin: 24px auto 0;
+            padding: 14px 18px;
+            background: rgba(245,158,11,.08);
+            border: 1px solid rgba(245,158,11,.2);
+            border-radius: 12px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .hero-notice strong { color: var(--gold); }
+
+        .info-panel { display: none; animation: fadeIn .4s ease; }
+        .info-panel.active { display: block; }
+
+        /* Cards panel toggle */
+        .cards-panel { display: block; }
+        .cards-panel.hidden { display: none; }
+
+        .footnote {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .footnote a { color: var(--accent); }
+    </style>
+</head>
+<body>
+
+<div class="wrap">
+    <header class="hero">
+        <div class="badge">💬 Bot WhatsApp + Panel Admin</div>
+        <h1>Elige el plan que <em>crece contigo</em></h1>
+        <p>Automatiza ventas, atiende clientes y gestiona pedidos desde WhatsApp. Compara qué incluye cada plan y qué queda fuera.</p>
+
+        <div class="hero-notice">
+            <span>⚠️</span>
+            <span>Los precios de los planes cubren <strong>solo la plataforma</strong> (bot + panel). Los consumos de mensajes y plantillas de Meta/WhatsApp se facturan <strong>aparte</strong>. <a href="#costos-meta" style="color:var(--gold);">Ver costos adicionales ↓</a></span>
+        </div>
+
+        <div class="billing-toggle" role="group" aria-label="Periodo de facturación">
+            <button type="button" class="active" data-billing="monthly">Mensual</button>
+            <button type="button" data-billing="annual">Anual <span class="save-tag">−15%</span></button>
+        </div>
+    </header>
+
+    <div class="view-tabs">
+        <button type="button" class="active" data-view="cards">Ver planes</button>
+        <button type="button" data-view="comparison">Comparativa detallada</button>
+        <button type="button" data-view="costs">Costos y riesgos</button>
+    </div>
+
+    <!-- Tarjetas de planes -->
+    <section class="cards-panel" id="cardsPanel">
+        <div class="plans-grid">
+
+            <!-- STARTER $60 -->
+            <article class="plan-card" data-plan="starter" data-monthly="60" data-annual="51">
+                <div class="plan-icon">🚀</div>
+                <div class="plan-name">Plan Esencial</div>
+                <h2 class="plan-title">Starter</h2>
+                <p class="plan-desc">Todo el bot y el panel admin para operar tu negocio por WhatsApp, sin campañas masivas.</p>
+
+                <div class="plan-price">
+                    <span class="amount"><span class="currency">$</span><span class="price-value">60</span></span>
+                    <span class="period">/ mes</span>
+                </div>
+                <div class="annual-note" data-annual-text="Facturación anual: $612/año"></div>
+
+                <button type="button" class="plan-cta" data-select="starter">Elegir Starter</button>
+
+                <div class="features-label">Incluye</div>
+                <ul class="feature-list">
+                    <li><span class="icon yes">✓</span> Bot de WhatsApp 24/7 con menús y botones</li>
+                    <li><span class="icon yes">✓</span> Flujo de marketing completo (saludo, catálogo, pedidos…)</li>
+                    <li><span class="icon yes">✓</span> Catálogo de productos y categorías</li>
+                    <li><span class="icon yes">✓</span> Carrito, checkout y gestión de pedidos</li>
+                    <li><span class="icon yes">✓</span> Panel de chat en vivo con alerta de asesor</li>
+                    <li><span class="icon yes">✓</span> Palabras clave y respuestas automáticas</li>
+                    <li><span class="icon yes">✓</span> Configuración del bot (nombre, avatar, mensajes)</li>
+                    <li><span class="icon yes">✓</span> Estadísticas básicas por contacto en el chat</li>
+                    <li><span class="icon yes">✓</span> <strong>3 usuarios</strong> admin <span class="tag tag-limited">Límite</span></li>
+                    <li class="excluded"><span class="icon no">✕</span> Envío de plantillas masivas</li>
+                    <li class="excluded"><span class="icon no">✕</span> Recepción de imágenes/PDF del cliente en flujo</li>
+                    <li class="excluded"><span class="icon no">✕</span> Comprobantes de pago por WhatsApp</li>
+                    <li class="excluded"><span class="icon no">✕</span> Integraciones externas</li>
+                    <li class="excluded"><span class="icon no">✕</span> Reportes avanzados</li>
+                </ul>
+            </article>
+
+            <!-- PRO $90 -->
+            <article class="plan-card featured selected" data-plan="pro" data-monthly="90" data-annual="77">
+                <div class="plan-icon">⚡</div>
+                <div class="plan-name">Plan Profesional</div>
+                <h2 class="plan-title">Pro</h2>
+                <p class="plan-desc">Ideal para negocios que venden, cobran comprobantes y hacen marketing activo por WhatsApp.</p>
+
+                <div class="plan-price">
+                    <span class="amount"><span class="currency">$</span><span class="price-value">90</span></span>
+                    <span class="period">/ mes</span>
+                </div>
+                <div class="annual-note" data-annual-text="Facturación anual: $918/año"></div>
+
+                <button type="button" class="plan-cta" data-select="pro">Elegir Pro</button>
+
+                <div class="features-label">Todo lo de Starter, más</div>
+                <ul class="feature-list">
+                    <li><span class="icon yes">✓</span> <strong>5 usuarios</strong> admin <span class="tag tag-full">Ampliado</span></li>
+                    <li><span class="icon yes">✓</span> Cliente envía <strong>imágenes y PDF</strong> (comprobantes, documentos)</li>
+                    <li><span class="icon yes">✓</span> Flujo de comprobante de pago configurable</li>
+                    <li><span class="icon yes">✓</span> <strong>Plantillas masivas</strong> y campañas de marketing</li>
+                    <li><span class="icon yes">✓</span> Envío programado a contactos segmentados</li>
+                    <li><span class="icon yes">✓</span> Imágenes en productos y cabeceras del flujo</li>
+                    <li><span class="icon yes">✓</span> Alertas de monitoreo (WhatsApp / email)</li>
+                    <li><span class="icon yes">✓</span> Soporte por ticket (48 h hábiles)</li>
+                    <li class="excluded"><span class="icon no">✕</span> Integraciones con ERP, CRM o APIs custom</li>
+                    <li class="excluded"><span class="icon no">✕</span> Reportes ejecutivos y exportación avanzada</li>
+                    <li class="excluded"><span class="icon no">✕</span> Ajustes de desarrollo personalizados</li>
+                </ul>
+            </article>
+
+            <!-- ENTERPRISE $130+ -->
+            <article class="plan-card" data-plan="enterprise" data-monthly="130" data-annual="111">
+                <div class="plan-icon">👑</div>
+                <div class="plan-name">Plan Empresarial</div>
+                <h2 class="plan-title">Enterprise</h2>
+                <p class="plan-desc">Para empresas que necesitan integraciones, reportes y acompañamiento cercano de nuestro equipo.</p>
+
+                <div class="plan-price">
+                    <span class="from-label">Desde</span>
+                    <span class="amount"><span class="currency">$</span><span class="price-value">130</span></span>
+                    <span class="period">/ mes</span>
+                </div>
+                <div class="annual-note" data-annual-text="Precio final según integraciones · Anual desde $1.326/año"></div>
+
+                <button type="button" class="plan-cta" data-select="enterprise">Solicitar cotización</button>
+
+                <div class="features-label">Todo lo de Pro, más</div>
+                <ul class="feature-list">
+                    <li><span class="icon yes">✓</span> <strong>Usuarios admin ilimitados</strong> <span class="tag tag-full">Sin límite</span></li>
+                    <li><span class="icon yes">✓</span> <strong>Integraciones</strong> (CRM, ERP, pasarelas, webhooks)</li>
+                    <li><span class="icon yes">✓</span> <strong>Reportes avanzados</strong> y exportación de datos</li>
+                    <li><span class="icon yes">✓</span> Dashboard ejecutivo de ventas y conversaciones</li>
+                    <li><span class="icon yes">✓</span> ChatGPT / IA conversacional (si aplica)</li>
+                    <li><span class="icon yes">✓</span> <strong>Ajustes menores</strong> incluidos (textos, flujos, campos)</li>
+                    <li><span class="icon yes">✓</span> Soporte prioritario y canal directo</li>
+                    <li><span class="icon yes">✓</span> Onboarding personalizado</li>
+                    <li><span class="icon yes">✓</span> Revisiones mensuales de rendimiento</li>
+                    <li><span class="icon partial">~</span> Desarrollos mayores se cotizan aparte</li>
+                </ul>
+            </article>
+        </div>
+    </section>
+
+    <!-- Tabla comparativa -->
+    <section class="comparison-panel" id="comparisonPanel">
+        <div class="comparison-table-wrap">
+            <table class="comparison">
+                <thead>
+                    <tr>
+                        <th>Funcionalidad</th>
+                        <th>Starter<br><small>$60/mes</small></th>
+                        <th>Pro<br><small>$90/mes</small></th>
+                        <th>Enterprise<br><small>desde $130/mes</small></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="category-row"><td colspan="4">Bot y conversación</td></tr>
+                    <tr>
+                        <td>Bot automático 24/7 (menús, botones, listas)</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Flujo de marketing editable (10 pasos)</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Palabras clave y respuestas automáticas</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Derivación a asesor humano + alerta en panel</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Cliente envía imágenes / PDF (comprobantes, docs)</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>IA conversacional (ChatGPT)</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-partial">Opcional</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">Ventas y catálogo</td></tr>
+                    <tr>
+                        <td>Catálogo por categorías y búsqueda por SKU</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Carrito, checkout y confirmación de pedido</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Comprobante de pago en flujo de venta</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Imágenes en productos y mensajes del flujo</td>
+                        <td class="cell-partial">Solo salida</td>
+                        <td class="cell-yes">Entrada y salida</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Promociones y precios especiales</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">Panel de administración</td></tr>
+                    <tr>
+                        <td>Chat en vivo (responder como humano)</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Gestión de pedidos y estados</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Usuarios admin en el panel</td>
+                        <td class="cell-partial">3</td>
+                        <td class="cell-partial">5</td>
+                        <td class="cell-yes">Ilimitados</td>
+                    </tr>
+                    <tr>
+                        <td>Estadísticas por contacto (chat)</td>
+                        <td class="cell-yes">Básicas</td>
+                        <td class="cell-yes">Básicas</td>
+                        <td class="cell-yes">Avanzadas</td>
+                    </tr>
+                    <tr>
+                        <td>Reportes ejecutivos y exportación</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">Marketing</td></tr>
+                    <tr>
+                        <td>Envío de plantillas masivas / campañas</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Segmentación y envío programado</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Alertas de monitoreo (nuevo mensaje)</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">Integraciones y soporte</td></tr>
+                    <tr>
+                        <td>Integraciones (CRM, ERP, APIs, webhooks)</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Ajustes menores incluidos (sin costo extra)</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Soporte</td>
+                        <td class="cell-partial">Email · 72 h</td>
+                        <td class="cell-partial">Ticket · 48 h</td>
+                        <td class="cell-yes">Prioritario · directo</td>
+                    </tr>
+                    <tr>
+                        <td>Onboarding y revisiones mensuales</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Costos Meta y riesgos -->
+    <section class="info-panel" id="costsPanel">
+        <div class="info-sections">
+            <h2 id="costos-meta">Costos adicionales y riesgos</h2>
+            <p class="section-lead">Tu plan mensual no incluye lo que cobra Meta por usar WhatsApp Business API. Tampoco elimina el riesgo de restricción o bloqueo del número si se incumplen las políticas.</p>
+
+            <div class="info-grid">
+                <!-- Costos -->
+                <article class="info-card costs">
+                    <h3>💳 Costos que pagas aparte del plan</h3>
+                    <p class="card-sub">Facturados por Meta (o tu proveedor BSP) según consumo real. Varían por país, categoría y volumen.</p>
+
+                    <table class="cost-table">
+                        <thead>
+                            <tr>
+                                <th>Tipo de consumo</th>
+                                <th>Quién paga</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Conversaciones iniciadas por el cliente</strong><br><small>El usuario te escribe primero; el bot responde dentro de la ventana de 24 h</small></td>
+                                <td>Meta · tarifa por conversación*</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Conversaciones iniciadas por la empresa</strong><br><small>Tú envías plantilla o mensaje fuera de la ventana de 24 h</small></td>
+                                <td>Meta · tarifa más alta*</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Plantillas de marketing</strong><br><small>Campañas masivas, promociones, recordatorios (plan Pro+)</small></td>
+                                <td>Meta · por cada envío*</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Plantillas utilitarias</strong><br><small>Confirmación de pedido, aviso de pago, actualización de estado</small></td>
+                                <td>Meta · tarifa utilidad*</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Plantillas de autenticación</strong><br><small>Códigos OTP o verificación (si aplica)</small></td>
+                                <td>Meta · tarifa autenticación*</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Multimedia saliente</strong><br><small>Imágenes, documentos, audio enviados por el bot o el panel</small></td>
+                                <td>Incluido en la conversación*</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Número / línea WhatsApp Business API</strong><br><small>Registro, verificación y mantenimiento del canal</small></td>
+                                <td>Proveedor / Meta</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <ul>
+                        <li><span class="li-icon">📊</span><span><strong>Referencia orientativa (Latam):</strong> las conversaciones de marketing suelen costar más que las de servicio/utilidad. Meta publica tarifas actualizadas por país en su sitio oficial; pueden cambiar sin previo aviso.</span></li>
+                        <li><span class="li-icon">🆓</span><span><strong>Ventana gratuita de 24 h:</strong> cuando el cliente te escribe, puedes responder con mensajes de sesión (texto, botones, listas) durante 24 horas sin abrir una nueva conversación de plantilla — pero Meta puede cobrar la conversación según su modelo vigente en tu región.</span></li>
+                        <li><span class="li-icon">📈</span><span><strong>A mayor volumen, mayor factura:</strong> un bot con mucho tráfico o campañas masivas frecuentes puede generar costos de Meta superiores al valor del plan de plataforma.</span></li>
+                    </ul>
+
+                    <div class="disclaimer-box">
+                        <strong>Importante:</strong> Nosotros cobramos el plan de la plataforma ($60 / $90 / $130+). Los cargos de Meta por mensajes, conversaciones y plantillas son responsabilidad del cliente y se liquidan según el proveedor de API configurado. Solicita un estimado de consumo antes de lanzar campañas masivas.
+                    </div>
+                </article>
+
+                <!-- Riesgos -->
+                <article class="info-card risks">
+                    <h3>🚫 Riesgos si bloquean tu WhatsApp</h3>
+                    <p class="card-sub">Meta puede limitar, suspender o bloquear permanentemente un número. La plataforma no garantiza que esto no ocurra.</p>
+
+                    <ul>
+                        <li>
+                            <span class="li-icon">⛔</span>
+                            <span><strong>Envío masivo no solicitado (spam)</strong> — contactar personas que no te escribieron ni dieron consentimiento</span>
+                            <span class="risk-level risk-high">Alto</span>
+                        </li>
+                        <li>
+                            <span class="li-icon">📵</span>
+                            <span><strong>Muchas denuncias o bloqueos</strong> — si los usuarios marcan “Reportar” o “Bloquear” con frecuencia, baja tu calificación de calidad</span>
+                            <span class="risk-level risk-high">Alto</span>
+                        </li>
+                        <li>
+                            <span class="li-icon">📋</span>
+                            <span><strong>Plantillas rechazadas o mal usadas</strong> — contenido promocional en plantilla de utilidad, enlaces no permitidos, categoría incorrecta</span>
+                            <span class="risk-level risk-high">Alto</span>
+                        </li>
+                        <li>
+                            <span class="li-icon">📱</span>
+                            <span><strong>Usar WhatsApp personal para negocio a escala</strong> — migrar un número con historial de uso irregular a API sin cumplir políticas</span>
+                            <span class="risk-level risk-med">Medio</span>
+                        </li>
+                        <li>
+                            <span class="li-icon">🔴</span>
+                            <span><strong>Calidad del número en rojo</strong> — Meta restringe envíos; persistir puede llevar a suspensión del Business Manager</span>
+                            <span class="risk-level risk-high">Alto</span>
+                        </li>
+                        <li>
+                            <span class="li-icon">⚖️</span>
+                            <span><strong>Contenido prohibido</strong> — productos/servicios vetados, información engañosa, suplantación de identidad</span>
+                            <span class="risk-level risk-high">Alto</span>
+                        </li>
+                        <li>
+                            <span class="li-icon">🤖</span>
+                            <span><strong>Automatización agresiva</strong> — respuestas repetitivas, mensajes fuera de horario sin opt-in, bots que no ofrecen salida a humano</span>
+                            <span class="risk-level risk-med">Medio</span>
+                        </li>
+                        <li>
+                            <span class="li-icon">💸</span>
+                            <span><strong>Impago con Meta/proveedor</strong> — deuda en la cuenta de API puede cortar el servicio de mensajería</span>
+                            <span class="risk-level risk-med">Medio</span>
+                        </li>
+                    </ul>
+
+                    <div class="disclaimer-box">
+                        <strong>Consecuencias posibles:</strong> límite de envíos diarios, rechazo de plantillas, número desconectado de la API, restricción del WhatsApp Business Manager o <strong>pérdida definitiva del número</strong>. Recuperar un número bloqueado no siempre es posible.
+                    </div>
+
+                    <div class="tips-list">
+                        <h4>✅ Cómo reducir el riesgo</h4>
+                        <ul>
+                            <li>Solo escribe a contactos que te hayan escrito antes o hayan aceptado recibir mensajes.</li>
+                            <li>Usa plantillas masivas (plan Pro) con moderación y segmentación, no listas frías.</li>
+                            <li>Ofrece siempre opción de hablar con un humano y de dejar de recibir promociones.</li>
+                            <li>Revisa la calidad del número en Meta Business Suite regularmente.</li>
+                            <li>Asegura que tus plantillas coinciden con su categoría (marketing vs utilidad).</li>
+                            <li>No compartas el mismo número para spam y soporte sin estrategia clara.</li>
+                            <li>Mantén saldo o método de pago activo en la cuenta de Meta/API.</li>
+                        </ul>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="faq">
+        <h2>Preguntas frecuentes</h2>
+
+        <div class="faq-item">
+            <button type="button" class="faq-q">¿El precio del plan incluye los mensajes de WhatsApp?<span class="arrow">▼</span></button>
+            <div class="faq-a">
+                <p><strong>No.</strong> El plan ($60, $90 o $130+) cubre únicamente la plataforma: bot, panel admin, usuarios y funciones descritas. Por separado debes pagar a Meta (directamente o vía proveedor BSP) por:</p>
+                <ul>
+                    <li>Conversaciones entrantes y salientes</li>
+                    <li>Plantillas de marketing, utilidad y autenticación</li>
+                    <li>Mantenimiento del número en WhatsApp Business API</li>
+                </ul>
+                <p>El monto depende del país, la categoría del mensaje y cuántos contactos escribes. Un bot con alto tráfico puede generar una factura de Meta mayor que el plan de software.</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <button type="button" class="faq-q">¿Cuánto cuestan las plantillas masivas en el plan Pro?<span class="arrow">▼</span></button>
+            <div class="faq-a">
+                <p>Las plantillas masivas no tienen costo en nuestro plan Pro — <strong>la función está incluida</strong>. Pero cada envío exitoso genera un cargo de Meta según la categoría de la plantilla (marketing suele ser la más cara). Antes de una campaña grande, estima: (contactos × tarifa Meta por país). Nosotros no controlamos ni absorbemos esos cargos.</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <button type="button" class="faq-q">¿Pueden bloquearme el WhatsApp al usar el bot?<span class="arrow">▼</span></button>
+            <div class="faq-a">
+                <p><strong>Sí, es un riesgo real.</strong> Meta puede limitar o bloquear números que violen sus políticas. Causas frecuentes:</p>
+                <ul>
+                    <li>Enviar promociones a personas que no te contactaron (spam)</li>
+                    <li>Alta tasa de reportes y bloqueos por parte de usuarios</li>
+                    <li>Plantillas mal categorizadas o con contenido no permitido</li>
+                    <li>Calidad del número en estado amarillo o rojo sin corregir</li>
+                </ul>
+                <p>La plataforma facilita el envío responsable, pero <strong>el cumplimiento de las políticas de Meta es responsabilidad del titular del negocio</strong>. Un bloqueo puede implicar perder el número y no siempre hay recuperación.</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <button type="button" class="faq-q">¿Qué pasa si me bloquean mientras pago el plan?<span class="arrow">▼</span></button>
+            <div class="faq-a">
+                <p>El plan de plataforma y los cargos de Meta son independientes. Si Meta suspende tu número, el bot deja de enviar/recibir mensajes hasta regularizar la situación con Meta — aunque sigas pagando el plan. Te asesoramos en buenas prácticas, pero no podemos revertir sanciones de Meta ni garantizar la continuidad del número.</p>
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <button type="button" class="faq-q">¿Qué significa que Starter no incluye plantillas masivas?<span class="arrow">▼</span></button>
+            <div class="faq-a"><p>En el plan Starter el bot responde cuando el cliente escribe (conversación entrante). No puedes enviar campañas masivas ni plantillas aprobadas por Meta a listas de contactos. Eso está disponible desde el plan Pro.</p></div>
+        </div>
+
+        <div class="faq-item">
+            <button type="button" class="faq-q">¿Qué son las imágenes del cliente en el plan Pro?<span class="arrow">▼</span></button>
+            <div class="faq-a"><p>El cliente puede enviar fotos o PDF por WhatsApp — por ejemplo comprobantes de transferencia, documentos o capturas. El bot los procesa dentro del flujo de venta. En Starter solo recibes texto; las imágenes entrantes no activan flujos automáticos.</p></div>
+        </div>
+
+        <div class="faq-item">
+            <button type="button" class="faq-q">¿Por qué Enterprise dice "desde $130"?<span class="arrow">▼</span></button>
+            <div class="faq-a"><p>El precio base cubre integraciones estándar, reportes y soporte personalizado. Si necesitas conexiones complejas (ERP custom, múltiples APIs, desarrollos a medida), el valor se ajusta según alcance. Los ajustes menores (textos, botones, campos del flujo) van incluidos.</p></div>
+        </div>
+
+        <div class="faq-item">
+            <button type="button" class="faq-q">¿Puedo cambiar de plan después?<span class="arrow">▼</span></button>
+            <div class="faq-a"><p>Sí. Puedes subir de Starter a Pro o Enterprise en cualquier momento. Al bajar de plan, las funciones no incluidas se desactivan pero tus datos (contactos, pedidos, productos) se conservan.</p></div>
+        </div>
+
+        <div class="faq-item">
+            <button type="button" class="faq-q">¿El precio incluye la API de WhatsApp Business?<span class="arrow">▼</span></button>
+            <div class="faq-a"><p>No. Los planes cubren la plataforma (bot + panel). Los costos de Meta por conversaciones y plantillas se facturan aparte según el uso. Consulta la pestaña <strong>Costos y riesgos</strong> para el detalle.</p></div>
+        </div>
+    </section>
+
+    <p class="footnote">
+        Los precios de planes no incluyen consumos de Meta/WhatsApp. El uso responsable del canal es responsabilidad del cliente.
+        · <a href="#costos-meta">Costos adicionales</a>
+        · <a href="QUE-OFRECE-EL-BOT-AL-CLIENTE.md">Guía de funcionalidades</a>
+    </p>
+</div>
+
+<!-- Barra de selección -->
+<div class="selection-bar visible" id="selectionBar">
+    <div class="selection-bar-inner">
+        <div class="selection-info">
+            Plan seleccionado: <strong id="selectedPlanName">Pro</strong> —
+            <strong id="selectedPlanPrice">$90</strong><span id="selectedPlanPeriod">/mes</span>
+        </div>
+        <div style="display:flex;gap:10px;">
+            <button type="button" class="close-sel" id="clearSelection">Cambiar</button>
+            <button type="button" id="confirmPlan">Continuar con este plan</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const planNames = { starter: 'Starter', pro: 'Pro', enterprise: 'Enterprise' };
+    let billing = 'monthly';
+    let selectedPlan = 'pro';
+
+    const cards = document.querySelectorAll('.plan-card');
+    const billingBtns = document.querySelectorAll('[data-billing]');
+    const viewBtns = document.querySelectorAll('[data-view]');
+    const cardsPanel = document.getElementById('cardsPanel');
+    const comparisonPanel = document.getElementById('comparisonPanel');
+    const costsPanel = document.getElementById('costsPanel');
+    const selectionBar = document.getElementById('selectionBar');
+    const selectedPlanName = document.getElementById('selectedPlanName');
+    const selectedPlanPrice = document.getElementById('selectedPlanPrice');
+    const selectedPlanPeriod = document.getElementById('selectedPlanPeriod');
+
+    function getPrice(card) {
+        const monthly = parseInt(card.dataset.monthly, 10);
+        const annual = parseInt(card.dataset.annual, 10);
+        return billing === 'monthly' ? monthly : annual;
+    }
+
+    function updatePrices() {
+        cards.forEach(card => {
+            const priceEl = card.querySelector('.price-value');
+            const noteEl = card.querySelector('.annual-note');
+            const price = getPrice(card);
+            priceEl.textContent = price;
+
+            if (billing === 'annual' && noteEl.dataset.annualText) {
+                noteEl.textContent = noteEl.dataset.annualText;
+            } else {
+                noteEl.textContent = billing === 'annual' ? 'Precio mensual equivalente (pago anual)' : '';
+            }
+        });
+        updateSelectionBar();
+    }
+
+    function selectPlan(planId) {
+        selectedPlan = planId;
+        cards.forEach(c => c.classList.toggle('selected', c.dataset.plan === planId));
+        updateSelectionBar();
+        selectionBar.classList.add('visible');
+    }
+
+    function updateSelectionBar() {
+        const card = document.querySelector(`.plan-card[data-plan="${selectedPlan}"]`);
+        if (!card) return;
+        selectedPlanName.textContent = planNames[selectedPlan];
+        selectedPlanPrice.textContent = '$' + getPrice(card);
+        selectedPlanPeriod.textContent = billing === 'monthly' ? '/mes' : '/mes (anual)';
+    }
+
+    billingBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            billing = btn.dataset.billing;
+            billingBtns.forEach(b => b.classList.toggle('active', b === btn));
+            updatePrices();
+        });
+    });
+
+    viewBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const view = btn.dataset.view;
+            viewBtns.forEach(b => b.classList.toggle('active', b === btn));
+            cardsPanel.classList.toggle('hidden', view !== 'cards');
+            comparisonPanel.classList.toggle('active', view === 'comparison');
+            costsPanel.classList.toggle('active', view === 'costs');
+            if (view === 'costs') {
+                document.getElementById('costos-meta')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+
+    cards.forEach(card => {
+        card.addEventListener('click', e => {
+            if (e.target.closest('.plan-cta')) return;
+            selectPlan(card.dataset.plan);
+        });
+    });
+
+    document.querySelectorAll('[data-select]').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            selectPlan(btn.dataset.select);
+            if (btn.dataset.select === 'enterprise') {
+                alert('Plan Enterprise: contáctanos para una cotización personalizada según tus integraciones.');
+            } else {
+                alert('Plan ' + planNames[btn.dataset.select] + ' seleccionado. En producción este botón llevaría al checkout o formulario de contacto.');
+            }
+        });
+    });
+
+    document.getElementById('confirmPlan').addEventListener('click', () => {
+        const card = document.querySelector(`.plan-card[data-plan="${selectedPlan}"]`);
+        alert('Has elegido el plan ' + planNames[selectedPlan] + ' por $' + getPrice(card) + '/mes. ¡Gracias por tu interés!');
+    });
+
+    document.getElementById('clearSelection').addEventListener('click', () => {
+        selectionBar.classList.remove('visible');
+        cards.forEach(c => c.classList.remove('selected'));
+    });
+
+    document.querySelectorAll('.faq-q').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const item = btn.closest('.faq-item');
+            const wasOpen = item.classList.contains('open');
+            document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+            if (!wasOpen) item.classList.add('open');
+        });
+    });
+
+    updatePrices();
+})();
+</script>
+
+</body>
+</html>

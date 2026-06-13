@@ -33,7 +33,7 @@ return [
     'phone_number' => env('WHATSAPP_PHONE_NUMBER'),
 
     // Número de WhatsApp para solicitar demo (formato internacional sin +, ej. 593988492339)
-    'demo_whatsapp_number' => env('DEMO_WHATSAPP_NUMBER', '593959520743'),
+    'demo_whatsapp_number' => env('DEMO_WHATSAPP_NUMBER', '593994281769'),
 
     // Phone Number ID (15 dígitos) para llamadas a la API
     'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),

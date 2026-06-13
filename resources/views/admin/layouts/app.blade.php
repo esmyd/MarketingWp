@@ -731,43 +731,71 @@
         <div class="sidebar-inner-scroll">
             <nav class="sidebar-nav sidebar-nav-main">
                 <div class="sidebar-section sidebar-text">Principal</div>
+                @perm('dashboard.menu')
                 <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
                     <i class="fas fa-home"></i>
                     <span class="sidebar-text">Dashboard</span>
                 </a>
+                @endperm
+                @perm('chats.menu')
                 <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chat*') ? 'active' : '' }}">
                     <i class="fas fa-comments"></i>
                     <span class="sidebar-text">Chats</span>
                 </a>
+                @endperm
+                @perm('orders.menu')
                 <a href="{{ route('admin.orders') }}" class="nav-link {{ request()->routeIs('admin.orders*') ? 'active' : '' }}">
                     <i class="fas fa-shopping-cart"></i>
                     <span class="sidebar-text">Pedidos</span>
                 </a>
+                @endperm
             </nav>
 
             <nav class="sidebar-nav sidebar-nav-config">
                 <div class="sidebar-section sidebar-text">Bot y ventas</div>
+                @perm('marketing_flow.menu')
                 <a href="{{ route('admin.marketing-flow.edit') }}" class="nav-link {{ request()->routeIs('admin.marketing-flow*') ? 'active' : '' }}">
                     <i class="fas fa-project-diagram"></i>
                     <span class="sidebar-text">Flujo del bot</span>
                 </a>
-                <a href="{{ route('admin.marketing.index') }}" class="nav-link {{ request()->routeIs('admin.marketing.*') ? 'active' : '' }}">
-                    <i class="fas fa-bullhorn"></i>
-                    <span class="sidebar-text">Campañas</span>
-                </a>
+                @endperm
+                @perm('menus.menu')
                 <a href="{{ route('admin.menus.index') }}" class="nav-link {{ request()->routeIs('admin.menus.*') ? 'active' : '' }}">
                     <i class="fas fa-folder-open"></i>
                     <span class="sidebar-text">Categorías</span>
                 </a>
+                @endperm
+                @perm('products.menu')
                 <a href="{{ route('admin.products.index') }}" class="nav-link {{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
                     <i class="fas fa-box-open"></i>
                     <span class="sidebar-text">Productos</span>
                 </a>
+                @endperm
+                @perm('chatbot.menu')
                 <a href="{{ route('admin.chatbot.config') }}" class="nav-link {{ request()->routeIs('admin.chatbot.config*') ? 'active' : '' }}">
                     <i class="fas fa-sliders-h"></i>
                     <span class="sidebar-text">Configuración</span>
                 </a>
+                @endperm
             </nav>
+
+            @if($canPerm('pricing_settings.menu') || $canPerm('roles.menu') || $canPerm('users.menu'))
+            <nav class="sidebar-nav sidebar-nav-config">
+                <div class="sidebar-section sidebar-text">Plataforma</div>
+                @perm('pricing_settings.menu')
+                <a href="{{ route('admin.pricing-settings.edit') }}" class="nav-link {{ request()->routeIs('admin.pricing-settings*') ? 'active' : '' }}">
+                    <i class="fas fa-tags"></i>
+                    <span class="sidebar-text">Tarifas Meta</span>
+                </a>
+                @endperm
+                @perm('roles.menu')
+                <a href="{{ route('admin.roles.index') }}" class="nav-link {{ request()->routeIs('admin.roles*') ? 'active' : '' }}">
+                    <i class="fas fa-key"></i>
+                    <span class="sidebar-text">Roles y permisos</span>
+                </a>
+                @endperm
+            </nav>
+            @endif
         </div>
 
         <div class="sidebar-footer">
@@ -777,7 +805,7 @@
                 </div>
                 <div class="sidebar-user-details">
                     <span class="sidebar-text sidebar-user-name">{{ Auth::user()->name ?? 'Administrador' }}</span>
-                    <span class="sidebar-text sidebar-user-role">Administrador del sistema</span>
+                    <span class="sidebar-text sidebar-user-role">{{ Auth::user()->roleLabel() }}</span>
                 </div>
             </div>
             <a href="{{ route('admin.profile.show') }}" class="sidebar-profile-link {{ request()->routeIs('admin.profile.*') ? 'active' : '' }}">

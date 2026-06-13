@@ -363,7 +363,8 @@ class AdminController extends Controller
                     'id' => $contact->id,
                     'name' => $contact->name,
                     'phone_number' => $contact->phone_number,
-                    'bot_enabled' => $contact->bot_enabled ?? true
+                    'bot_enabled' => $contact->bot_enabled ?? true,
+                    'needs_agent' => $contact->needsAgent(),
                 ],
                 'messages' => $messages->map(function($msg) {
                     return [
@@ -856,6 +857,8 @@ class AdminController extends Controller
             }
 
             if ($success && $message) {
+                $contact->clearAgentRequest();
+
                 $responseData = [
                     'id' => $message->id,
                     'content' => $message->content,
@@ -877,7 +880,8 @@ class AdminController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => $responseData
+                    'message' => $responseData,
+                    'needs_agent' => false,
                 ]);
             }
 
@@ -942,6 +946,29 @@ class AdminController extends Controller
         }
     }
 
+    public function dismissAgentRequest($contactId)
+    {
+        try {
+            $contact = WhatsappContact::findOrFail($contactId);
+            $contact->clearAgentRequest();
+
+            return response()->json([
+                'success' => true,
+                'needs_agent' => false,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al descartar solicitud de asesor', [
+                'contact_id' => $contactId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo marcar como atendido.',
+            ], 500);
+        }
+    }
+
     public function getContactsList(Request $request)
     {
         $currentContactId = $request->input('current_contact_id');
@@ -950,6 +977,7 @@ class AdminController extends Controller
 
         return response()->json([
             'success' => true,
+            'agent_requests_count' => $contacts->where('needs_agent', true)->count(),
             'contacts' => $contacts->map(function($contact) {
                 return [
                     'id' => $contact->id,
@@ -962,6 +990,7 @@ class AdminController extends Controller
                     'last_message_sort' => $contact->last_message_sort ?? 0,
                     'last_message_label' => $contact->last_message_label ?? '',
                     'has_new_message' => $contact->has_new_message ?? false,
+                    'needs_agent' => $contact->needs_agent ?? false,
                 ];
             })
         ]);
@@ -1010,9 +1039,20 @@ class AdminController extends Controller
             if ($lastMsg && $lastMsg->sender_type === 'client' && $currentContactId !== (int) $contact->id) {
                 $contact->has_new_message = $lastMsg->created_at->isAfter(now()->subHours(24));
             }
+
+            $contact->needs_agent = $contact->needsAgent();
         }
 
-        return $contacts->sortByDesc('last_message_sort')->values();
+        return $contacts->sort(function ($a, $b) {
+            $aAgent = !empty($a->needs_agent) ? 1 : 0;
+            $bAgent = !empty($b->needs_agent) ? 1 : 0;
+
+            if ($aAgent !== $bAgent) {
+                return $bAgent <=> $aAgent;
+            }
+
+            return ($b->last_message_sort ?? 0) <=> ($a->last_message_sort ?? 0);
+        })->values();
     }
 
     public function getNewMessages($contactId, Request $request)

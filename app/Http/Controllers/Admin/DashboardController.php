@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\WhatsappCart;
 use App\Models\WhatsappContact;
 use App\Models\WhatsappMessage;
+use App\Services\ConsumptionReportService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, ConsumptionReportService $consumption)
     {
         [$from, $to, $periodPreset] = $this->resolveReportPeriod($request);
 
@@ -21,34 +22,7 @@ class DashboardController extends Controller
         $prevFrom = $prevTo->copy()->subDays($periodDays - 1)->startOfDay();
 
         $metrics = $this->buildMetrics($from, $to, $prevFrom, $prevTo);
-
-        $messagesData = WhatsappMessage::query()
-            ->select(
-                DB::raw('DATE(created_at) as date'),
-                DB::raw('SUM(CASE WHEN sender_type IN ("system", "humano") THEN 1 ELSE 0 END) as sent'),
-                DB::raw('SUM(CASE WHEN sender_type = "client" THEN 1 ELSE 0 END) as received')
-            )
-            ->whereBetween('created_at', [$from, $to])
-            ->groupBy('date')
-            ->orderBy('date')
-            ->get();
-
-        $ordersByStatus = WhatsappCart::reportable()
-            ->select('status', DB::raw('COUNT(*) as total'))
-            ->whereBetween('created_at', [$from, $to])
-            ->groupBy('status')
-            ->orderByDesc('total')
-            ->get();
-
-        $topProducts = DB::table('whatsapp_cart_items')
-            ->join('whatsapp_carts', 'whatsapp_cart_items.whatsapp_cart_id', '=', 'whatsapp_carts.id')
-            ->whereNotIn('whatsapp_carts.status', ['active', 'abandoned'])
-            ->whereBetween('whatsapp_carts.created_at', [$from, $to])
-            ->select('whatsapp_cart_items.name', DB::raw('SUM(whatsapp_cart_items.quantity) as total'))
-            ->groupBy('whatsapp_cart_items.name')
-            ->orderByDesc('total')
-            ->limit(5)
-            ->get();
+        $consumptionReport = $consumption->build($from, $to);
 
         $orders = WhatsappCart::reportable()
             ->with(['contact'])
@@ -59,31 +33,14 @@ class DashboardController extends Controller
 
         $totalOrdersAllTime = WhatsappCart::reportable()->count();
 
-        $messages = WhatsappMessage::with('contact')
-            ->whereBetween('created_at', [$from, $to])
-            ->latest()
-            ->limit(6)
-            ->get();
-
-        $messageTypesDistribution = WhatsappMessage::query()
-            ->whereBetween('created_at', [$from, $to])
-            ->select('type', DB::raw('COUNT(*) as count'))
-            ->groupBy('type')
-            ->pluck('count', 'type')
-            ->toArray();
-
         return view('admin.dashboard', compact(
             'metrics',
+            'consumptionReport',
             'from',
             'to',
             'periodPreset',
             'totalOrdersAllTime',
-            'messagesData',
-            'ordersByStatus',
-            'topProducts',
-            'orders',
-            'messages',
-            'messageTypesDistribution'
+            'orders'
         ));
     }
 
@@ -92,7 +49,7 @@ class DashboardController extends Controller
      */
     private function resolveReportPeriod(Request $request): array
     {
-        $preset = $request->input('period', 'all');
+        $preset = $request->input('period', 'month');
         $to = Carbon::now()->endOfDay();
 
         if ($request->filled('to')) {
@@ -115,8 +72,9 @@ class DashboardController extends Controller
             '7d' => $to->copy()->subDays(6)->startOfDay(),
             '30d' => $to->copy()->subDays(29)->startOfDay(),
             '90d' => $to->copy()->subDays(89)->startOfDay(),
+            'month' => Carbon::now()->startOfMonth()->startOfDay(),
             'all' => $this->earliestReportDate() ?? $to->copy()->subDays(29)->startOfDay(),
-            default => $to->copy()->subDays(29)->startOfDay(),
+            default => Carbon::now()->startOfMonth()->startOfDay(),
         };
 
         return [$from, $to, $preset];
