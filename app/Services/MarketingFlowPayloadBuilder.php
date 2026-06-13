@@ -36,7 +36,9 @@ class MarketingFlowPayloadBuilder
                 $header,
                 $footer
             ),
-            'text' => WhatsappMessagePayload::text($body),
+            'text' => ($imageUrl = $step->getMessageImageUrl())
+                ? WhatsappMessagePayload::image($imageUrl, $body !== '' ? $body : null)
+                : WhatsappMessagePayload::text($body),
             default => !empty($step->getButtons())
                 ? WhatsappMessagePayload::buttons($body, $step->getButtons(), $header, $footer)
                 : WhatsappMessagePayload::text($body),

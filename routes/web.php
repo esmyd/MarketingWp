@@ -140,6 +140,15 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/products', [App\Http\Controllers\Admin\ProductController::class, 'index'])
         ->middleware('permission:products.view,products.menu')
         ->name('products.index');
+    Route::get('/products/import/template', [App\Http\Controllers\Admin\ProductController::class, 'downloadImportTemplate'])
+        ->middleware('permission:products.update')
+        ->name('products.import.template');
+    Route::get('/products/export', [App\Http\Controllers\Admin\ProductController::class, 'exportCatalog'])
+        ->middleware('permission:products.view')
+        ->name('products.export');
+    Route::post('/products/import', [App\Http\Controllers\Admin\ProductController::class, 'importCatalog'])
+        ->middleware('permission:products.update')
+        ->name('products.import');
     Route::get('/products/create', [App\Http\Controllers\Admin\ProductController::class, 'create'])
         ->middleware('permission:products.update')
         ->name('products.create');

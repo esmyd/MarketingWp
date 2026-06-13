@@ -9,6 +9,7 @@ use App\Models\WhatsappBusinessProfile;
 use App\Models\WhatsappChatbotConfig;
 use App\Models\WhatsappContact;
 use App\Models\WhatsappMenu;
+use App\Models\WhatsappMenuItem;
 use App\Services\Whatsapp\WhatsappMessagePayload;
 use Illuminate\Support\Str;
 
@@ -76,18 +77,10 @@ class MarketingCatalogBuilder
     {
         $menu = WhatsappMenu::where('action_id', 'prices_menu')->first();
         $categories = $menu
-            ? $this->demoCliente->applyCategoryScope(
-                $menu->items()->where('is_active', true)
-            )->count()
+            ? $this->countCategoriesWithProducts($menu)
             : 0;
         $products = $menu
-            ? $this->demoCliente->applyCategoryScope(
-                $menu->items()->where('is_active', true)
-            )->get()->sum(
-                fn ($item) => $this->demoCliente->applyProductScope(
-                    $item->prices()->where('is_active', true)
-                )->count()
-            )
+            ? $this->countVisibleProducts($menu)
             : 0;
 
         $meta = is_array($this->businessProfile?->metadata) ? $this->businessProfile->metadata : [];
@@ -127,11 +120,7 @@ class MarketingCatalogBuilder
             return WhatsappMessagePayload::text('Lo siento, el catálogo no está configurado.');
         }
 
-        $menuItems = $menu->items()
-            ->where('is_active', true)
-            ->when(true, fn ($q) => $this->demoCliente->applyCategoryScope($q))
-            ->orderBy('order')
-            ->get();
+        $menuItems = $this->visibleCatalogCategoriesQuery($menu)->get();
         if ($menuItems->isEmpty()) {
             return WhatsappMessagePayload::text('No hay categorías de productos disponibles.');
         }
@@ -141,9 +130,6 @@ class MarketingCatalogBuilder
             $activeCount = $this->demoCliente->applyProductScope(
                 $menuItem->prices()->where('is_active', true)
             )->count();
-            if ($activeCount === 0) {
-                continue;
-            }
 
             $rows[] = [
                 'id' => 'cat_' . $menuItem->id,
@@ -170,18 +156,41 @@ class MarketingCatalogBuilder
         }
 
         $maxRows = max(1, min(8, (int) ($step->config['max_product_rows'] ?? 8)));
-        $menuItems = $menu->items()
-            ->where('is_active', true)
-            ->when(true, fn ($q) => $this->demoCliente->applyCategoryScope($q))
-            ->orderBy('order');
+        $includeNavigation = $step->config['include_navigation'] ?? true;
 
+        $productCountInScope = null;
         if ($categoryId) {
-            $menuItems->where('id', $categoryId);
+            $categoryItem = $this->visibleCatalogCategoriesQuery($menu)
+                ->where('id', $categoryId)
+                ->first();
+            if ($categoryItem) {
+                $productCountInScope = $this->demoCliente->applyProductScope(
+                    $categoryItem->prices()->where('is_active', true)
+                )->count();
+            }
         }
 
-        $menuItems = $menuItems->get();
+        $needsVerMas = $includeNavigation && $categoryId && ($productCountInScope ?? 0) > $maxRows;
+        $navigationSlots = $includeNavigation
+            ? (($categoryId ? 2 : 2) + ($needsVerMas ? 1 : 0))
+            : 0;
+        $effectiveMaxRows = min($maxRows, max(1, 10 - $navigationSlots));
+
+        $menuItemsQuery = $this->visibleCatalogCategoriesQuery($menu)->orderBy('order');
+
+        if ($categoryId) {
+            $menuItemsQuery->where('id', $categoryId);
+        }
+
+        $menuItems = $menuItemsQuery->get();
 
         if ($menuItems->isEmpty()) {
+            if ($categoryId) {
+                return WhatsappMessagePayload::text(
+                    "No encontramos productos activos en esta categoría.\n\nUse *Catálogo* en el menú principal para ver otras líneas."
+                );
+            }
+
             return WhatsappMessagePayload::text('No hay productos disponibles en esta categoría.');
         }
 
@@ -203,8 +212,8 @@ class MarketingCatalogBuilder
             foreach ($prices as $price) {
                 $rows[] = $this->formatProductRow($price);
                 $totalRows++;
-                if ($totalRows >= $maxRows) {
-                    break 2;
+                if ($totalRows >= $effectiveMaxRows) {
+                    break;
                 }
             }
 
@@ -214,15 +223,104 @@ class MarketingCatalogBuilder
                     'rows' => $rows,
                 ];
             }
+
+            if ($totalRows >= $effectiveMaxRows) {
+                break;
+            }
         }
 
         if ($sections === []) {
+            if ($categoryId) {
+                $categoryTitle = $menuItems->first()?->title ?? 'esta categoría';
+
+                return WhatsappMessagePayload::text(
+                    "No hay productos activos en *{$categoryTitle}* en este momento."
+                );
+            }
+
             return WhatsappMessagePayload::text('No hay productos activos en el catálogo.');
         }
 
-        $sections = $this->appendConfiguredSections($step, $sections, $vars);
+        $sections = $this->appendConfiguredSections(
+            $step,
+            $sections,
+            $vars,
+            $categoryId,
+            $productCountInScope,
+            $totalRows
+        );
+
+        if ($categoryId) {
+            $category = $menuItems->first();
+            $productCount = $productCountInScope ?? $this->demoCliente->applyProductScope(
+                $category->prices()->where('is_active', true)
+            )->count();
+
+            return $this->composeListPayload(
+                $step,
+                $vars,
+                $sections,
+                $this->buildCategoryProductsBody($category, $productCount, $totalRows, $effectiveMaxRows),
+                'Ver productos',
+                [
+                    'type' => 'text',
+                    'text' => Str::limit($category->title, 60),
+                ]
+            );
+        }
 
         return $this->composeListPayload($step, $vars, $sections);
+    }
+
+    protected function buildCategoryProductsBody(
+        WhatsappMenuItem $category,
+        int $productCount,
+        int $shownCount,
+        int $maxRows
+    ): string {
+        $icon = trim((string) ($category->icon ?? ''));
+        $title = trim($category->title);
+        $body = ($icon !== '' ? $icon . ' ' : '') . "*{$title}*";
+
+        if (!empty($category->description)) {
+            $body .= "\n_" . trim($category->description) . '_';
+        }
+
+        $body .= "\n\n";
+
+        if ($productCount > $shownCount && $shownCount >= $maxRows) {
+            $body .= "Mostrando *{$shownCount}* de *{$productCount}* productos.\n";
+            $body .= "Use *Ver más productos* para ver el resto en texto y escribir el SKU.\n\n";
+        } else {
+            $body .= "*{$productCount}* producto(s) disponible(s).\n\n";
+        }
+
+        $body .= 'Seleccione un producto de la lista o escriba el código SKU (ej. *CQ001*).';
+
+        return $body;
+    }
+
+    protected function visibleCatalogCategoriesQuery(WhatsappMenu $menu)
+    {
+        return $this->demoCliente->scopeCategoriesWithVisibleProducts(
+            $this->demoCliente->applyCategoryScope(
+                $menu->items()->where('is_active', true)
+            )
+        );
+    }
+
+    protected function countCategoriesWithProducts(WhatsappMenu $menu): int
+    {
+        return $this->visibleCatalogCategoriesQuery($menu)->count();
+    }
+
+    protected function countVisibleProducts(WhatsappMenu $menu): int
+    {
+        return $this->visibleCatalogCategoriesQuery($menu)
+            ->get()
+            ->sum(fn (WhatsappMenuItem $item) => $this->demoCliente->applyProductScope(
+                $item->prices()->where('is_active', true)
+            )->count());
     }
 
     protected function formatProductRow($price): array
@@ -249,8 +347,14 @@ class MarketingCatalogBuilder
         ];
     }
 
-    protected function appendConfiguredSections(MarketingFlowStep $step, array $sections, array $vars): array
-    {
+    protected function appendConfiguredSections(
+        MarketingFlowStep $step,
+        array $sections,
+        array $vars,
+        ?int $categoryId = null,
+        ?int $productCount = null,
+        int $shownCount = 0,
+    ): array {
         foreach ($step->getListConfig()['sections'] ?? [] as $section) {
             $rows = [];
             foreach ($section['rows'] ?? [] as $row) {
@@ -271,20 +375,40 @@ class MarketingCatalogBuilder
         }
 
         if ($step->config['include_navigation'] ?? true) {
+            $navigationRows = [];
+
+            if ($categoryId && $productCount !== null && $productCount > $shownCount) {
+                $remaining = $productCount - $shownCount;
+                $navigationRows[] = [
+                    'id' => 'ver_mas_cat_' . $categoryId . '_' . $shownCount,
+                    'title' => 'Ver más productos',
+                    'description' => $remaining . ' más · escribir SKU',
+                ];
+            } elseif (!$categoryId) {
+                $navigationRows[] = [
+                    'id' => 'ver_mas_precios',
+                    'title' => 'Ver más productos',
+                    'description' => 'Lista completa en texto',
+                ];
+            }
+
+            if ($categoryId) {
+                $navigationRows[] = [
+                    'id' => 'volver_categorias',
+                    'title' => 'Volver a categorías',
+                    'description' => 'Ver otras líneas de producto',
+                ];
+            }
+
+            $navigationRows[] = [
+                'id' => 'menu_principal',
+                'title' => 'Menú principal',
+                'description' => 'Volver al inicio',
+            ];
+
             $sections[] = [
                 'title' => 'Navegación',
-                'rows' => [
-                    [
-                        'id' => 'ver_mas_precios',
-                        'title' => 'Ver más productos',
-                        'description' => 'Lista completa de productos',
-                    ],
-                    [
-                        'id' => 'menu_principal',
-                        'title' => 'Menú principal',
-                        'description' => 'Volver al inicio',
-                    ],
-                ],
+                'rows' => $navigationRows,
             ];
         }
 
@@ -294,7 +418,7 @@ class MarketingCatalogBuilder
             $rows = [];
             foreach ($section['rows'] ?? [] as $row) {
                 if ($rowCount >= 10) {
-                    break 2;
+                    break;
                 }
                 $rows[] = $row;
                 $rowCount++;
@@ -302,23 +426,32 @@ class MarketingCatalogBuilder
             if ($rows !== []) {
                 $trimmed[] = ['title' => $section['title'], 'rows' => $rows];
             }
+            if ($rowCount >= 10) {
+                break;
+            }
         }
 
         return $trimmed;
     }
 
-    protected function composeListPayload(MarketingFlowStep $step, array $vars, array $sections): array
-    {
-        $body = $step->renderMessage($vars);
+    protected function composeListPayload(
+        MarketingFlowStep $step,
+        array $vars,
+        array $sections,
+        ?string $bodyOverride = null,
+        ?string $listButtonOverride = null,
+        ?array $headerOverride = null,
+    ): array {
+        $body = $bodyOverride ?? $step->renderMessage($vars);
         if ($body === '') {
             $body = "🛍️ *Catálogo de productos*\n\nSelecciona un producto para ver más detalles.\nTambién puedes escribir el código SKU directamente.";
         }
 
-        $listButton = $step->getListConfig()['button'] ?? 'Ver productos';
-        $header = $step->getRenderedHeader($vars);
+        $listButton = $listButtonOverride ?? ($step->getListConfig()['button'] ?? 'Ver productos');
+        $header = $headerOverride ?? $step->getRenderedHeader($vars);
         $footer = $step->getRenderedFooter($vars);
 
-        if ($step->getHeaderMode() === 'default') {
+        if ($headerOverride === null && $step->getHeaderMode() === 'default') {
             $header = [
                 'type' => 'text',
                 'text' => $vars['nombre_empresa'] ?? 'Catálogo',

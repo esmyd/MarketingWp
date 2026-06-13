@@ -447,6 +447,8 @@ body.flow-builder-page .content-header {
                         }
                         $headerMode = old("steps.$stepKey.header_type", $step?->getHeaderMode() ?? 'default');
                         $headerImageUrl = $step?->getHeaderImageUrl();
+                        $messageImagePath = $config['message_image_path'] ?? null;
+                        $messageImageUrl = $messageImagePath ? asset('storage/' . ltrim($messageImagePath, '/')) : null;
                     @endphp
                     <div class="flow-step-panel {{ $loop->first ? 'active' : '' }}" data-step-panel="{{ $stepKey }}">
                         <input type="hidden" name="steps[{{ $stepKey }}][step_key]" value="{{ $stepKey }}">
@@ -485,9 +487,10 @@ body.flow-builder-page .content-header {
                                 <select name="steps[{{ $stepKey }}][header_type]" class="form-select form-select-sm header-type-select preview-input mb-2" data-step="{{ $stepKey }}" data-field="header_type">
                                     <option value="default" @selected($headerMode === 'default')>Automático (nombre empresa)</option>
                                     <option value="text" @selected($headerMode === 'text')>Texto personalizado</option>
-                                    <option value="image" @selected($headerMode === 'image')>Imagen</option>
+                                    <option value="image" @selected($headerMode === 'image')>Imagen en encabezado</option>
                                     <option value="none" @selected($headerMode === 'none')>Sin encabezado</option>
                                 </select>
+                                <div class="form-text small mb-2">Para botones y listas: la imagen aparece arriba del mensaje en WhatsApp.</div>
                                 <div class="header-field header-field-text {{ in_array($headerMode, ['text'], true) ? '' : 'd-none' }}" data-step="{{ $stepKey }}">
                                     <input type="text" name="steps[{{ $stepKey }}][header_text]" class="form-control form-control-sm preview-input" data-step="{{ $stepKey }}" data-field="header_text" maxlength="60"
                                         value="{{ old("steps.$stepKey.header_text", $config['header']['text'] ?? '') }}" placeholder="Texto del encabezado">
@@ -506,6 +509,22 @@ body.flow-builder-page .content-header {
                                         <img src="" alt="" class="header-image-preview rounded border d-none mt-2" data-step="{{ $stepKey }}" style="max-height:70px;max-width:140px;object-fit:cover;">
                                     @endif
                                 </div>
+                            </div>
+                            <div class="mb-3 message-image-field {{ ($config['interactive_type'] ?? 'button') === 'text' ? '' : 'd-none' }}" data-step="{{ $stepKey }}">
+                                <label class="form-label small fw-semibold">Imagen del mensaje <span class="text-muted fw-normal">(solo texto)</span></label>
+                                <input type="file" name="steps[{{ $stepKey }}][message_image]" class="form-control form-control-sm message-image-input preview-input" data-step="{{ $stepKey }}" accept="image/jpeg,image/png,image/webp">
+                                <div class="form-text small">Envía la imagen con el texto como pie de foto (caption).</div>
+                                @if($messageImageUrl)
+                                    <div class="mt-2 d-flex align-items-center gap-2">
+                                        <img src="{{ $messageImageUrl }}" alt="" class="message-image-preview rounded border" data-step="{{ $stepKey }}" data-current-src="{{ $messageImageUrl }}" style="max-height:70px;max-width:140px;object-fit:cover;">
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input" type="checkbox" name="steps[{{ $stepKey }}][remove_message_image]" value="1" id="remove_message_{{ $stepKey }}">
+                                            <label class="form-check-label small" for="remove_message_{{ $stepKey }}">Quitar imagen</label>
+                                        </div>
+                                    </div>
+                                @else
+                                    <img src="" alt="" class="message-image-preview rounded border d-none mt-2" data-step="{{ $stepKey }}" style="max-height:70px;max-width:140px;object-fit:cover;">
+                                @endif
                             </div>
                             <label class="form-label small fw-semibold">Texto del mensaje</label>
                             <textarea name="steps[{{ $stepKey }}][message_template]" rows="5"
@@ -758,10 +777,19 @@ body.flow-builder-page .content-header {
         return getPanel(stepKey)?.querySelector('.header-type-select')?.value || 'default';
     }
     function getHeaderPreviewHtml(stepKey) {
+        const panel = getPanel(stepKey);
+        const type = panel?.querySelector('.interactive-type')?.value || 'text';
         const mode = getHeaderType(stepKey);
-        if (mode === 'none') return '';
+        if (mode === 'none') {
+            if (type === 'text') {
+                const fileInput = panel?.querySelector('.message-image-input');
+                const previewImg = panel?.querySelector('.message-image-preview');
+                let src = fileInput?.files?.[0] ? URL.createObjectURL(fileInput.files[0]) : (previewImg?.dataset.currentSrc || previewImg?.src || '');
+                if (src) return `<div class="wa-bubble-header-image"><img src="${src}" alt=""></div>`;
+            }
+            return '';
+        }
         if (mode === 'image') {
-            const panel = getPanel(stepKey);
             const fileInput = panel?.querySelector('.header-image-input');
             const previewImg = panel?.querySelector('.header-image-preview');
             let src = fileInput?.files?.[0] ? URL.createObjectURL(fileInput.files[0]) : (previewImg?.dataset.currentSrc || previewImg?.src || '');
@@ -774,6 +802,14 @@ body.flow-builder-page .content-header {
         }
         if (mode === 'default') return applyVariables(previewSamples.nombre_empresa || 'Tienda');
         return '';
+    }
+    function toggleMessageImageField(stepKey) {
+        const panel = getPanel(stepKey);
+        if (!panel) return;
+        const type = panel.querySelector('.interactive-type')?.value;
+        panel.querySelectorAll('.message-image-field').forEach(el => {
+            el.classList.toggle('d-none', type !== 'text');
+        });
     }
     function toggleHeaderFields(stepKey) {
         const panel = getPanel(stepKey);
@@ -847,6 +883,7 @@ body.flow-builder-page .content-header {
         if (stepKey === activeStep) {
             document.getElementById('flow-active-type').textContent = interactiveTypes[type] || type;
         }
+        toggleMessageImageField(stepKey);
     }
     function syncHeaderToggle(stepKey) {
         const cb = document.getElementById(`enable_${stepKey}`);
@@ -894,6 +931,16 @@ body.flow-builder-page .content-header {
     document.querySelectorAll('.header-image-input').forEach(input => {
         input.addEventListener('change', () => {
             const previewImg = getPanel(input.dataset.step)?.querySelector('.header-image-preview');
+            if (previewImg && input.files?.[0]) {
+                previewImg.src = URL.createObjectURL(input.files[0]);
+                previewImg.classList.remove('d-none');
+            }
+            if (input.dataset.step === activeStep) updatePreview();
+        });
+    });
+    document.querySelectorAll('.message-image-input').forEach(input => {
+        input.addEventListener('change', () => {
+            const previewImg = getPanel(input.dataset.step)?.querySelector('.message-image-preview');
             if (previewImg && input.files?.[0]) {
                 previewImg.src = URL.createObjectURL(input.files[0]);
                 previewImg.classList.remove('d-none');

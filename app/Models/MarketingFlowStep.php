@@ -81,6 +81,13 @@ class MarketingFlowStep extends Model
         return $path ? asset('storage/' . ltrim($path, '/')) : null;
     }
 
+    public function getMessageImageUrl(): ?string
+    {
+        $path = $this->config['message_image_path'] ?? null;
+
+        return $path ? asset('storage/' . ltrim($path, '/')) : null;
+    }
+
     public function getRenderedHeader(array $variables = []): ?array
     {
         $header = $this->config['header'] ?? null;

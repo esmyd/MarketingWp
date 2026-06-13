@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\WhatsappMenuItem;
 use App\Models\WhatsappPrice;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 
 class DemoClienteService
 {
@@ -68,7 +69,11 @@ class DemoClienteService
         return $options;
     }
 
-    public function applyCategoryScope(Builder $query): Builder
+    /**
+     * @param  Builder|Relation  $query
+     * @return Builder|Relation
+     */
+    public function applyCategoryScope(Builder|Relation $query): Builder|Relation
     {
         $active = $this->activeKey();
 
@@ -79,7 +84,36 @@ class DemoClienteService
         return $query->where('demo_cliente', $active);
     }
 
-    public function applyProductScope(Builder $query): Builder
+    /**
+     * @param  Builder|Relation  $query
+     * @return Builder|Relation
+     */
+    public function scopeCategoriesWithVisibleProducts(Builder|Relation $query): Builder|Relation
+    {
+        $active = $this->activeKey();
+
+        return $query->whereHas('prices', function ($priceQuery) use ($active) {
+            $priceQuery->where('is_active', true);
+            if ($active) {
+                $priceQuery->where('demo_cliente', $active);
+            }
+        });
+    }
+
+    /**
+     * Categorías del catálogo con al menos un producto visible para la demo activa.
+     */
+    public function categoryHasVisibleProducts(WhatsappMenuItem $category): bool
+    {
+        return $this->applyProductScope(
+            $category->prices()->where('is_active', true)
+        )->exists();
+    }
+
+    /**
+     * @param  Builder|Relation  $query  Relación prices() o query de WhatsappPrice
+     */
+    public function applyProductScope(Builder|Relation $query): Builder|Relation
     {
         $active = $this->activeKey();
 

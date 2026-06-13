@@ -9,6 +9,20 @@ class WhatsappMessagePayload
         return ['type' => 'text', 'text' => ['body' => $body]];
     }
 
+    public static function image(string $url, ?string $caption = null): array
+    {
+        $payload = [
+            'type' => 'image',
+            'image' => ['link' => $url],
+        ];
+
+        if ($caption !== null && $caption !== '') {
+            $payload['image']['caption'] = self::truncate($caption, 1024);
+        }
+
+        return $payload;
+    }
+
     public static function buttons(string $body, array $buttons, ?array $header = null, ?string $footer = null): array
     {
         $formatted = [];

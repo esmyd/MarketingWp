@@ -1442,6 +1442,8 @@ class WhatsappService
                 $payload['text'] = [
                     'body' => $message['text']['body']
                 ];
+            } elseif ($payload['type'] === 'image') {
+                $payload['image'] = $message['image'] ?? [];
             } elseif ($payload['type'] === 'interactive') {
                 $payload['interactive'] = $message['interactive'];
             } elseif ($payload['type'] === 'contacts') {
@@ -1496,30 +1498,11 @@ class WhatsappService
     private function generateChatbotResponse(string $message, string $from): array
     {
         try {
-            // Si el mensaje es un saludo, usar el paso de bienvenida del flujo si está configurado
-            $greetings = ['hola', 'hola!', 'hi', 'hello', 'buenas', 'buenos días', 'buenas tardes',
-                          'buenas noches', 'inicio', 'start', 'menu'];
-            if (in_array(strtolower(trim($message)), $greetings, true)) {
+            // Si el mensaje es un saludo, bienvenida (1 vez al día) + menú principal
+            if ($this->isGreetingMessage($message)) {
                 $contact = WhatsappContact::where('phone_number', $from)->first();
-                $welcomePayload = $this->buildMarketingStepPayload(MarketingStepKey::WELCOME, $contact);
-                if ($welcomePayload) {
-                    $this->sendMessageToWhatsApp($from, $welcomePayload);
-                    sleep(1);
-                    return $this->getMainMenu(null, $contact);
-                }
 
-                $chatbotConfig = WhatsappChatbotConfig::where('business_profile_id', $this->businessProfile->id)->first();
-                if ($chatbotConfig?->welcome_message) {
-                    $this->sendMessageToWhatsApp($from, [
-                        'type' => 'text',
-                        'text' => ['body' => MarketingFlowStep::interpolate(
-                            $chatbotConfig->welcome_message,
-                            $this->marketingFlowVariables($contact)
-                        )],
-                    ]);
-                    sleep(1);
-                    return $this->getMainMenu(null, $contact);
-                }
+                return $this->handleGreetingMessage($from, $contact);
             }
 
             // Buscar respuesta específica en la base de datos
@@ -1631,14 +1614,121 @@ class WhatsappService
         }
     }
 
+    private function isGreetingMessage(string $message): bool
+    {
+        $normalized = mb_strtolower(trim($message));
+        $normalized = preg_replace('/[!?.¡¿]+$/u', '', $normalized) ?? $normalized;
+
+        $greetings = [
+            'hola', 'hi', 'hello', 'buenas', 'buenos dias', 'buenas tardes',
+            'buenas noches', 'inicio', 'start', 'menu', 'menú', 'hey', 'ola',
+        ];
+
+        $chatbotConfig = WhatsappChatbotConfig::where('business_profile_id', $this->businessProfile->id)->first();
+        if (is_array($chatbotConfig?->greetings)) {
+            foreach ($chatbotConfig->greetings as $greeting) {
+                $g = mb_strtolower(trim((string) $greeting));
+                if ($g !== '') {
+                    $greetings[] = $g;
+                }
+            }
+        }
+
+        $greetings = array_unique($greetings);
+
+        return in_array($normalized, $greetings, true);
+    }
+
+    private function handleGreetingMessage(string $from, ?WhatsappContact $contact): array
+    {
+        if ($contact?->wasWelcomedToday()) {
+            Log::info('[handleGreetingMessage] Saludo repetido hoy, enviando solo menú principal', [
+                'contact_id' => $contact->id,
+            ]);
+
+            return $this->getMainMenu(null, $contact);
+        }
+
+        if ($contact) {
+            $contact->markWelcomedToday();
+        }
+
+        Log::info('[handleGreetingMessage] Primer saludo del día, bienvenida + menú en un solo mensaje');
+
+        return $this->buildFirstGreetingMenu($contact);
+    }
+
+    private function buildFirstGreetingMenu(?WhatsappContact $contact): array
+    {
+        $vars = $this->marketingFlowVariables($contact);
+        $welcomeStep = $this->getMarketingStep(MarketingStepKey::WELCOME);
+
+        $welcomeBody = '';
+        if ($welcomeStep?->is_enabled) {
+            $welcomeBody = trim($welcomeStep->renderMessage($vars));
+        }
+
+        if ($welcomeBody === '') {
+            $chatbotConfig = WhatsappChatbotConfig::where('business_profile_id', $this->businessProfile->id)->first();
+            if ($chatbotConfig?->welcome_message) {
+                $welcomeBody = trim(MarketingFlowStep::interpolate($chatbotConfig->welcome_message, $vars));
+            }
+        }
+
+        $menu = $this->getMainMenu($welcomeBody !== '' ? $welcomeBody : null, $contact);
+
+        if (($menu['type'] ?? '') !== 'interactive' || !$welcomeStep?->is_enabled) {
+            return $menu;
+        }
+
+        $welcomeHeader = $this->resolveWelcomeHeaderForMenu($welcomeStep, $vars);
+        if ($welcomeHeader) {
+            $menu['interactive']['header'] = $welcomeHeader;
+        }
+
+        return $menu;
+    }
+
+    private function resolveWelcomeHeaderForMenu(MarketingFlowStep $welcomeStep, array $vars): ?array
+    {
+        if ($welcomeStep->getHeaderMode() === 'image') {
+            $header = $welcomeStep->getRenderedHeader($vars);
+
+            return $header ? $this->resolveInteractiveHeader($header) : null;
+        }
+
+        if ($welcomeStep->getMessageImageUrl()) {
+            return [
+                'type' => 'image',
+                'image' => ['link' => $welcomeStep->getMessageImageUrl()],
+            ];
+        }
+
+        return null;
+    }
+
+    private function resolveInteractiveHeader(array $header): array
+    {
+        if (($header['type'] ?? '') === 'image' && !empty($header['_image_path'])) {
+            return [
+                'type' => 'image',
+                'image' => ['link' => asset('storage/' . ltrim($header['_image_path'], '/'))],
+            ];
+        }
+
+        if (($header['type'] ?? '') === 'text' && !empty($header['text'])) {
+            return ['type' => 'text', 'text' => $header['text']];
+        }
+
+        return $header;
+    }
+
     private function getMainMenu(?string $headerText = null, ?WhatsappContact $contact = null): array
     {
         $flowMenu = $this->buildMarketingStepPayload(MarketingStepKey::MAIN_MENU, $contact, $headerText);
         if ($flowMenu) {
             return $flowMenu;
         }
-
-        // Obtener los menús desde la base de datos
         $productosMenu = WhatsappMenu::where('action_id', 'menu_productos')->first();
         $pedidosMenu = WhatsappMenu::where('action_id', 'menu_pedido')->first();
         $infoMenu = WhatsappMenu::where('action_id', 'menu_info')->first();
@@ -2101,7 +2191,7 @@ class WhatsappService
                     break;
                 case 'menu_principal':
                 case 'return_to_menu':  // Agregado el caso para el botón de retorno
-                    $response = $this->generateChatbotResponse('menu', $from);
+                    $response = $this->getMainMenu(null, $contact);
                     break;
 
                 // Información
@@ -2249,6 +2339,9 @@ class WhatsappService
                 case 'volver_productos':
                     $response = $this->getProductsMenu($contact);
                     break;
+                case 'volver_categorias':
+                    $response = $this->getProductsMenu($contact);
+                    break;
                 case 'seguir_comprando':
                     $response = $this->getProductsMenu($contact);
                     break;
@@ -2272,6 +2365,14 @@ class WhatsappService
 
                 // Acciones de productos
                 default:
+                    if (preg_match('/^ver_mas_cat_(\d+)_(\d+)$/', (string) $buttonId, $verMasMatch)) {
+                        $response = $this->getRemainingProducts(
+                            (int) $verMasMatch[1],
+                            (int) $verMasMatch[2]
+                        );
+                        break;
+                    }
+
                     if (str_starts_with((string) $buttonId, 'cat_')) {
                         $categoryId = (int) substr((string) $buttonId, 4);
                         Log::info('📂 Categoría seleccionada del catálogo', ['category_id' => $categoryId]);
@@ -3577,10 +3678,74 @@ class WhatsappService
         }
     }
 
-    private function getRemainingProducts()
+    private function getRemainingProducts(?int $categoryId = null, int $skip = 0)
     {
-
         try {
+            $demoCliente = app(DemoClienteService::class);
+
+            if ($categoryId) {
+                $item = WhatsappMenuItem::find($categoryId);
+                if (!$item) {
+                    return [
+                        'type' => 'text',
+                        'text' => ['body' => 'Lo siento, no encontramos esa categoría.'],
+                    ];
+                }
+
+                $prices = $demoCliente->applyProductScope(
+                    $item->prices()->where('is_active', true)
+                )->orderBy('name')->get();
+
+                if ($skip > 0) {
+                    $prices = $prices->slice($skip)->values();
+                }
+
+                if ($prices->isEmpty()) {
+                    return [
+                        'type' => 'text',
+                        'text' => ['body' => 'No hay más productos en esta categoría.'],
+                    ];
+                }
+
+                $message = "📋 *Más productos — {$item->title}*\n\n";
+                $products = [];
+                $number = 1;
+
+                foreach ($prices as $price) {
+                    $priceText = $price->is_promo
+                        ? '💰 $' . number_format($price->promo_price, 2) . ' (Oferta)'
+                        : '💰 $' . number_format($price->price, 2);
+
+                    $message .= "*[SKU: {$price->sku}] {$price->name}*\n";
+                    if ($price->description) {
+                        $message .= '   ' . \Illuminate\Support\Str::limit($price->description, 72, '...') . "\n";
+                    }
+                    $message .= "   {$priceText}\n\n";
+
+                    $products[$number] = [
+                        'price' => $price,
+                        'sku' => $price->sku,
+                    ];
+                    $number++;
+                }
+
+                if ($this->lastMessage) {
+                    $metadata = $this->lastMessage->metadata ?? [];
+                    $metadata['product_list'] = $products;
+                    $metadata['catalog_category_id'] = $categoryId;
+                    $this->lastMessage->metadata = $metadata;
+                    $this->lastMessage->save();
+                }
+
+                $exampleSku = $products[1]['sku'] ?? 'CQ001';
+                $message .= "Para ver el detalle, *escriba el SKU* del producto (ej.: *{$exampleSku}*).";
+
+                return [
+                    'type' => 'text',
+                    'text' => ['body' => $message],
+                ];
+            }
+
             $menu = WhatsappMenu::where('action_id', 'prices_menu')->first();
 
             if (!$menu) {
@@ -3591,8 +3756,10 @@ class WhatsappService
             }
 
             $demoCliente = app(DemoClienteService::class);
-            $menuItems = $demoCliente->applyCategoryScope(
-                $menu->items()->where('is_active', true)
+            $menuItems = $demoCliente->scopeCategoriesWithVisibleProducts(
+                $demoCliente->applyCategoryScope(
+                    $menu->items()->where('is_active', true)
+                )
             )->orderBy('order')->get();
 
             if ($menuItems->isEmpty()) {
@@ -3768,12 +3935,13 @@ class WhatsappService
             ];
 
             // Si hay una imagen, agregarla como header
-            if ($price->image) {
+            $imageUrl = app(\App\Services\ProductImageService::class)->resolveUrl($price->image);
+            if ($imageUrl) {
                 $interactive['interactive']['header'] = [
                     'type' => 'image',
                     'image' => [
-                        'link' => $price->image
-                    ]
+                        'link' => $imageUrl,
+                    ],
                 ];
             }
 
@@ -3988,6 +4156,8 @@ class WhatsappService
             $content = '';
             if ($message['type'] === 'text') {
                 $content = $message['text']['body'] ?? '';
+            } elseif ($message['type'] === 'image') {
+                $content = $message['image']['caption'] ?? '[Imagen]';
             } elseif ($message['type'] === 'interactive') {
                 if (isset($message['interactive']['body']['text'])) {
                     $content = $message['interactive']['body']['text'];

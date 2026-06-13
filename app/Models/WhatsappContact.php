@@ -97,4 +97,19 @@ class WhatsappContact extends Model
         $this->metadata = $metadata;
         $this->save();
     }
+
+    public function wasWelcomedToday(): bool
+    {
+        $lastWelcomeDate = ($this->metadata ?? [])['last_welcome_date'] ?? null;
+
+        return $lastWelcomeDate === now()->toDateString();
+    }
+
+    public function markWelcomedToday(): void
+    {
+        $metadata = $this->metadata ?? [];
+        $metadata['last_welcome_date'] = now()->toDateString();
+        $this->metadata = $metadata;
+        $this->save();
+    }
 }

@@ -7,6 +7,8 @@ use App\Models\WhatsappMenuItem;
 use App\Models\WhatsappPrice;
 use App\Services\DemoClienteService;
 use App\Services\PlanLimitsService;
+use App\Services\ProductImageService;
+use App\Services\ProductImportExportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -16,6 +18,8 @@ class ProductController extends Controller
     public function __construct(
         private readonly PlanLimitsService $planLimits,
         private readonly DemoClienteService $demoCliente,
+        private readonly ProductImportExportService $productImportExport,
+        private readonly ProductImageService $productImages,
     ) {}
 
     public function index()
@@ -60,6 +64,10 @@ class ProductController extends Controller
             return $data;
         }
 
+        if ($request->hasFile('image')) {
+            $data['image'] = $this->productImages->store($request->file('image'));
+        }
+
         $product = WhatsappPrice::create($data);
 
         return response()->json([
@@ -88,6 +96,13 @@ class ProductController extends Controller
             return $data;
         }
 
+        if ($request->boolean('remove_image')) {
+            $this->productImages->delete($product->image);
+            $data['image'] = null;
+        } elseif ($request->hasFile('image')) {
+            $data['image'] = $this->productImages->store($request->file('image'), $product->image);
+        }
+
         $product->update($data);
 
         return response()->json([
@@ -98,9 +113,47 @@ class ProductController extends Controller
 
     public function destroy(WhatsappPrice $product)
     {
+        $this->productImages->delete($product->image);
         $product->delete();
 
         return response()->json(['message' => 'Producto eliminado correctamente']);
+    }
+
+    public function downloadImportTemplate()
+    {
+        return $this->productImportExport->templateDownloadResponse();
+    }
+
+    public function exportCatalog()
+    {
+        return $this->productImportExport->exportDownloadResponse();
+    }
+
+    public function importCatalog(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+            'mode' => 'nullable|in:upsert,create,update',
+        ]);
+
+        $result = $this->productImportExport->importFromUpload(
+            $request->file('file'),
+            $request->input('mode', 'upsert')
+        );
+
+        $total = $result['created'] + $result['updated'];
+        $message = $total > 0
+            ? "Importación completada: {$result['created']} creados, {$result['updated']} actualizados."
+            : 'No se importó ningún producto.';
+
+        if ($result['skipped'] > 0) {
+            $message .= " {$result['skipped']} fila(s) omitida(s).";
+        }
+
+        return response()->json([
+            'message' => $message,
+            'result' => $result,
+        ], $total > 0 ? 200 : 422);
     }
 
     private function getCategories()
@@ -135,6 +188,8 @@ class ProductController extends Controller
             'max_quantity' => 'nullable|integer|min:1',
             'is_active' => 'nullable|boolean',
             'demo_cliente' => 'nullable|string|max:64',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'remove_image' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -233,6 +288,8 @@ class ProductController extends Controller
             'min_quantity' => $product->min_quantity,
             'max_quantity' => $product->max_quantity,
             'icon' => $product->icon,
+            'image' => $product->image,
+            'image_url' => $product->image_url,
         ];
     }
 }

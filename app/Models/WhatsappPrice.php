@@ -46,7 +46,7 @@ class WhatsappPrice extends Model
         'promo_end_date' => 'date',
     ];
 
-    protected $appends = ['icon'];
+    protected $appends = ['icon', 'image_url'];
 
     public function getIconAttribute(): string
     {
@@ -61,6 +61,11 @@ class WhatsappPrice extends Model
         }
 
         return '📦';
+    }
+
+    public function getImageUrlAttribute(): ?string
+    {
+        return app(\App\Services\ProductImageService::class)->resolveUrl($this->image);
     }
 
     public function menuCategory(): BelongsTo

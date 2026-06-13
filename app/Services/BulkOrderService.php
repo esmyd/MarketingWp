@@ -70,8 +70,10 @@ class BulkOrderService
      */
     public function catalogPayload(?int $categoryId = null, ?string $search = null): array
     {
-        $categories = $this->demoCliente->applyCategoryScope(
-            WhatsappMenuItem::catalogCategories()
+        $categories = $this->demoCliente->scopeCategoriesWithVisibleProducts(
+            $this->demoCliente->applyCategoryScope(
+                WhatsappMenuItem::catalogCategories()
+            )
         )
             ->where('is_active', true)
             ->orderBy('order')

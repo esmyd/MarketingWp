@@ -137,6 +137,21 @@
         justify-content: center;
         font-size: 1.35rem;
         flex-shrink: 0;
+        overflow: hidden;
+    }
+
+    .product-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .product-image-preview {
+        max-height: 120px;
+        max-width: 100%;
+        border-radius: 10px;
+        object-fit: cover;
+        border: 1px solid #dee2e6;
     }
 
     .product-name {
@@ -277,6 +292,49 @@
         z-index: 1090;
         min-width: 280px;
     }
+
+    #importProductsModal .modal-content {
+        max-height: calc(100vh - 2rem);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #importProductsModal #importProductsForm {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex: 1 1 auto;
+    }
+
+    #importProductsModal .modal-body {
+        overflow-y: auto;
+        flex: 1 1 auto;
+    }
+
+    #importProductsModal .import-modal-footer {
+        flex-shrink: 0;
+        background: #fff;
+        border-top: 1px solid #dee2e6;
+        padding: 0.85rem 1rem;
+    }
+
+    #importProductsModal .import-modal-footer-inner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    #importProductsModal .import-modal-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        margin-left: auto;
+    }
 </style>
 
 <div class="products-page">
@@ -300,9 +358,17 @@
                 </p>
             @endif
         </div>
-        <button type="button" class="btn btn-light btn-sm px-3" onclick="openCreateModal()" @if($planLimits['products_at_limit'] ?? false) disabled title="Límite de productos alcanzado" @endif>
-            <i class="fas fa-plus me-1"></i> Nuevo producto
-        </button>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-light btn-sm px-3" data-bs-toggle="modal" data-bs-target="#importProductsModal">
+                <i class="fas fa-file-excel me-1"></i> Importar Excel
+            </button>
+            <a href="{{ route('admin.products.export') }}" class="btn btn-outline-light btn-sm px-3">
+                <i class="fas fa-download me-1"></i> Exportar catálogo
+            </a>
+            <button type="button" class="btn btn-light btn-sm px-3" onclick="openCreateModal()" @if($planLimits['products_at_limit'] ?? false) disabled title="Límite de productos alcanzado" @endif>
+                <i class="fas fa-plus me-1"></i> Nuevo producto
+            </button>
+        </div>
     </div>
 
     @include('admin.partials.plan-limits-widget', ['planLimits' => $planLimits])
@@ -388,7 +454,13 @@
                             data-status="{{ $product->is_active ? '1' : '0' }}">
                             <td class="ps-3">
                                 <div class="product-cell">
-                                    <div class="product-icon">{{ $product->icon }}</div>
+                                    <div class="product-icon">
+                                        @if($product->image_url)
+                                            <img src="{{ $product->image_url }}" alt="{{ $product->name }}">
+                                        @else
+                                            {{ $product->icon }}
+                                        @endif
+                                    </div>
                                     <div>
                                         <div class="product-name">{{ $product->name }}</div>
                                         @if($product->description)
@@ -482,6 +554,18 @@
                             <label for="description" class="form-label">Descripción</label>
                             <textarea id="description" name="description" rows="2" class="form-control form-control-sm"></textarea>
                         </div>
+                        <div class="col-12">
+                            <label for="product_image" class="form-label">Imagen del producto</label>
+                            <input type="file" class="form-control form-control-sm" name="image" id="product_image" accept="image/jpeg,image/png,image/webp">
+                            <div class="form-hint">JPG, PNG o WebP. Máx. 5 MB. Se muestra en el detalle del producto en WhatsApp.</div>
+                            <div id="productImagePreviewWrap" class="mt-2 d-none">
+                                <img src="" alt="" id="productImagePreview" class="product-image-preview">
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" name="remove_image" id="remove_image" value="1">
+                                    <label class="form-check-label small" for="remove_image">Quitar imagen actual</label>
+                                </div>
+                            </div>
+                        </div>
                         <div class="col-md-6">
                             <label for="price" class="form-label">Precio <span class="text-danger">*</span></label>
                             <div class="input-group input-group-sm">
@@ -552,6 +636,66 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="importProductsModal" tabindex="-1" aria-labelledby="importProductsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form id="importProductsForm" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="importProductsModalLabel">
+                        <i class="fas fa-file-excel me-2 text-success"></i>Carga masiva de productos
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-light border small mb-3">
+                        <strong>Formato Excel (.xlsx)</strong>
+                        <ul class="mb-0 mt-2 ps-3">
+                            <li>Descargue la <a href="{{ route('admin.products.import.template') }}">plantilla con instrucciones</a> o exporte el catálogo actual como base.</li>
+                            <li>Hoja <strong>Productos</strong>: columnas <code>sku</code>, <code>nombre</code>, <code>categoria</code>, <code>precio</code> (obligatorias).</li>
+                            <li>Opcionales: <code>precio_promo</code>, <code>descripcion</code>, <code>beneficios</code>, <code>caracteristicas</code> (separar con <code>|</code>), <code>stock</code>, <code>cant_min</code>, <code>cant_max</code>, <code>activo</code>, <code>permitir_cantidad</code>, <code>demo_cliente</code>.</li>
+                            <li>La hoja <strong>Categorias</strong> lista los nombres válidos para la columna <code>categoria</code>.</li>
+                            <li>Si el SKU ya existe, el producto se actualiza (modo por defecto).</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="import_mode" class="form-label">Modo de importación</label>
+                        <select name="mode" id="import_mode" class="form-select form-select-sm">
+                            <option value="upsert" selected>Crear y actualizar (por SKU)</option>
+                            <option value="create">Solo crear productos nuevos</option>
+                            <option value="update">Solo actualizar productos existentes</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="import_file" class="form-label">Archivo Excel <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control form-control-sm" name="file" id="import_file" accept=".xlsx,.xls,.csv" required>
+                        <div class="form-text">Máximo 10 MB. Formatos: .xlsx, .xls, .csv</div>
+                    </div>
+
+                    <div id="importResult" class="d-none">
+                        <div id="importResultSummary" class="alert mb-2"></div>
+                        <div id="importResultErrors" class="small border rounded p-2 bg-light" style="max-height:220px;overflow-y:auto"></div>
+                    </div>
+                </div>
+                <div class="modal-footer import-modal-footer">
+                    <div class="import-modal-footer-inner">
+                        <a href="{{ route('admin.products.import.template') }}" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-file-download me-1"></i> Descargar plantilla
+                        </a>
+                        <div class="import-modal-actions">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-success btn-sm px-4" id="importProductsBtn">
+                                <i class="fas fa-upload me-1"></i> Importar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -569,6 +713,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('demo-filter')?.addEventListener('change', filterTable);
     document.getElementById('status-filter')?.addEventListener('change', filterTable);
     document.getElementById('productForm')?.addEventListener('submit', submitProductForm);
+    document.getElementById('importProductsForm')?.addEventListener('submit', submitImportForm);
+    document.getElementById('importProductsModal')?.addEventListener('hidden.bs.modal', resetImportModal);
+    document.getElementById('product_image')?.addEventListener('change', previewProductImage);
 });
 
 const productsAtLimit = @json($planLimits['products_at_limit'] ?? false);
@@ -587,8 +734,44 @@ function openCreateModal() {
     document.getElementById('min_quantity').value = 1;
     document.getElementById('max_quantity').value = 999;
     document.getElementById('stock').value = 0;
+    resetProductImagePreview();
     hideFormErrors();
     productModal.show();
+}
+
+function resetProductImagePreview() {
+    const wrap = document.getElementById('productImagePreviewWrap');
+    const preview = document.getElementById('productImagePreview');
+    const fileInput = document.getElementById('product_image');
+    const removeCb = document.getElementById('remove_image');
+    if (fileInput) fileInput.value = '';
+    if (removeCb) removeCb.checked = false;
+    if (preview) preview.src = '';
+    wrap?.classList.add('d-none');
+}
+
+function previewProductImage() {
+    const fileInput = document.getElementById('product_image');
+    const preview = document.getElementById('productImagePreview');
+    const wrap = document.getElementById('productImagePreviewWrap');
+    const removeCb = document.getElementById('remove_image');
+    if (!fileInput?.files?.[0] || !preview || !wrap) return;
+    preview.src = URL.createObjectURL(fileInput.files[0]);
+    wrap.classList.remove('d-none');
+    if (removeCb) removeCb.checked = false;
+}
+
+function setProductImagePreview(url) {
+    const preview = document.getElementById('productImagePreview');
+    const wrap = document.getElementById('productImagePreviewWrap');
+    if (!preview || !wrap) return;
+    if (url) {
+        preview.src = url;
+        preview.dataset.currentSrc = url;
+        wrap.classList.remove('d-none');
+    } else {
+        resetProductImagePreview();
+    }
 }
 
 function openEditModal(id) {
@@ -618,6 +801,7 @@ function openEditModal(id) {
         document.getElementById('demo_cliente').value = data.demo_cliente || '';
         document.getElementById('is_active').checked = !!data.is_active;
         document.getElementById('allow_quantity_selection').checked = data.allow_quantity_selection !== false;
+        setProductImagePreview(data.image_url || '');
         productModal.show();
     })
     .catch(err => {
@@ -632,35 +816,39 @@ function submitProductForm(e) {
     const btn = document.getElementById('saveProductBtn');
     btn.disabled = true;
 
-    const payload = {
-        sku: document.getElementById('sku').value.trim(),
-        name: document.getElementById('name').value.trim(),
-        menu_item_id: document.getElementById('menu_item_id').value,
-        price: document.getElementById('price').value,
-        promo_price: document.getElementById('promo_price').value,
-        description: document.getElementById('description').value,
-        benefits: document.getElementById('benefits').value,
-        characteristics: document.getElementById('characteristics').value,
-        stock: document.getElementById('stock').value,
-        min_quantity: document.getElementById('min_quantity').value,
-        max_quantity: document.getElementById('max_quantity').value,
-        demo_cliente: document.getElementById('demo_cliente').value.trim(),
-        is_active: document.getElementById('is_active').checked,
-        allow_quantity_selection: document.getElementById('allow_quantity_selection').checked,
-    };
+    const formData = new FormData();
+    formData.append('sku', document.getElementById('sku').value.trim());
+    formData.append('name', document.getElementById('name').value.trim());
+    formData.append('menu_item_id', document.getElementById('menu_item_id').value);
+    formData.append('price', document.getElementById('price').value);
+    formData.append('promo_price', document.getElementById('promo_price').value);
+    formData.append('description', document.getElementById('description').value);
+    formData.append('benefits', document.getElementById('benefits').value);
+    formData.append('characteristics', document.getElementById('characteristics').value);
+    formData.append('stock', document.getElementById('stock').value);
+    formData.append('min_quantity', document.getElementById('min_quantity').value);
+    formData.append('max_quantity', document.getElementById('max_quantity').value);
+    formData.append('demo_cliente', document.getElementById('demo_cliente').value.trim());
+    formData.append('is_active', document.getElementById('is_active').checked ? '1' : '0');
+    formData.append('allow_quantity_selection', document.getElementById('allow_quantity_selection').checked ? '1' : '0');
+
+    const imageFile = document.getElementById('product_image')?.files?.[0];
+    if (imageFile) formData.append('image', imageFile);
+    if (document.getElementById('remove_image')?.checked) formData.append('remove_image', '1');
 
     const isEdit = currentProductId !== null;
     const url = isEdit ? `/admin/products/${currentProductId}` : '{{ route("admin.products.store") }}';
-    const method = isEdit ? 'PUT' : 'POST';
+    const method = isEdit ? 'POST' : 'POST';
+    if (isEdit) formData.append('_method', 'PUT');
 
     fetch(url, {
         method,
         headers: {
             'X-CSRF-TOKEN': '{{ csrf_token() }}',
             'Accept': 'application/json',
-            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
         },
-        body: JSON.stringify(payload),
+        body: formData,
     })
     .then(async r => {
         const data = await r.json();
@@ -739,6 +927,70 @@ function showToast(message, type = 'success') {
     toastEl.className = `toast align-items-center border-0 text-white bg-${type === 'success' ? 'success' : 'danger'}`;
     body.textContent = message;
     productToast.show();
+}
+
+function resetImportModal() {
+    document.getElementById('importProductsForm')?.reset();
+    document.getElementById('importResult')?.classList.add('d-none');
+    document.getElementById('importResultSummary').textContent = '';
+    document.getElementById('importResultErrors').innerHTML = '';
+}
+
+function submitImportForm(e) {
+    e.preventDefault();
+
+    const fileInput = document.getElementById('import_file');
+    if (!fileInput?.files?.length) {
+        showToast('Seleccione un archivo Excel.', 'danger');
+        return;
+    }
+
+    const btn = document.getElementById('importProductsBtn');
+    btn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('mode', document.getElementById('import_mode').value);
+
+    fetch('{{ route("admin.products.import") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: formData,
+    })
+    .then(async r => {
+        const data = await r.json();
+        return { ok: r.ok, data };
+    })
+    .then(({ ok, data }) => {
+        const result = data.result || {};
+        const summaryEl = document.getElementById('importResultSummary');
+        const errorsEl = document.getElementById('importResultErrors');
+        document.getElementById('importResult').classList.remove('d-none');
+
+        summaryEl.className = `alert mb-2 alert-${ok ? 'success' : 'warning'}`;
+        summaryEl.textContent = data.message || 'Importación finalizada.';
+
+        if (result.errors?.length) {
+            errorsEl.innerHTML = '<strong>Detalle por fila:</strong><ul class="mb-0 mt-1 ps-3">' +
+                result.errors.map(err => `<li>Fila ${err.row}${err.sku ? ' (' + err.sku + ')' : ''}: ${err.message}</li>`).join('') +
+                '</ul>';
+        } else {
+            errorsEl.innerHTML = '';
+        }
+
+        if (ok && (result.created || result.updated)) {
+            showToast(data.message, 'success');
+            setTimeout(() => window.location.reload(), 1500);
+        }
+    })
+    .catch(() => showToast('Error al procesar el archivo.', 'danger'))
+    .finally(() => {
+        btn.disabled = false;
+    });
 }
 </script>
 @endpush

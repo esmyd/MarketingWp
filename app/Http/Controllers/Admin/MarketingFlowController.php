@@ -76,6 +76,8 @@ class MarketingFlowController extends Controller
             'steps.*.header_text' => 'nullable|string|max:60',
             'steps.*.header_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
             'steps.*.remove_header_image' => 'nullable|boolean',
+            'steps.*.message_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'steps.*.remove_message_image' => 'nullable|boolean',
             'steps.*.footer_text' => 'nullable|string|max:60',
             'steps.*.success_message' => 'nullable|string',
             'steps.*.custom_actions' => 'nullable|string',
@@ -100,6 +102,7 @@ class MarketingFlowController extends Controller
                 ->first();
 
             $headerBundle = $this->buildStepHeader($request, $stepData, $existingStep, (int) $profile->id);
+            $messageImagePath = $this->buildStepMessageImage($request, $stepData, $existingStep, (int) $profile->id);
 
             $config = [
                 'interactive_type' => $stepData['interactive_type'] ?? 'button',
@@ -108,6 +111,7 @@ class MarketingFlowController extends Controller
                 'header' => $headerBundle['header'],
                 'footer' => $stepData['footer_text'] ?? null,
                 'success_message' => $stepData['success_message'] ?? null,
+                'message_image_path' => $messageImagePath,
             ];
 
             if (($stepData['interactive_type'] ?? 'button') === 'list') {
@@ -230,6 +234,34 @@ class MarketingFlowController extends Controller
     protected function deleteHeaderImage(?MarketingFlowStep $step): void
     {
         $path = $step?->config['header']['image_path'] ?? null;
+        if ($path && Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
+    }
+
+    protected function buildStepMessageImage(Request $request, array $stepData, ?MarketingFlowStep $existingStep, int $profileId): ?string
+    {
+        $stepKey = $stepData['step_key'];
+        $file = $request->file("steps.{$stepKey}.message_image");
+
+        if ($file) {
+            $this->deleteMessageImage($existingStep);
+
+            return $file->store("marketing-flow-messages/{$profileId}", 'public');
+        }
+
+        if (!empty($stepData['remove_message_image'])) {
+            $this->deleteMessageImage($existingStep);
+
+            return null;
+        }
+
+        return $existingStep?->config['message_image_path'] ?? null;
+    }
+
+    protected function deleteMessageImage(?MarketingFlowStep $step): void
+    {
+        $path = $step?->config['message_image_path'] ?? null;
         if ($path && Storage::disk('public')->exists($path)) {
             Storage::disk('public')->delete($path);
         }
