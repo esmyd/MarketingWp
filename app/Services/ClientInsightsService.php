@@ -99,7 +99,173 @@ class ClientInsightsService
             'recent_messages' => $recentMessages,
             'messages_by_month' => $messagesByMonth,
             'response_rate' => $this->responseRateFromMetrics($contact),
+            'response_metrics' => $this->responseMetricsForContact($contact->id),
         ];
+    }
+
+    /**
+     * @return array{
+     *     last_seconds: ?int,
+     *     last_formatted: string,
+     *     last_responder_kind: ?string,
+     *     last_responder_label: ?string,
+     *     last_reply_at: ?Carbon,
+     *     pending_reply: bool,
+     *     avg_seconds: ?int,
+     *     avg_formatted: string,
+     *     avg_bot_seconds: ?int,
+     *     avg_bot_formatted: string,
+     *     avg_agent_seconds: ?int,
+     *     avg_agent_formatted: string,
+     *     sample_count: int
+     * }
+     */
+    public function responseMetricsForContact(int $contactId, int $days = 90): array
+    {
+        $empty = [
+            'last_seconds' => null,
+            'last_formatted' => '—',
+            'last_responder_kind' => null,
+            'last_responder_label' => null,
+            'last_reply_at' => null,
+            'pending_reply' => false,
+            'avg_seconds' => null,
+            'avg_formatted' => '—',
+            'avg_bot_seconds' => null,
+            'avg_bot_formatted' => '—',
+            'avg_agent_seconds' => null,
+            'avg_agent_formatted' => '—',
+            'sample_count' => 0,
+        ];
+
+        $lastClientMsg = WhatsappMessage::query()
+            ->where('contact_id', $contactId)
+            ->where('sender_type', 'client')
+            ->latest('created_at')
+            ->first(['id', 'created_at']);
+
+        $lastReply = null;
+        $lastSeconds = null;
+        $pendingReply = false;
+
+        if ($lastClientMsg) {
+            $lastReply = WhatsappMessage::query()
+                ->where('contact_id', $contactId)
+                ->where(function ($q) {
+                    $q->whereIn('sender_type', ['system', 'humano'])
+                        ->orWhereNotNull('admin_user_id');
+                })
+                ->where('created_at', '>', $lastClientMsg->created_at)
+                ->with('adminUser:id,name')
+                ->orderBy('created_at')
+                ->first();
+
+            if ($lastReply) {
+                $lastSeconds = $lastClientMsg->created_at->diffInSeconds($lastReply->created_at);
+            } else {
+                $pendingReply = true;
+            }
+        }
+
+        $from = now()->subDays($days);
+        $outbound = WhatsappMessage::query()
+            ->where('contact_id', $contactId)
+            ->where('created_at', '>=', $from)
+            ->where(function ($q) {
+                $q->whereIn('sender_type', ['system', 'humano'])
+                    ->orWhereNotNull('admin_user_id');
+            })
+            ->orderBy('created_at')
+            ->get(['id', 'sender_type', 'admin_user_id', 'created_at']);
+
+        $allDiffs = [];
+        $botDiffs = [];
+        $agentDiffs = [];
+
+        foreach ($outbound as $reply) {
+            $prevClientAt = WhatsappMessage::query()
+                ->where('contact_id', $contactId)
+                ->where('sender_type', 'client')
+                ->where('created_at', '<', $reply->created_at)
+                ->orderByDesc('created_at')
+                ->value('created_at');
+
+            if (!$prevClientAt) {
+                continue;
+            }
+
+            $seconds = Carbon::parse($prevClientAt)->diffInSeconds($reply->created_at);
+            if ($seconds < 0 || $seconds > 604800) {
+                continue;
+            }
+
+            $allDiffs[] = $seconds;
+            if ($reply->sender_type === 'humano' || $reply->admin_user_id) {
+                $agentDiffs[] = $seconds;
+            } else {
+                $botDiffs[] = $seconds;
+            }
+        }
+
+        $responderKind = null;
+        $responderLabel = null;
+        if ($lastReply) {
+            if ($lastReply->sender_type === 'humano' || $lastReply->admin_user_id) {
+                $responderKind = 'agent';
+                $responderLabel = $lastReply->senderBadgeLabel();
+            } else {
+                $responderKind = 'bot';
+                $responderLabel = 'Bot';
+            }
+        }
+
+        return array_merge($empty, [
+            'last_seconds' => $lastSeconds,
+            'last_formatted' => $this->formatDurationSeconds($lastSeconds),
+            'last_responder_kind' => $responderKind,
+            'last_responder_label' => $responderLabel,
+            'last_reply_at' => $lastReply?->created_at,
+            'pending_reply' => $pendingReply,
+            'avg_seconds' => $this->averageSeconds($allDiffs),
+            'avg_formatted' => $this->formatDurationSeconds($this->averageSeconds($allDiffs)),
+            'avg_bot_seconds' => $this->averageSeconds($botDiffs),
+            'avg_bot_formatted' => $this->formatDurationSeconds($this->averageSeconds($botDiffs)),
+            'avg_agent_seconds' => $this->averageSeconds($agentDiffs),
+            'avg_agent_formatted' => $this->formatDurationSeconds($this->averageSeconds($agentDiffs)),
+            'sample_count' => count($allDiffs),
+        ]);
+    }
+
+    private function averageSeconds(array $values): ?int
+    {
+        if ($values === []) {
+            return null;
+        }
+
+        return (int) round(array_sum($values) / count($values));
+    }
+
+    private function formatDurationSeconds(?int $seconds): string
+    {
+        if ($seconds === null || $seconds < 0) {
+            return '—';
+        }
+
+        if ($seconds < 60) {
+            return $seconds . ' seg';
+        }
+
+        if ($seconds < 3600) {
+            $mins = (int) floor($seconds / 60);
+            $secs = $seconds % 60;
+
+            return $secs > 0 ? "{$mins} min {$secs} seg" : "{$mins} min";
+        }
+
+        $hours = (int) floor($seconds / 3600);
+        $mins = (int) floor(($seconds % 3600) / 60);
+
+        return $mins > 0 ? "{$hours} h {$mins} min" : "{$hours} h";
     }
 
     /** @return array<int, array{key: string, label: string, tone: string, icon: string}> */

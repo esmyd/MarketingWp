@@ -64,6 +64,13 @@
     .detail-stat .lbl { font-size: .72rem; color: #6c757d; text-transform: uppercase; }
     .detail-stat .val { font-size: 1.25rem; font-weight: 700; margin-top: .2rem; color: #111827; }
     .detail-stat .sub { font-size: .75rem; color: #9ca3af; margin-top: .15rem; }
+    .detail-stat .sub.responder-bot { color: #059669; }
+    .detail-stat .sub.responder-agent { color: #b45309; }
+    .detail-stat .sub.responder-pending { color: #dc2626; }
+    .detail-stat.highlight-response {
+        border-color: #bbf7d0;
+        background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%);
+    }
 
     .detail-panel {
         background: #fff;
@@ -157,9 +164,37 @@
             <div class="lbl">Último mensaje cliente</div>
             <div class="val" style="font-size:1rem;">{{ $fmt($contact->last_client_message_at) }}</div>
         </div>
+        <div class="detail-stat highlight-response">
+            <div class="lbl">Tiempo de respuesta (último)</div>
+            @if($response_metrics['pending_reply'])
+                <div class="val" style="font-size:1rem; color:#dc2626;">Esperando</div>
+                <div class="sub responder-pending">Sin respuesta aún al último mensaje</div>
+            @elseif($response_metrics['last_seconds'] !== null)
+                <div class="val">{{ $response_metrics['last_formatted'] }}</div>
+                <div class="sub {{ $response_metrics['last_responder_kind'] === 'agent' ? 'responder-agent' : 'responder-bot' }}">
+                    <i class="fas fa-{{ $response_metrics['last_responder_kind'] === 'agent' ? 'headset' : 'robot' }} me-1"></i>
+                    Por {{ $response_metrics['last_responder_label'] }}
+                    @if($response_metrics['last_reply_at'])
+                        · {{ $response_metrics['last_reply_at']->format('d/m/Y H:i') }}
+                    @endif
+                </div>
+            @else
+                <div class="val" style="font-size:1rem;">—</div>
+                <div class="sub">Sin intercambios registrados</div>
+            @endif
+        </div>
         <div class="detail-stat">
-            <div class="lbl">Última respuesta</div>
-            <div class="val" style="font-size:1rem;">{{ $fmt($contact->last_reply_message_at) }}</div>
+            <div class="lbl">Promedio respuesta (90 días)</div>
+            <div class="val">{{ $response_metrics['avg_formatted'] }}</div>
+            @if($response_metrics['sample_count'] > 0)
+                <div class="sub">
+                    <span class="responder-bot"><i class="fas fa-robot me-1"></i>Bot {{ $response_metrics['avg_bot_formatted'] }}</span>
+                    ·
+                    <span class="responder-agent"><i class="fas fa-headset me-1"></i>Agente {{ $response_metrics['avg_agent_formatted'] }}</span>
+                </div>
+            @else
+                <div class="sub">Sin datos en el periodo</div>
+            @endif
         </div>
     </div>
 

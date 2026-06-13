@@ -1068,7 +1068,7 @@
                 <span class="sidebar-text">Configuración del bot</span>
             </a>
             @endperm
-            <a href="{{ route('admin.profile.show') }}" class="sidebar-profile-link {{ request()->routeIs('admin.profile.*') ? 'active' : '' }}">
+            {{-- <a href="{{ route('admin.profile.show') }}" class="sidebar-profile-link {{ request()->routeIs('admin.profile.*') ? 'active' : '' }}">
                 <i class="fas fa-user-circle"></i>
                 <span class="sidebar-text">Mi perfil</span>
             </a>
@@ -1080,8 +1080,8 @@
                     <span class="sidebar-text sidebar-user-name">{{ Auth::user()->name ?? 'Administrador' }}</span>
                     <span class="sidebar-text sidebar-user-role">{{ Auth::user()->roleLabel() }}</span>
                 </div>
-            </div>
-
+            </div> --}}
+<br>
             <form action="{{ route('logout') }}" method="POST" class="sidebar-logout-form">
                 @csrf
                 <button type="submit" class="sidebar-logout-btn" onclick="return confirm('¿Estás seguro de que deseas cerrar sesión?');">
