@@ -521,7 +521,10 @@
                                 <i class="fas fa-arrow-right-to-bracket"></i> Acceder al panel
                             </button>
                         </form>
-
+                        <p class="login-footer-note">
+                            <i class="fas fa-lock"></i> Conexión cifrada · Protección anti-bots activa
+                        </p>
+<br>
                         <div class="login-divider">Prueba la demo</div>
 
                         <div class="demo-actions-login">
@@ -552,14 +555,9 @@
                             @endif
                         </div>
 
-                        <a href="{{ route('pricing.index') }}" class="btn-pricing">
-                            <i class="fas fa-tags"></i>
-                            Ver planes y precios
-                        </a>
 
-                        <p class="login-footer-note">
-                            <i class="fas fa-lock"></i> Conexión cifrada · Protección anti-bots activa
-                        </p>
+
+
                     </div>
                 </div>
             </div>
