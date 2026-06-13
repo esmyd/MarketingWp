@@ -12,14 +12,20 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use App\Services\PlanLimitsService;
 
 class ChatbotController extends Controller
 {
+    public function __construct(
+        private readonly PlanLimitsService $planLimits
+    ) {}
     /**
      * Gestión de categorías del catálogo (items del menú prices_menu).
      */
     public function menus()
     {
+        $planLimits = $this->planLimits->snapshot();
+
         $categories = WhatsappMenuItem::catalogCategories()
             ->withCount([
                 'prices',
@@ -41,7 +47,7 @@ class ChatbotController extends Controller
             'products_unassigned' => $productStats['total'] - WhatsappPrice::inCatalogCategoriesCount(),
         ];
 
-        return view('admin.menus.index', compact('categories', 'stats'));
+        return view('admin.menus.index', compact('categories', 'stats', 'planLimits'));
     }
 
     /**
@@ -70,6 +76,7 @@ class ChatbotController extends Controller
     public function config()
     {
         $config = WhatsappChatbotConfig::first();
+
         return view('admin.chatbot.config', compact('config'));
     }
 
@@ -260,6 +267,12 @@ class ChatbotController extends Controller
      */
     public function storeMenuItem(Request $request)
     {
+        if (!$this->planLimits->canCreateCategory()) {
+            return response()->json([
+                'message' => $this->planLimits->categoryLimitMessage(),
+            ], 422);
+        }
+
         $pricesMenu = $this->getPricesMenu();
 
         $validated = $request->validate([

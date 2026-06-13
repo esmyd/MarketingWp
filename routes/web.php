@@ -153,6 +153,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
         ->middleware('permission:roles.update')
         ->name('roles.destroy');
 
+    Route::get('/users', [App\Http\Controllers\Admin\UserAdminController::class, 'index'])
+        ->middleware('permission:users.view,users.menu')
+        ->name('users.index');
     Route::get('/users/create', [App\Http\Controllers\Admin\UserAdminController::class, 'create'])
         ->middleware('permission:users.create')
         ->name('users.create');
@@ -165,6 +168,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::put('/users/{user}', [App\Http\Controllers\Admin\UserAdminController::class, 'update'])
         ->middleware('permission:users.update')
         ->name('users.update');
+    Route::patch('/users/{user}/toggle-active', [App\Http\Controllers\Admin\UserAdminController::class, 'toggleActive'])
+        ->middleware('permission:users.update')
+        ->name('users.toggle-active');
     Route::put('/users/{user}/role', [App\Http\Controllers\Admin\UserAdminController::class, 'updateRole'])
         ->middleware('permission:users.update,roles.update')
         ->name('users.role.update');

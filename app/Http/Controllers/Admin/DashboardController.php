@@ -7,13 +7,14 @@ use App\Models\WhatsappCart;
 use App\Models\WhatsappContact;
 use App\Models\WhatsappMessage;
 use App\Services\ConsumptionReportService;
+use App\Services\PlanLimitsService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request, ConsumptionReportService $consumption)
+    public function index(Request $request, ConsumptionReportService $consumption, PlanLimitsService $planLimits)
     {
         [$from, $to, $periodPreset] = $this->resolveReportPeriod($request);
 
@@ -23,6 +24,7 @@ class DashboardController extends Controller
 
         $metrics = $this->buildMetrics($from, $to, $prevFrom, $prevTo);
         $consumptionReport = $consumption->build($from, $to);
+        $planLimits = $planLimits->snapshot();
 
         $orders = WhatsappCart::reportable()
             ->with(['contact'])
@@ -40,7 +42,8 @@ class DashboardController extends Controller
             'to',
             'periodPreset',
             'totalOrdersAllTime',
-            'orders'
+            'orders',
+            'planLimits'
         ));
     }
 

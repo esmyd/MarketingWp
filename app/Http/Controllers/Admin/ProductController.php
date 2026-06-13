@@ -5,12 +5,17 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\WhatsappMenuItem;
 use App\Models\WhatsappPrice;
+use App\Services\PlanLimitsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
+    public function __construct(
+        private readonly PlanLimitsService $planLimits
+    ) {}
+
     public function index()
     {
         $products = WhatsappPrice::with(['menuCategory:id,title,description,icon'])
@@ -24,8 +29,9 @@ class ProductController extends Controller
             ->get();
 
         $stats = WhatsappPrice::summaryStats();
+        $planLimits = $this->planLimits->snapshot();
 
-        return view('admin.products.index', compact('products', 'categories', 'stats'));
+        return view('admin.products.index', compact('products', 'categories', 'stats', 'planLimits'));
     }
 
     public function create()
@@ -37,6 +43,12 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        if (!$this->planLimits->canCreateProduct()) {
+            return response()->json([
+                'message' => $this->planLimits->productLimitMessage(),
+            ], 422);
+        }
+
         $data = $this->validateAndPrepare($request);
 
         if ($data instanceof \Illuminate\Http\JsonResponse) {

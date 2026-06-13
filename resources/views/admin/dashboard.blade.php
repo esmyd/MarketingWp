@@ -413,6 +413,8 @@
         </form>
     </div>
 
+    @include('admin.partials.plan-limits-widget', ['planLimits' => $planLimits])
+
     @perm('demo.reset')
     <section class="demo-reset-panel" aria-label="Reiniciar demo">
         <div class="demo-reset-actions">

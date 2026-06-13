@@ -13,6 +13,8 @@
     let pollInitialized = false;
     let titleFlashTimer = null;
     let pollTimer = null;
+    let panelOpen = false;
+    let latestRequests = [];
     const broadcast = typeof BroadcastChannel !== 'undefined'
         ? new BroadcastChannel('wa_agent_alerts')
         : null;
@@ -203,16 +205,108 @@
         }
     });
 
-    function updateGlobalBadge(count) {
-        const badge = document.getElementById('global-agent-requests-count');
-        if (!badge) return;
+    function formatRequestTime(iso) {
+        if (!iso) return '';
+        const date = new Date(iso);
+        if (Number.isNaN(date.getTime())) return '';
+        const now = new Date();
+        const diffMs = now - date;
+        if (diffMs < 60000) return 'Hace un momento';
+        if (diffMs < 3600000) return `Hace ${Math.floor(diffMs / 60000)} min`;
+        if (diffMs < 86400000) return `Hace ${Math.floor(diffMs / 3600000)} h`;
+        return date.toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function setBadgeEl(el, count) {
+        if (!el) return;
         if (count > 0) {
-            badge.textContent = count > 99 ? '99+' : String(count);
-            badge.classList.remove('hidden');
+            el.textContent = count > 99 ? '99+' : String(count);
+            el.classList.remove('hidden');
         } else {
-            badge.textContent = '';
-            badge.classList.add('hidden');
+            el.textContent = '';
+            el.classList.add('hidden');
         }
+    }
+
+    function updateGlobalBadge(count) {
+        setBadgeEl(document.getElementById('global-agent-requests-count'), count);
+        setBadgeEl(document.getElementById('sidebar-chats-agent-count'), count);
+
+        const panelCount = document.getElementById('wa-notifications-panel-count');
+        if (panelCount) {
+            if (count > 0) {
+                panelCount.textContent = count === 1 ? '1 pendiente' : `${count} pendientes`;
+                panelCount.style.display = '';
+            } else {
+                panelCount.textContent = '';
+                panelCount.style.display = 'none';
+            }
+        }
+    }
+
+    function renderNotificationPanel() {
+        const list = document.getElementById('wa-agent-notifications-list');
+        if (!list) return;
+
+        if (!latestRequests.length) {
+            list.innerHTML = '<div class="wa-agent-notifications-empty">No hay solicitudes pendientes</div>';
+            return;
+        }
+
+        list.innerHTML = latestRequests.map(contact => {
+            const name = escapeHtml(contact.name || 'Cliente');
+            const phone = contact.phone_number ? escapeHtml(contact.phone_number) : '';
+            const time = formatRequestTime(contact.requested_at);
+            const href = chatUrl(contact.id);
+            return `
+                <a href="${href}" class="wa-agent-notification-item" data-contact-id="${contact.id}">
+                    <div class="ni-icon"><i class="fas fa-headset"></i></div>
+                    <div>
+                        <p class="ni-title">${name}</p>
+                        <p class="ni-text">Solicita hablar con un asesor humano${phone ? ' · ' + phone : ''}</p>
+                        ${time ? `<div class="ni-time">${escapeHtml(time)}</div>` : ''}
+                    </div>
+                </a>
+            `;
+        }).join('');
+
+        list.querySelectorAll('.wa-agent-notification-item').forEach(item => {
+            item.addEventListener('click', function (e) {
+                const id = parseInt(item.dataset.contactId, 10);
+                const contact = latestRequests.find(c => c.id === id);
+                if (typeof window.loadContactChat === 'function') {
+                    e.preventDefault();
+                    closePanel();
+                    window.loadContactChat(id);
+                } else {
+                    closePanel();
+                }
+            });
+        });
+    }
+
+    function openPanel() {
+        const panel = document.getElementById('wa-agent-notifications-panel');
+        const btn = document.getElementById('wa-enable-notifications-btn');
+        if (!panel) return;
+        panel.classList.remove('hidden');
+        panelOpen = true;
+        if (btn) btn.setAttribute('aria-expanded', 'true');
+        renderNotificationPanel();
+    }
+
+    function closePanel() {
+        const panel = document.getElementById('wa-agent-notifications-panel');
+        const btn = document.getElementById('wa-enable-notifications-btn');
+        if (!panel) return;
+        panel.classList.add('hidden');
+        panelOpen = false;
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+    }
+
+    function togglePanel() {
+        if (panelOpen) closePanel();
+        else openPanel();
     }
 
     function updateNotifyButtonState() {
@@ -224,14 +318,14 @@
 
         if (Notification.permission === 'granted') {
             btn.classList.add('is-active');
-            btn.title = 'Notificaciones activadas';
+            btn.title = 'Ver notificaciones de asesor';
             if (icon) icon.className = 'fas fa-bell';
         } else if (Notification.permission === 'denied') {
             btn.classList.add('is-blocked');
-            btn.title = 'Notificaciones bloqueadas en el navegador';
-            if (icon) icon.className = 'fas fa-bell-slash';
+            btn.title = 'Ver notificaciones (alertas del navegador bloqueadas)';
+            if (icon) icon.className = 'far fa-bell';
         } else {
-            btn.title = 'Activar notificaciones de asesor';
+            btn.title = 'Ver notificaciones de asesor';
             if (icon) icon.className = 'far fa-bell';
         }
     }
@@ -298,7 +392,9 @@
             .then(data => {
                 if (!data.success || !Array.isArray(data.requests)) return;
 
+                latestRequests = data.requests;
                 updateGlobalBadge(data.count || 0);
+                if (panelOpen) renderNotificationPanel();
 
                 if (!pollInitialized) {
                     data.requests.forEach(c => markSeen(c));
@@ -324,7 +420,24 @@
     document.getElementById('wa-enable-notifications-btn')?.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
+        unlockAudio();
+        togglePanel();
+    });
+
+    document.getElementById('wa-request-browser-notify')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
         requestNotificationPermission();
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!panelOpen) return;
+        const nav = document.querySelector('.wa-agent-alerts-nav');
+        if (nav && !nav.contains(e.target)) closePanel();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && panelOpen) closePanel();
     });
 
     updateNotifyButtonState();

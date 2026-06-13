@@ -42,6 +42,24 @@ class WhatsappService
     protected $webhookPhoneNumberId = null;
     protected bool $inboundMarkedRead = false;
 
+    protected function humanTrackingPayload(bool $humanSent): array
+    {
+        if (!$humanSent) {
+            return ['admin_user_id' => null, 'metadata_extra' => []];
+        }
+
+        $adminId = auth()->id();
+
+        return [
+            'admin_user_id' => $adminId,
+            'metadata_extra' => array_filter([
+                'human_sent' => true,
+                'human_sent_at' => now()->toIso8601String(),
+                'admin_user_id' => $adminId,
+            ]),
+        ];
+    }
+
     public function __construct()
     {
         $this->baseUrl = config('whatsapp.api_url', 'https://graph.facebook.com');
@@ -172,22 +190,19 @@ class WhatsappService
                 $messageId = $responseData['messages'][0]['id'] ?? null;
 
                 if ($messageId) {
-                    $metadata = [];
-                    if ($humanSent) {
-                        $metadata['human_sent'] = true;
-                        $metadata['human_sent_at'] = now()->toIso8601String();
-                    }
+                    $tracking = $this->humanTrackingPayload($humanSent);
 
                     WhatsappMessage::create([
                         'business_profile_id' => $this->businessProfile ? $this->businessProfile->id : null,
                         'contact_id' => $contact->id,
+                        'admin_user_id' => $tracking['admin_user_id'],
                         'message_id' => $messageId,
                         'content' => $message,
                         'type' => 'text',
                         'status' => 'sent',
                         'sender_type' => $humanSent ? 'humano' : 'system',
                         'receiver_type' => 'client',
-                        'metadata' => !empty($metadata) ? $metadata : null
+                        'metadata' => !empty($tracking['metadata_extra']) ? $tracking['metadata_extra'] : null,
                     ]);
 
                     Log::info('Mensaje de texto guardado en BD', [
@@ -284,25 +299,23 @@ class WhatsappService
             if ($response->successful()) {
                 $messageId = $response->json()['messages'][0]['id'];
 
-                $metadata = [
+                $tracking = $this->humanTrackingPayload($humanSent);
+                $metadata = array_merge([
                     'media_id' => $mediaId,
-                    'has_caption' => !empty($caption)
-                ];
-                if ($humanSent) {
-                    $metadata['human_sent'] = true;
-                    $metadata['human_sent_at'] = now()->toIso8601String();
-                }
+                    'has_caption' => !empty($caption),
+                ], $tracking['metadata_extra']);
 
                 WhatsappMessage::create([
                     'business_profile_id' => $this->businessProfile ? $this->businessProfile->id : null,
                     'contact_id' => $contact->id,
+                    'admin_user_id' => $tracking['admin_user_id'],
                     'message_id' => $messageId,
                     'content' => $caption ?? '',
                     'type' => 'image',
                     'status' => 'sent',
                     'sender_type' => $humanSent ? 'humano' : 'system',
                     'receiver_type' => 'client',
-                    'metadata' => $metadata
+                    'metadata' => $metadata,
                 ]);
 
                 return true;
@@ -1265,25 +1278,23 @@ class WhatsappService
             if ($response->successful()) {
                 $messageId = $response->json()['messages'][0]['id'];
 
-                $metadata = [
+                $tracking = $this->humanTrackingPayload($humanSent);
+                $metadata = array_merge([
                     'media_id' => $mediaId,
-                    'filename' => basename($audioPath)
-                ];
-                if ($humanSent) {
-                    $metadata['human_sent'] = true;
-                    $metadata['human_sent_at'] = now()->toIso8601String();
-                }
+                    'filename' => basename($audioPath),
+                ], $tracking['metadata_extra']);
 
                 WhatsappMessage::create([
                     'business_profile_id' => $this->businessProfile ? $this->businessProfile->id : null,
                     'contact_id' => $contact->id,
+                    'admin_user_id' => $tracking['admin_user_id'],
                     'message_id' => $messageId,
                     'content' => $caption ?? 'Audio enviado',
                     'type' => 'audio',
                     'status' => 'sent',
                     'sender_type' => $humanSent ? 'humano' : 'system',
                     'receiver_type' => 'client',
-                    'metadata' => $metadata
+                    'metadata' => $metadata,
                 ]);
 
                 return true;
@@ -1359,26 +1370,24 @@ class WhatsappService
             if ($response->successful()) {
                 $messageId = $response->json()['messages'][0]['id'];
 
-                $metadata = [
+                $tracking = $this->humanTrackingPayload($humanSent);
+                $metadata = array_merge([
                     'media_id' => $mediaId,
                     'filename' => $documentFilename,
-                    'mime_type' => mime_content_type($documentPath)
-                ];
-                if ($humanSent) {
-                    $metadata['human_sent'] = true;
-                    $metadata['human_sent_at'] = now()->toIso8601String();
-                }
+                    'mime_type' => mime_content_type($documentPath),
+                ], $tracking['metadata_extra']);
 
                 WhatsappMessage::create([
                     'business_profile_id' => $this->businessProfile ? $this->businessProfile->id : null,
                     'contact_id' => $contact->id,
+                    'admin_user_id' => $tracking['admin_user_id'],
                     'message_id' => $messageId,
                     'content' => $caption ?? $documentFilename,
                     'type' => 'document',
                     'status' => 'sent',
                     'sender_type' => $humanSent ? 'humano' : 'system',
                     'receiver_type' => 'client',
-                    'metadata' => $metadata
+                    'metadata' => $metadata,
                 ]);
 
                 return true;

@@ -40,6 +40,22 @@ class LoginController extends Controller
             'username' => $credentials['username'],
             'password' => $credentials['password'],
         ])) {
+            $user = Auth::user();
+
+            if (!$user->is_admin) {
+                Auth::logout();
+                return back()->withErrors([
+                    'username' => 'Usuario o contraseña incorrectos.',
+                ])->onlyInput('username');
+            }
+
+            if (!$user->isActive()) {
+                Auth::logout();
+                return back()->withErrors([
+                    'username' => 'Tu cuenta está desactivada. Contacta al administrador.',
+                ])->onlyInput('username');
+            }
+
             $request->session()->regenerate();
 
             return redirect()->intended(route('admin.dashboard'));

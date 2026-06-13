@@ -1,130 +1,299 @@
 @extends('admin.layouts.app')
 
-@section('header', 'Tarifas Meta / Consumo')
+@section('header', 'Parámetros de plataforma')
 
 @section('content')
-<div class="bg-white shadow-sm rounded-lg overflow-hidden max-w-4xl">
-    <div class="p-6 border-b border-gray-100">
-        <h2 class="text-lg font-semibold text-gray-900">Parámetros internos de costo WhatsApp</h2>
-        <p class="text-sm text-gray-500 mt-1">
-            Solo visible para super administradores. Activa solo los tipos de conversación que usa este cliente.
+@php
+    $limits = $planLimitsSnapshot;
+    $raw = $platformLimits;
+    $effective = $limits;
+@endphp
+
+<style>
+    .platform-params { max-width: 960px; }
+    .platform-section {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        margin-bottom: 1.25rem;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    }
+    .platform-section-head {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #f1f5f9;
+        background: #f8fafc;
+    }
+    .platform-section-head h2 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #111827;
+    }
+    .platform-section-head p {
+        margin: .35rem 0 0;
+        font-size: .82rem;
+        color: #6b7280;
+    }
+    .platform-section-body { padding: 1.25rem; }
+    .usage-box {
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        border-radius: 10px;
+        padding: .85rem 1rem;
+        font-size: .85rem;
+        color: #374151;
+    }
+    .usage-box strong { color: #065f46; }
+    .usage-over { color: #dc2626; font-weight: 700; }
+    .platform-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    @media (max-width: 768px) {
+        .platform-grid { grid-template-columns: 1fr; }
+    }
+    .platform-field label {
+        display: block;
+        font-size: .82rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: .35rem;
+    }
+    .platform-field input,
+    .platform-field select {
+        width: 100%;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: .5rem .65rem;
+        font-size: .875rem;
+    }
+    .platform-field .hint {
+        font-size: .72rem;
+        color: #9ca3af;
+        margin-top: .25rem;
+    }
+    .platform-save-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+    }
+</style>
+
+<div class="platform-params">
+    @if(session('success'))
+        <div class="mb-4 rounded-lg bg-green-50 border border-green-200 text-green-800 px-4 py-3 text-sm">
+            {{ session('success') }}
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm">
+            {{ session('error') }}
+        </div>
+    @endif
+
+    <div class="mb-4">
+        <p class="text-sm text-gray-600 mb-0">
+            Panel interno de super administrador: define el <strong>plan contratado</strong>, los <strong>límites de capacidad</strong> del cliente y los <strong>costos Meta WhatsApp</strong> que se reflejan en el dashboard.
         </p>
     </div>
 
-    <div class="p-6">
-        @if(session('success'))
-            <div class="mb-4 rounded-lg bg-green-50 border border-green-200 text-green-800 px-4 py-3 text-sm">
-                {{ session('success') }}
-            </div>
-        @endif
-        @if(session('error'))
-            <div class="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-800 px-4 py-3 text-sm">
-                {{ session('error') }}
-            </div>
-        @endif
+    <form action="{{ route('admin.pricing-settings.update') }}" method="POST">
+        @csrf
+        @method('PUT')
 
-        <form action="{{ route('admin.pricing-settings.update') }}" method="POST">
-            @csrf
-            @method('PUT')
+        {{-- SECCIÓN 1: Plan y capacidades --}}
+        <section class="platform-section" id="capacidades">
+            <div class="platform-section-head">
+                <h2>📦 Plan contratado y límites de capacidad</h2>
+                <p>Controla cuántos productos, categorías y espacio en disco puede usar este cliente.</p>
+            </div>
+            <div class="platform-section-body">
+                <div class="platform-grid mb-4">
+                    <div class="platform-field">
+                        <label for="subscription_plan">Plan contratado</label>
+                        <select id="subscription_plan" name="subscription_plan" required>
+                            @foreach($plans as $planKey => $planData)
+                                <option value="{{ $planKey }}"
+                                    @selected(old('subscription_plan', $raw['subscription_plan'] ?? $effective['plan_key'] ?? 'starter') === $planKey)>
+                                    {{ $planData['label'] ?? $planData['name'] }} — {{ $planData['price_label'] ?? '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <p class="hint">Al cambiar el plan se sugieren los límites por defecto (puedes ajustarlos antes de guardar).</p>
+                    </div>
 
-            <div class="mb-6 p-4 rounded-xl border border-emerald-200 bg-emerald-50">
-                <h3 class="font-semibold text-gray-900 mb-2">Tipos de conversación activos</h3>
-                <p class="text-sm text-gray-600 mb-3">Los desactivados no aparecen en el dashboard del cliente ni en la página de planes.</p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    @php
-                        $categoryLabels = [
-                            'service' => '💬 Atención al cliente (cuando escriben)',
-                            'utility' => '📋 Avisos automáticos del bot',
-                            'marketing' => '📢 Promociones / campañas',
-                            'authentication' => '🔐 Códigos de verificación (OTP)',
-                        ];
-                    @endphp
+                    <div class="usage-box">
+                        <div class="font-semibold text-gray-800 mb-2">Uso actual del cliente</div>
+                        <div>Productos:
+                            <strong class="{{ $limits['products_at_limit'] ? 'usage-over' : '' }}">{{ $limits['usage']['products'] }}</strong>
+                            / {{ $limits['max_products'] }}
+                        </div>
+                        <div>Categorías:
+                            <strong class="{{ $limits['categories_at_limit'] ? 'usage-over' : '' }}">{{ $limits['usage']['categories'] }}</strong>
+                            / {{ $limits['max_categories'] }}
+                        </div>
+                        <div>Espacio en servidor:
+                            <strong>{{ number_format($limits['usage']['storage_gb'], 2) }} GB</strong>
+                            / {{ number_format($limits['storage_gb'], 0) }} GB permitidos
+                        </div>
+                    </div>
+
+                    <div class="platform-field">
+                        <label for="max_products_limit">Máximo de productos</label>
+                        <input type="number" id="max_products_limit" name="max_products_limit" min="0" max="100000" required
+                            value="{{ old('max_products_limit', $raw['max_products_limit'] ?? $effective['max_products']) }}">
+                        <p class="hint">Bloquea la creación de productos al alcanzar este número.</p>
+                        @error('max_products_limit')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div class="platform-field">
+                        <label for="max_categories_limit">Máximo de categorías</label>
+                        <input type="number" id="max_categories_limit" name="max_categories_limit" min="0" max="10000" required
+                            value="{{ old('max_categories_limit', $raw['max_categories_limit'] ?? $effective['max_categories']) }}">
+                        @error('max_categories_limit')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div class="platform-field" style="grid-column: 1 / -1;">
+                        <label for="storage_gb_limit">Espacio en servidor (GB)</label>
+                        <input type="number" id="storage_gb_limit" name="storage_gb_limit" min="0" max="10000" step="0.5" required
+                            value="{{ old('storage_gb_limit', $raw['storage_gb_limit'] ?? $effective['storage_gb']) }}">
+                        <p class="hint">Incluye imágenes del bot, flujo de marketing y archivos subidos. Se muestra en el dashboard del cliente.</p>
+                        @error('storage_gb_limit')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {{-- SECCIÓN 2: Costos Meta --}}
+        <section class="platform-section" id="costos-meta">
+            <div class="platform-section-head">
+                <h2>💬 Costos Meta WhatsApp</h2>
+                <p>Tarifas internas y tipos de conversación visibles en el dashboard y la página de planes.</p>
+            </div>
+            <div class="platform-section-body">
+                <div class="mb-5 p-4 rounded-xl border border-emerald-200 bg-emerald-50">
+                    <h3 class="font-semibold text-gray-900 mb-2 text-sm">Tipos de conversación activos</h3>
+                    <p class="text-sm text-gray-600 mb-3">Los desactivados no aparecen en el dashboard del cliente ni en /planes.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        @php
+                            $categoryLabels = [
+                                'service' => '💬 Atención al cliente (cuando escriben)',
+                                'utility' => '📋 Avisos automáticos del bot',
+                                'marketing' => '📢 Promociones / campañas',
+                                'authentication' => '🔐 Códigos de verificación (OTP)',
+                            ];
+                        @endphp
+                        @foreach($categoryKeys as $key)
+                            <label class="flex items-start gap-2 text-sm cursor-pointer">
+                                <input type="checkbox" name="enabled_categories[]" value="{{ $key }}"
+                                    @checked(in_array($key, old('enabled_categories', $enabledCategories), true))
+                                    class="mt-1 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
+                                <span>{{ $categoryLabels[$key] ?? ucfirst($key) }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                    <div class="platform-field">
+                        <label>Factor de ajuste interno</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" name="meta_markup" step="0.01" min="1" max="3"
+                                value="{{ old('meta_markup', $settings->meta_markup) }}" required>
+                            <span class="text-sm text-gray-500 whitespace-nowrap">× (ej. 1.30)</span>
+                        </div>
+                        @error('meta_markup')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="platform-field">
+                        <label>Región</label>
+                        <input type="text" name="region" value="{{ old('region', $settings->region) }}" required>
+                    </div>
+                    <div class="platform-field">
+                        <label>Moneda</label>
+                        <input type="text" name="currency" maxlength="3" value="{{ old('currency', $settings->currency) }}" class="uppercase" required>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
                     @foreach($categoryKeys as $key)
-                        <label class="flex items-start gap-2 text-sm cursor-pointer">
-                            <input type="checkbox" name="enabled_categories[]" value="{{ $key }}"
-                                @checked(in_array($key, old('enabled_categories', $enabledCategories), true))
-                                class="mt-1 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500">
-                            <span>{{ $categoryLabels[$key] ?? ucfirst($key) }}</span>
-                        </label>
+                        @php
+                            $meta = $categories[$key] ?? [];
+                            $rate = $settings->rates[$key] ?? ['min' => 0, 'max' => 0];
+                            $appliedMin = round(($rate['min'] ?? 0) * $settings->meta_markup, 4);
+                            $appliedMax = round(($rate['max'] ?? 0) * $settings->meta_markup, 4);
+                            $isEnabled = in_array($key, old('enabled_categories', $enabledCategories), true);
+                        @endphp
+                        <div class="border rounded-xl p-4 {{ $isEnabled ? 'border-gray-200 bg-gray-50' : 'border-dashed border-gray-300 bg-gray-100 opacity-80' }}">
+                            <div class="flex items-start gap-3 mb-3">
+                                <span class="text-2xl">{{ $meta['icon'] ?? '💬' }}</span>
+                                <div>
+                                    <h3 class="font-semibold text-gray-900 text-sm">
+                                        {{ $meta['label'] ?? ucfirst($key) }}
+                                        @unless($isEnabled)
+                                            <span class="text-xs font-normal text-gray-500">(inactivo para el cliente)</span>
+                                        @endunless
+                                    </h3>
+                                    <p class="text-sm text-gray-500">{{ $meta['description'] ?? '' }}</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="platform-field">
+                                    <label>Tarifa base mín. (USD)</label>
+                                    <input type="number" name="rates[{{ $key }}][min]" step="0.0001" min="0"
+                                        value="{{ old("rates.{$key}.min", $rate['min']) }}" required>
+                                </div>
+                                <div class="platform-field">
+                                    <label>Tarifa base máx. (USD)</label>
+                                    <input type="number" name="rates[{{ $key }}][max]" step="0.0001" min="0"
+                                        value="{{ old("rates.{$key}.max", $rate['max']) }}" required>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">
+                                Aplicado al dashboard: <strong>${{ number_format($appliedMin, 4) }}</strong> — <strong>${{ number_format($appliedMax, 4) }}</strong> por conversación
+                            </p>
+                        </div>
                     @endforeach
                 </div>
             </div>
+        </section>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Factor de ajuste interno</label>
-                    <div class="flex items-center gap-2">
-                        <input type="number" name="meta_markup" step="0.01" min="1" max="3"
-                            value="{{ old('meta_markup', $settings->meta_markup) }}"
-                            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" required>
-                        <span class="text-sm text-gray-500 whitespace-nowrap">× (ej. 1.30)</span>
-                    </div>
-                    @error('meta_markup')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Región</label>
-                    <input type="text" name="region" value="{{ old('region', $settings->region) }}"
-                        class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" required>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Moneda</label>
-                    <input type="text" name="currency" maxlength="3" value="{{ old('currency', $settings->currency) }}"
-                        class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm uppercase" required>
-                </div>
-            </div>
-
-            <div class="space-y-5">
-                @foreach($categoryKeys as $key)
-                    @php
-                        $meta = $categories[$key] ?? [];
-                        $rate = $settings->rates[$key] ?? ['min' => 0, 'max' => 0];
-                        $appliedMin = round(($rate['min'] ?? 0) * $settings->meta_markup, 4);
-                        $appliedMax = round(($rate['max'] ?? 0) * $settings->meta_markup, 4);
-                        $isEnabled = in_array($key, old('enabled_categories', $enabledCategories), true);
-                    @endphp
-                    <div class="border rounded-xl p-4 {{ $isEnabled ? 'border-gray-200 bg-gray-50' : 'border-dashed border-gray-300 bg-gray-100 opacity-80' }}">
-                        <div class="flex items-start gap-3 mb-3">
-                            <span class="text-2xl">{{ $meta['icon'] ?? '💬' }}</span>
-                            <div>
-                                <h3 class="font-semibold text-gray-900">
-                                    {{ $meta['label'] ?? ucfirst($key) }}
-                                    @unless($isEnabled)
-                                        <span class="text-xs font-normal text-gray-500">(inactivo para el cliente)</span>
-                                    @endunless
-                                </h3>
-                                <p class="text-sm text-gray-500">{{ $meta['description'] ?? '' }}</p>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Tarifa base mín. (USD)</label>
-                                <input type="number" name="rates[{{ $key }}][min]" step="0.0001" min="0"
-                                    value="{{ old("rates.{$key}.min", $rate['min']) }}"
-                                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" required>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Tarifa base máx. (USD)</label>
-                                <input type="number" name="rates[{{ $key }}][max]" step="0.0001" min="0"
-                                    value="{{ old("rates.{$key}.max", $rate['max']) }}"
-                                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white" required>
-                            </div>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-2">
-                            Aplicado al dashboard: <strong>${{ number_format($appliedMin, 4) }}</strong> — <strong>${{ number_format($appliedMax, 4) }}</strong> por conversación
-                        </p>
-                    </div>
-                @endforeach
-            </div>
-
-            <div class="mt-6 flex items-center justify-between">
-                <p class="text-xs text-gray-500 max-w-md">
-                    Puedes dejar tarifas de promociones y OTP guardadas aunque estén desactivadas, por si las activas después.
-                </p>
-                <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg">
-                    <i class="fas fa-save"></i> Guardar configuración
-                </button>
-            </div>
-        </form>
-    </div>
+        <div class="platform-save-bar">
+            <p class="text-xs text-gray-500 mb-0 max-w-lg">
+                Los cambios de capacidad afectan de inmediato al cliente. Las tarifas Meta pueden guardarse aunque un tipo de conversación esté desactivado.
+            </p>
+            <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg">
+                <i class="fas fa-save"></i> Guardar parámetros
+            </button>
+        </div>
+    </form>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+const planDefaultsByKey = @json(collect($plans)->mapWithKeys(fn ($plan, $key) => [$key => $plan['limits'] ?? []]));
+
+document.getElementById('subscription_plan')?.addEventListener('change', function () {
+    const limits = planDefaultsByKey[this.value] || {};
+    const map = {
+        max_products: 'max_products_limit',
+        max_categories: 'max_categories_limit',
+        storage_gb: 'storage_gb_limit',
+    };
+    Object.entries(map).forEach(([from, to]) => {
+        const el = document.getElementById(to);
+        if (el && limits[from] != null) {
+            el.value = limits[from];
+        }
+    });
+});
+</script>
+@endpush

@@ -37,6 +37,12 @@ return [
             'price_label' => '$60/mes',
             'from' => false,
             'cta' => 'Elegir Starter',
+            'limits' => [
+                'max_products' => 80,
+                'max_categories' => 20,
+                'storage_gb' => 10,
+                'admin_users' => 3,
+            ],
         ],
         'pro' => [
             'name' => 'Pro',
@@ -45,6 +51,12 @@ return [
             'price_label' => '$90/mes',
             'from' => false,
             'cta' => 'Elegir Pro',
+            'limits' => [
+                'max_products' => 200,
+                'max_categories' => 50,
+                'storage_gb' => 25,
+                'admin_users' => 5,
+            ],
         ],
         'enterprise' => [
             'name' => 'Enterprise',
@@ -53,6 +65,12 @@ return [
             'price_label' => 'desde $130/mes',
             'from' => true,
             'cta' => 'Solicitar cotización',
+            'limits' => [
+                'max_products' => 500,
+                'max_categories' => 100,
+                'storage_gb' => 50,
+                'admin_users' => null,
+            ],
         ],
     ],
 

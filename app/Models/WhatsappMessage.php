@@ -11,6 +11,7 @@ class WhatsappMessage extends Model
 
     protected $fillable = [
         'contact_id',
+        'admin_user_id',
         'business_profile_id',
         'message_id',
         'sender_type',

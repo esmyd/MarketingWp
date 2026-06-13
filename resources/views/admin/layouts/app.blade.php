@@ -709,6 +709,7 @@
             align-items: center;
             gap: 8px;
             margin-right: 12px;
+            position: relative;
         }
 
         .wa-notify-toggle {
@@ -749,6 +750,151 @@
         }
 
         .global-agent-requests-count.hidden { display: none; }
+
+        .wa-agent-notifications-panel {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            width: min(360px, calc(100vw - 24px));
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.06);
+            z-index: 10060;
+            overflow: hidden;
+        }
+
+        .wa-agent-notifications-panel.hidden { display: none; }
+
+        .wa-agent-notifications-panel .panel-header {
+            padding: 12px 16px;
+            font-weight: 700;
+            font-size: 14px;
+            color: #111b21;
+            border-bottom: 1px solid #eef0f2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .wa-agent-notifications-panel .panel-header span {
+            font-size: 11px;
+            font-weight: 600;
+            color: #f15c6d;
+            background: #fde8eb;
+            padding: 2px 8px;
+            border-radius: 999px;
+        }
+
+        .wa-agent-notifications-list {
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        .wa-agent-notification-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f3f5;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            transition: background .12s;
+        }
+
+        .wa-agent-notification-item:hover { background: #f8f9fa; }
+        .wa-agent-notification-item:last-child { border-bottom: none; }
+
+        .wa-agent-notification-item .ni-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f15c6d, #e74c3c);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .wa-agent-notification-item .ni-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #111b21;
+            margin: 0 0 2px;
+        }
+
+        .wa-agent-notification-item .ni-text {
+            font-size: 12px;
+            color: #667781;
+            margin: 0;
+            line-height: 1.35;
+        }
+
+        .wa-agent-notification-item .ni-time {
+            font-size: 11px;
+            color: #8696a0;
+            margin-top: 3px;
+        }
+
+        .wa-agent-notifications-empty {
+            padding: 28px 16px;
+            text-align: center;
+            color: #8696a0;
+            font-size: 13px;
+        }
+
+        .wa-agent-notifications-panel .panel-footer {
+            padding: 10px 12px;
+            border-top: 1px solid #eef0f2;
+            background: #fafbfc;
+        }
+
+        .wa-agent-notifications-panel .panel-footer button {
+            width: 100%;
+            border: 1px solid #dee2e6;
+            background: #fff;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #495057;
+            cursor: pointer;
+        }
+
+        .wa-agent-notifications-panel .panel-footer button:hover {
+            background: #f1f3f5;
+        }
+
+        .sidebar .nav-link {
+            position: relative;
+        }
+
+        .sidebar-nav-badge {
+            margin-left: auto;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 10px;
+            background: #f15c6d;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .sidebar-nav-badge.hidden { display: none; }
+
+        .sidebar.collapsed .sidebar-nav-badge {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            min-width: 16px;
+            height: 16px;
+            padding: 0 4px;
+            font-size: 9px;
+        }
 
         .wa-agent-toast-stack {
             position: fixed;
@@ -842,18 +988,20 @@
                     <span class="sidebar-text">Pedidos</span>
                 </a>
                 @endperm
-                @perm('chats.menu')
-                <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chat*') ? 'active' : '' }}">
-                    <i class="fas fa-comments"></i>
-                    <span class="sidebar-text">Chats</span>
-                </a>
-                @endperm
                 @perm('clients.menu')
                 <a href="{{ route('admin.clients.index') }}" class="nav-link {{ request()->routeIs('admin.clients*') ? 'active' : '' }}">
                     <i class="fas fa-users"></i>
                     <span class="sidebar-text">Clientes</span>
                 </a>
                 @endperm
+                @perm('chats.menu')
+                <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chat*') ? 'active' : '' }}">
+                    <i class="fas fa-comments"></i>
+                    <span class="sidebar-text">Chats</span>
+                    <span id="sidebar-chats-agent-count" class="sidebar-nav-badge hidden"></span>
+                </a>
+                @endperm
+
                 @perm('dashboard.menu')
                 <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
                     <i class="fas fa-chart-line"></i>
@@ -864,12 +1012,7 @@
 
             <nav class="sidebar-nav sidebar-nav-config">
                 <div class="sidebar-section sidebar-text">Bot y ventas</div>
-                @perm('marketing_flow.menu')
-                <a href="{{ route('admin.marketing-flow.edit') }}" class="nav-link {{ request()->routeIs('admin.marketing-flow*') ? 'active' : '' }}">
-                    <i class="fas fa-project-diagram"></i>
-                    <span class="sidebar-text">Flujo del bot</span>
-                </a>
-                @endperm
+
                 @perm('menus.menu')
                 <a href="{{ route('admin.menus.index') }}" class="nav-link {{ request()->routeIs('admin.menus.*') ? 'active' : '' }}">
                     <i class="fas fa-folder-open"></i>
@@ -882,21 +1025,24 @@
                     <span class="sidebar-text">Productos</span>
                 </a>
                 @endperm
-                @perm('chatbot.menu')
-                <a href="{{ route('admin.chatbot.config') }}" class="nav-link {{ request()->routeIs('admin.chatbot.config*') ? 'active' : '' }}">
-                    <i class="fas fa-sliders-h"></i>
-                    <span class="sidebar-text">Configuración</span>
+                @perm('marketing_flow.menu')
+                <a href="{{ route('admin.marketing-flow.edit') }}" class="nav-link {{ request()->routeIs('admin.marketing-flow*') ? 'active' : '' }}">
+                    <i class="fas fa-project-diagram"></i>
+                    <span class="sidebar-text">Flujo del bot</span>
                 </a>
                 @endperm
+
+
             </nav>
 
             @if($canPerm('pricing_settings.menu') || $canPerm('roles.menu') || $canPerm('users.menu'))
             <nav class="sidebar-nav sidebar-nav-config">
                 <div class="sidebar-section sidebar-text">Plataforma</div>
-                @perm('pricing_settings.menu')
-                <a href="{{ route('admin.pricing-settings.edit') }}" class="nav-link {{ request()->routeIs('admin.pricing-settings*') ? 'active' : '' }}">
-                    <i class="fas fa-tags"></i>
-                    <span class="sidebar-text">Tarifas Meta</span>
+
+                @perm('users.menu')
+                <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users*') ? 'active' : '' }}">
+                    <i class="fas fa-users-cog"></i>
+                    <span class="sidebar-text">Usuarios</span>
                 </a>
                 @endperm
                 @perm('roles.menu')
@@ -910,6 +1056,22 @@
         </div>
 
         <div class="sidebar-footer">
+            @perm('pricing_settings.menu')
+            <a href="{{ route('admin.pricing-settings.edit') }}" class="nav-link {{ request()->routeIs('admin.pricing-settings*') ? 'active' : '' }}">
+                <i class="fas fa-sliders-h"></i>
+                <span class="sidebar-text">Parámetros plataforma</span>
+            </a>
+            @endperm
+            @perm('chatbot.menu')
+            <a href="{{ route('admin.chatbot.config') }}" class="nav-link {{ request()->routeIs('admin.chatbot.config*') ? 'active' : '' }}">
+                <i class="fas fa-sliders-h"></i>
+                <span class="sidebar-text">Configuración del bot</span>
+            </a>
+            @endperm
+            <a href="{{ route('admin.profile.show') }}" class="sidebar-profile-link {{ request()->routeIs('admin.profile.*') ? 'active' : '' }}">
+                <i class="fas fa-user-circle"></i>
+                <span class="sidebar-text">Mi perfil</span>
+            </a>
             <div class="sidebar-user-info">
                 <div class="sidebar-user-avatar">
                     {{ strtoupper(substr(Auth::user()->name ?? 'A', 0, 1)) }}
@@ -919,10 +1081,7 @@
                     <span class="sidebar-text sidebar-user-role">{{ Auth::user()->roleLabel() }}</span>
                 </div>
             </div>
-            <a href="{{ route('admin.profile.show') }}" class="sidebar-profile-link {{ request()->routeIs('admin.profile.*') ? 'active' : '' }}">
-                <i class="fas fa-user-circle"></i>
-                <span class="sidebar-text">Mi perfil</span>
-            </a>
+
             <form action="{{ route('logout') }}" method="POST" class="sidebar-logout-form">
                 @csrf
                 <button type="submit" class="sidebar-logout-btn" onclick="return confirm('¿Estás seguro de que deseas cerrar sesión?');">
@@ -947,10 +1106,22 @@
             <div class="user-menu">
                 @perm('chats.view')
                 <div class="wa-agent-alerts-nav">
-                    <button type="button" id="wa-enable-notifications-btn" class="wa-notify-toggle" title="Activar notificaciones de asesor">
+                    <button type="button" id="wa-enable-notifications-btn" class="wa-notify-toggle" title="Ver notificaciones de asesor" aria-expanded="false" aria-controls="wa-agent-notifications-panel">
                         <i class="far fa-bell"></i>
                         <span id="global-agent-requests-count" class="global-agent-requests-count hidden"></span>
                     </button>
+                    <div id="wa-agent-notifications-panel" class="wa-agent-notifications-panel hidden" role="dialog" aria-label="Notificaciones">
+                        <div class="panel-header">
+                            Notificaciones
+                            <span id="wa-notifications-panel-count"></span>
+                        </div>
+                        <div id="wa-agent-notifications-list" class="wa-agent-notifications-list">
+                            <div class="wa-agent-notifications-empty">No hay solicitudes pendientes</div>
+                        </div>
+                        <div class="panel-footer">
+                            <button type="button" id="wa-request-browser-notify">Activar alertas del navegador y sonido</button>
+                        </div>
+                    </div>
                 </div>
                 @endperm
                 <div class="user-dropdown" id="userDropdown">
@@ -1136,7 +1307,7 @@
             favicon: @json(asset('favicon.svg')),
         };
     </script>
-    <script src="{{ asset('js/admin-agent-alerts.js') }}?v=2" defer></script>
+    <script src="{{ asset('js/admin-agent-alerts.js') }}?v=3" defer></script>
     @endperm
 </body>
 </html>

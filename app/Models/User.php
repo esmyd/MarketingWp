@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\PermissionService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -21,6 +22,7 @@ class User extends Authenticatable
         'is_admin',
         'role',
         'role_id',
+        'is_active',
     ];
 
     protected $hidden = [
@@ -32,11 +34,22 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'is_admin' => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     public function roleModel(): BelongsTo
     {
         return $this->belongsTo(Role::class, 'role_id');
+    }
+
+    public function sentWhatsappMessages(): HasMany
+    {
+        return $this->hasMany(WhatsappMessage::class, 'admin_user_id');
+    }
+
+    public function isActive(): bool
+    {
+        return ($this->is_active ?? true) === true;
     }
 
     public function isSuperAdmin(): bool

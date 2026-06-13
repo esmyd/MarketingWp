@@ -51,6 +51,9 @@
             <i class="fas fa-user-plus me-1"></i> Nuevo usuario
         </a>
     @endperm
+    <a href="{{ route('admin.users.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-users-cog me-1"></i> Gestionar usuarios
+    </a>
 </div>
 
 @if(session('success'))
@@ -226,7 +229,8 @@
             </div>
         </div>
         <p class="text-muted small mt-2">
-            Los permisos efectivos de cada usuario provienen de su rol. Para permisos granulares individuales, asigne un rol personalizado.
+            Para gestión completa (contraseñas, activar/desactivar y métricas diarias), usa
+            <a href="{{ route('admin.users.index') }}">Usuarios del panel</a>.
         </p>
     </div>
 </div>

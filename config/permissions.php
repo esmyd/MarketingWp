@@ -76,12 +76,12 @@ return [
             ],
         ],
         'pricing_settings' => [
-            'label' => 'Tarifas Meta (interno)',
-            'icon' => 'fa-tags',
+            'label' => 'Parámetros de plataforma',
+            'icon' => 'fa-sliders-h',
             'permissions' => [
                 'pricing_settings.menu' => ['label' => 'Ver en menú', 'type' => 'menu'],
-                'pricing_settings.view' => ['label' => 'Ver tarifas internas', 'type' => 'action'],
-                'pricing_settings.update' => ['label' => 'Editar tarifas internas', 'type' => 'action'],
+                'pricing_settings.view' => ['label' => 'Ver parámetros internos', 'type' => 'action'],
+                'pricing_settings.update' => ['label' => 'Editar parámetros internos', 'type' => 'action'],
             ],
         ],
         'users' => [

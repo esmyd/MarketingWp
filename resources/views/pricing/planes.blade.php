@@ -339,18 +339,21 @@
         }
 
         .feature-list li {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
+            position: relative;
+            padding: 7px 0 7px 28px;
             font-size: 14px;
-            padding: 7px 0;
+            line-height: 1.45;
+            text-align: left;
             border-bottom: 1px solid rgba(255,255,255,.04);
+            overflow: hidden;
         }
 
         .feature-list li:last-child { border-bottom: none; }
 
         .feature-list .icon {
-            flex-shrink: 0;
+            position: absolute;
+            left: 0;
+            top: 9px;
             width: 18px;
             height: 18px;
             border-radius: 50%;
@@ -358,7 +361,6 @@
             align-items: center;
             justify-content: center;
             font-size: 10px;
-            margin-top: 2px;
         }
 
         .feature-list .icon.yes { background: rgba(37,211,102,.2); color: var(--accent); }
@@ -368,14 +370,15 @@
         .feature-list li.excluded { color: var(--muted); }
 
         .feature-list .tag {
+            float: right;
             font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: .05em;
             padding: 2px 6px;
             border-radius: 4px;
-            margin-left: auto;
-            flex-shrink: 0;
+            margin-left: 8px;
+            white-space: nowrap;
         }
 
         .tag-limited { background: rgba(245,158,11,.15); color: var(--gold); }
@@ -1409,12 +1412,14 @@
 
             .feature-list li {
                 font-size: 13px;
-                flex-wrap: wrap;
+                padding-left: 26px;
             }
 
             .feature-list .tag {
-                margin-left: 0;
-                margin-top: 4px;
+                float: none;
+                display: inline-block;
+                margin-left: 6px;
+                vertical-align: middle;
             }
 
             .demo-actions-row {
@@ -1679,7 +1684,8 @@
                 <ul class="feature-list">
                     <li><span class="icon yes">✓</span> Bot de WhatsApp 24/7 con menús y botones</li>
                     <li><span class="icon yes">✓</span> Flujo de marketing completo (saludo, catálogo, pedidos…)</li>
-                    <li><span class="icon yes">✓</span> Catálogo de productos y categorías</li>
+                    <li><span class="icon yes">✓</span> Hasta <strong>{{ $plans['starter']['limits']['max_products'] }}</strong> productos y <strong>{{ $plans['starter']['limits']['max_categories'] }}</strong> categorías <span class="tag tag-limited">Límite</span></li>
+                    <li><span class="icon yes">✓</span> <strong>{{ $plans['starter']['limits']['storage_gb'] }} GB</strong> de espacio en servidor (imágenes y archivos) <span class="tag tag-limited">Límite</span></li>
                     <li><span class="icon yes">✓</span> Carrito, checkout y gestión de pedidos</li>
                     <li><span class="icon yes">✓</span> Panel de chat en vivo con alerta de asesor</li>
                     <li><span class="icon yes">✓</span> Palabras clave y respuestas automáticas</li>
@@ -1712,7 +1718,9 @@
 
                 <div class="features-label">Todo lo de Starter, más</div>
                 <ul class="feature-list">
-                    <li><span class="icon yes">✓</span> <strong>5 usuarios</strong> admin <span class="tag tag-full">Ampliado</span></li>
+                    <li><span class="icon yes">✓</span> Hasta <strong>{{ $plans['pro']['limits']['max_products'] }}</strong> productos y <strong>{{ $plans['pro']['limits']['max_categories'] }}</strong> categorías <span class="tag tag-full">Ampliado</span></li>
+                    <li><span class="icon yes">✓</span> <strong>{{ $plans['pro']['limits']['storage_gb'] }} GB</strong> de espacio en servidor <span class="tag tag-full">Ampliado</span></li>
+                    <li><span class="icon yes">✓</span> <strong>{{ $plans['pro']['limits']['admin_users'] }} usuarios</strong> admin <span class="tag tag-full">Ampliado</span></li>
                     <li><span class="icon yes">✓</span> Cliente envía <strong>imágenes y PDF</strong> (comprobantes, documentos)</li>
                     <li><span class="icon yes">✓</span> Flujo de comprobante de pago configurable</li>
                     <li><span class="icon yes">✓</span> <strong>Plantillas masivas</strong> y campañas de marketing</li>
@@ -1743,6 +1751,8 @@
 
                 <div class="features-label">Todo lo de Pro, más</div>
                 <ul class="feature-list">
+                    <li><span class="icon yes">✓</span> Hasta <strong>{{ $plans['enterprise']['limits']['max_products'] }}</strong> productos y <strong>{{ $plans['enterprise']['limits']['max_categories'] }}</strong> categorías <span class="tag tag-full">Ampliable</span></li>
+                    <li><span class="icon yes">✓</span> <strong>{{ $plans['enterprise']['limits']['storage_gb'] }} GB</strong> de espacio en servidor <span class="tag tag-full">Ampliable</span></li>
                     <li><span class="icon yes">✓</span> <strong>Usuarios admin ilimitados</strong> <span class="tag tag-full">Sin límite</span></li>
                     <li><span class="icon yes">✓</span> <strong>Integraciones</strong> (CRM, ERP, pasarelas, webhooks)</li>
                     <li><span class="icon yes">✓</span> <strong>Reportes avanzados</strong> y exportación de datos</li>
@@ -1922,6 +1932,24 @@
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Productos en catálogo</td>
+                        <td class="cell-partial">Hasta {{ $plans['starter']['limits']['max_products'] }}</td>
+                        <td class="cell-partial">Hasta {{ $plans['pro']['limits']['max_products'] }}</td>
+                        <td class="cell-partial">Hasta {{ $plans['enterprise']['limits']['max_products'] }}</td>
+                    </tr>
+                    <tr>
+                        <td>Categorías</td>
+                        <td class="cell-partial">Hasta {{ $plans['starter']['limits']['max_categories'] }}</td>
+                        <td class="cell-partial">Hasta {{ $plans['pro']['limits']['max_categories'] }}</td>
+                        <td class="cell-partial">Hasta {{ $plans['enterprise']['limits']['max_categories'] }}</td>
+                    </tr>
+                    <tr>
+                        <td>Espacio en servidor (imágenes, archivos, respaldos)</td>
+                        <td class="cell-partial">{{ $plans['starter']['limits']['storage_gb'] }} GB</td>
+                        <td class="cell-partial">{{ $plans['pro']['limits']['storage_gb'] }} GB</td>
+                        <td class="cell-partial">{{ $plans['enterprise']['limits']['storage_gb'] }} GB</td>
                     </tr>
 
                     <tr class="category-row"><td colspan="4">Panel web · historial y trazabilidad</td></tr>

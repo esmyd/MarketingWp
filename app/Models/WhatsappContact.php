@@ -66,14 +66,22 @@ class WhatsappContact extends Model
         $this->save();
     }
 
-    public function clearAgentRequest(): void
+    public function clearAgentRequest(?int $handledByUserId = null): void
     {
-        if (!$this->needsAgent()) {
+        $metadata = $this->metadata ?? [];
+        $hadRequest = !empty($metadata['needs_agent']);
+
+        unset($metadata['needs_agent'], $metadata['agent_requested_at'], $metadata['agent_request_source']);
+
+        if ($handledByUserId) {
+            $metadata['agent_handled_by'] = $handledByUserId;
+            $metadata['agent_handled_at'] = now()->toIso8601String();
+        }
+
+        if (!$hadRequest && !isset($metadata['agent_handled_by'])) {
             return;
         }
 
-        $metadata = $this->metadata ?? [];
-        unset($metadata['needs_agent'], $metadata['agent_requested_at'], $metadata['agent_request_source']);
         $this->metadata = $metadata;
         $this->save();
     }

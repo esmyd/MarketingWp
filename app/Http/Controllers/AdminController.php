@@ -950,7 +950,7 @@ class AdminController extends Controller
     {
         try {
             $contact = WhatsappContact::findOrFail($contactId);
-            $contact->clearAgentRequest();
+            $contact->clearAgentRequest(auth()->id());
 
             return response()->json([
                 'success' => true,
