@@ -322,6 +322,113 @@
         border-color: #a7f3d0;
     }
 
+    .u-metric.clickable {
+        cursor: pointer;
+        transition: transform .12s, box-shadow .12s;
+    }
+
+    .u-metric.clickable:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(18, 140, 126, .15);
+    }
+
+    .u-metric.clickable .t::after {
+        content: ' ▾';
+        font-size: .55rem;
+        opacity: .7;
+    }
+
+    .user-activity-detail {
+        display: none;
+        margin-top: .75rem;
+        padding: .75rem;
+        background: #f8fafc;
+        border: 1px solid #e8ecf1;
+        border-radius: 12px;
+    }
+
+    .user-activity-detail.open { display: block; }
+
+    .u-detail-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: .5rem;
+        font-size: .78rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .u-client-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: .4rem;
+    }
+
+    .u-client-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        padding: .55rem .65rem;
+        background: #fff;
+        border: 1px solid #eef2f7;
+        border-radius: 10px;
+    }
+
+    .u-client-item .who {
+        min-width: 0;
+    }
+
+    .u-client-item .who strong {
+        display: block;
+        font-size: .875rem;
+        color: #0f172a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .u-client-item .who small {
+        color: #64748b;
+        font-size: .78rem;
+    }
+
+    .u-client-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .35rem;
+        align-items: center;
+        flex-shrink: 0;
+    }
+
+    .u-tag {
+        font-size: .68rem;
+        font-weight: 600;
+        padding: .15rem .45rem;
+        border-radius: 999px;
+        background: #e2e8f0;
+        color: #475569;
+    }
+
+    .u-tag.msg { background: #dbeafe; color: #1d4ed8; }
+    .u-tag.agent { background: #fef3c7; color: #b45309; }
+
+    .u-client-link {
+        font-size: .75rem;
+        color: var(--u-accent-dark);
+        text-decoration: none;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .u-client-link:hover { text-decoration: underline; }
+
     .user-card-actions {
         display: flex;
         gap: .4rem;
@@ -448,7 +555,9 @@
     <div class="users-list">
         @forelse($users as $user)
             @php
-                $day = $stats[$user->id] ?? ['messages_sent' => 0, 'clients_served' => 0, 'agent_requests_closed' => 0];
+                $day = $stats[$user->id] ?? ['messages_sent' => 0, 'clients_served' => 0, 'agent_requests_closed' => 0, 'clients' => []];
+                $clients = $day['clients'] ?? [];
+                $hasActivity = ($day['messages_sent'] ?? 0) > 0 || ($day['clients_served'] ?? 0) > 0;
                 $roleSlug = $user->roleModel?->slug ?? $user->role ?? 'admin';
                 $roleClass = match ($roleSlug) {
                     'super_admin' => 'super',
@@ -473,11 +582,13 @@
                         <span><i class="far fa-envelope"></i> {{ $user->email }}</span>
                     </div>
                     <div class="user-metrics mt-2">
-                        <div class="u-metric {{ $day['messages_sent'] ? 'highlight' : '' }}">
+                        <div class="u-metric {{ $day['messages_sent'] ? 'highlight' : '' }} {{ $hasActivity ? 'clickable' : '' }}"
+                             @if($hasActivity) data-toggle-activity="user-activity-{{ $user->id }}" title="Ver detalle" @endif>
                             <div class="n {{ $day['messages_sent'] ? '' : 'zero' }}">{{ $day['messages_sent'] }}</div>
                             <div class="t">Mensajes</div>
                         </div>
-                        <div class="u-metric {{ $day['clients_served'] ? 'highlight' : '' }}">
+                        <div class="u-metric {{ $day['clients_served'] ? 'highlight' : '' }} {{ $hasActivity ? 'clickable' : '' }}"
+                             @if($hasActivity) data-toggle-activity="user-activity-{{ $user->id }}" title="Ver clientes" @endif>
                             <div class="n {{ $day['clients_served'] ? '' : 'zero' }}">{{ $day['clients_served'] }}</div>
                             <div class="t">Clientes</div>
                         </div>
@@ -486,6 +597,36 @@
                             <div class="t">Asesor</div>
                         </div>
                     </div>
+
+                    @if($hasActivity)
+                        <div class="user-activity-detail" id="user-activity-{{ $user->id }}">
+                            <div class="u-detail-head">
+                                <span>Clientes atendidos · {{ $dateLabel }}</span>
+                                <button type="button" class="btn-u-ghost btn-sm py-0 px-2" data-close-activity="user-activity-{{ $user->id }}">Cerrar</button>
+                            </div>
+                            <ul class="u-client-list">
+                                @foreach($clients as $client)
+                                    <li class="u-client-item">
+                                        <div class="who">
+                                            <strong>{{ $client['name'] ?: 'Sin nombre' }}</strong>
+                                            <small>{{ $client['phone'] }}</small>
+                                        </div>
+                                        <div class="u-client-tags">
+                                            @if($client['messages'] > 0)
+                                                <span class="u-tag msg">{{ $client['messages'] }} msg</span>
+                                            @endif
+                                            @if($client['agent_closed'])
+                                                <span class="u-tag agent">Asesor</span>
+                                            @endif
+                                            @perm('chats.open')
+                                                <a href="{{ route('admin.chat', $client['id']) }}" class="u-client-link">Abrir chat</a>
+                                            @endperm
+                                        </div>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                 </div>
 
                 <div class="user-card-actions">
@@ -517,7 +658,32 @@
 
     <p class="users-footnote mb-0">
         <strong>Clientes</strong> cuenta contactos distintos con mensajes humanos o solicitud de asesor cerrada ese día.
-        Las métricas aplican a actividad registrada desde el chat del panel.
+        Haz clic en <strong>Mensajes</strong> o <strong>Clientes</strong> para ver el detalle. Las métricas aplican a actividad registrada desde el chat del panel.
     </p>
 </div>
+
+@push('scripts')
+<script>
+document.querySelectorAll('[data-toggle-activity]').forEach(function (el) {
+    el.addEventListener('click', function () {
+        var id = el.getAttribute('data-toggle-activity');
+        var panel = document.getElementById(id);
+        if (!panel) return;
+        var isOpen = panel.classList.contains('open');
+        document.querySelectorAll('.user-activity-detail.open').forEach(function (p) {
+            p.classList.remove('open');
+        });
+        if (!isOpen) panel.classList.add('open');
+    });
+});
+document.querySelectorAll('[data-close-activity]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var id = btn.getAttribute('data-close-activity');
+        var panel = document.getElementById(id);
+        if (panel) panel.classList.remove('open');
+    });
+});
+</script>
+@endpush
 @endsection

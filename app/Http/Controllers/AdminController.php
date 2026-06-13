@@ -857,7 +857,7 @@ class AdminController extends Controller
             }
 
             if ($success && $message) {
-                $contact->clearAgentRequest();
+                $contact->clearAgentRequest(auth()->id());
 
                 $responseData = [
                     'id' => $message->id,

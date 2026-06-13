@@ -12,15 +12,22 @@ class UserActivityService
 {
     public function dailyStatsForUser(User $user, ?Carbon $date = null): array
     {
-        return $this->dailyStatsForUsers(collect([$user]), $date)->get($user->id, [
-            'messages_sent' => 0,
-            'clients_served' => 0,
-            'agent_requests_closed' => 0,
-        ]);
+        return $this->dailyStatsForUsers(collect([$user]), $date)->get($user->id, $this->emptyStats());
     }
 
     /**
-     * @return Collection<int, array{messages_sent:int, clients_served:int, agent_requests_closed:int}>
+     * @return Collection<int, array{
+     *     messages_sent:int,
+     *     clients_served:int,
+     *     agent_requests_closed:int,
+     *     clients: array<int, array{
+     *         id:int,
+     *         name:?string,
+     *         phone:string,
+     *         messages:int,
+     *         agent_closed:bool
+     *     }>
+     * }>
      */
     public function dailyStatsForUsers(Collection $users, ?Carbon $date = null): Collection
     {
@@ -42,7 +49,7 @@ class UserActivityService
             ->groupBy('admin_user_id');
 
         $agentClosed = WhatsappContact::query()
-            ->select('id', 'metadata')
+            ->select('id', 'name', 'phone_number', 'metadata')
             ->where(function ($query) use ($userIds) {
                 foreach ($userIds as $userId) {
                     $query->orWhereRaw(
@@ -70,19 +77,65 @@ class UserActivityService
                 });
             });
 
-        return $users->mapWithKeys(function (User $user) use ($messageRows, $agentClosed) {
+        $preliminary = $users->mapWithKeys(function (User $user) use ($messageRows, $agentClosed) {
             $rows = $messageRows->get($user->id, collect());
             $closedContacts = $agentClosed->get($user->id, collect());
 
-            $contactIds = $rows->pluck('contact_id')->filter()->unique()->values();
-            $closedIds = $closedContacts->pluck('id')->filter()->unique()->values();
-            $clientsServed = $contactIds->merge($closedIds)->unique()->count();
+            $messagesByContact = $rows->groupBy('contact_id')->map->count();
+            $closedIds = $closedContacts->pluck('id')->filter()->unique();
+            $allContactIds = $messagesByContact->keys()->merge($closedIds)->unique()->filter();
 
             return [$user->id => [
                 'messages_sent' => $rows->count(),
-                'clients_served' => $clientsServed,
+                'clients_served' => $allContactIds->count(),
                 'agent_requests_closed' => $closedIds->count(),
+                'messages_by_contact' => $messagesByContact,
+                'closed_contacts' => $closedContacts->keyBy('id'),
+                'contact_ids' => $allContactIds->values()->all(),
             ]];
         });
+
+        $allIds = $preliminary->pluck('contact_ids')->flatten()->unique()->filter()->values();
+
+        $contacts = $allIds->isEmpty()
+            ? collect()
+            : WhatsappContact::query()
+                ->whereIn('id', $allIds)
+                ->get(['id', 'name', 'phone_number'])
+                ->keyBy('id');
+
+        return $preliminary->map(function (array $row) use ($contacts) {
+            $clients = collect($row['contact_ids'])->map(function ($contactId) use ($row, $contacts) {
+                $contact = $contacts->get($contactId) ?? $row['closed_contacts']->get($contactId);
+                $messages = (int) ($row['messages_by_contact'][$contactId] ?? 0);
+                $agentClosed = $row['closed_contacts']->has($contactId);
+
+                return [
+                    'id' => (int) $contactId,
+                    'name' => $contact?->name,
+                    'phone' => $contact?->phone_number ?? '—',
+                    'messages' => $messages,
+                    'agent_closed' => $agentClosed,
+                ];
+            })->sortByDesc(fn ($c) => [$c['messages'], $c['agent_closed'] ? 1 : 0])->values()->all();
+
+            return [
+                'messages_sent' => $row['messages_sent'],
+                'clients_served' => $row['clients_served'],
+                'agent_requests_closed' => $row['agent_requests_closed'],
+                'clients' => $clients,
+            ];
+        });
+    }
+
+    /** @return array{messages_sent:int, clients_served:int, agent_requests_closed:int, clients:array} */
+    protected function emptyStats(): array
+    {
+        return [
+            'messages_sent' => 0,
+            'clients_served' => 0,
+            'agent_requests_closed' => 0,
+            'clients' => [],
+        ];
     }
 }
