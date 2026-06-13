@@ -54,15 +54,87 @@
     }
 
     body.chat-page .main-wrapper {
-        min-height: 100vh;
+        min-height: 100dvh;
+        height: 100dvh;
+        max-height: 100dvh;
+        overflow: hidden;
     }
 
     body.chat-page .main-content {
         padding: 0 !important;
-        height: 100vh;
+        height: 100%;
+        min-height: 0;
         overflow: hidden;
         display: flex;
         flex-direction: column;
+    }
+
+    /* Escritorio: sidebar admin + lista de chats + panel */
+    @media (min-width: 992px) {
+        body.chat-page .main-content,
+        .wa-main-bg,
+        .wa-card {
+            height: 100%;
+            min-height: 0;
+        }
+
+        .wa-card {
+            flex-direction: row;
+        }
+
+        .wa-sidebar {
+            position: relative;
+            transform: none !important;
+            min-width: 340px;
+            max-width: 340px;
+            width: 340px;
+            flex-shrink: 0;
+        }
+
+        .wa-chat-panel {
+            flex: 1;
+            min-width: 0;
+            min-height: 0;
+            position: relative;
+            inset: auto;
+            width: auto;
+            height: 100%;
+            max-height: none;
+            z-index: auto;
+        }
+
+        .wa-chat-header {
+            flex-wrap: nowrap;
+            padding: 10px 16px;
+            gap: 12px;
+        }
+
+        .wa-chat-header-main {
+            flex: 1;
+            width: auto;
+            padding-bottom: 0;
+            gap: 12px;
+        }
+
+        .wa-chat-header-bot {
+            width: auto;
+            padding: 0;
+            border-top: none;
+            flex-shrink: 0;
+        }
+
+        .wa-bot-avatar-inline,
+        .wa-bot-name-label {
+            display: inline-block !important;
+        }
+
+        .wa-bot-toggle-label {
+            display: none !important;
+        }
+
+        .wa-header-actions {
+            margin-left: 0;
+        }
     }
 
     body.chat-page .alert {
@@ -601,6 +673,27 @@
         position: relative;
         min-height: 59px;
         flex-shrink: 0;
+    }
+
+    .wa-chat-header-main {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .wa-chat-header-bot {
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+    }
+
+    .wa-bot-toggle-label {
+        display: none;
+        font-size: 11px;
+        color: #8696a0;
+        white-space: nowrap;
     }
 
     .wa-header-actions {
@@ -1238,13 +1331,43 @@
         transform: scale(0.95);
     }
 
-    /* Responsive Styles */
+    /* Responsive Styles — móvil / tablet */
     @media (max-width: 991.98px) {
+        body.chat-page .main-wrapper {
+            margin-left: 0 !important;
+        }
+
+        body.chat-page .main-content,
+        .wa-main-bg,
+        .wa-card {
+            height: 100%;
+            min-height: 0;
+            max-height: 100%;
+            flex: 1;
+        }
+
+        .wa-main-bg {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .wa-card {
+            flex: 1;
+            min-height: 0;
+            position: relative;
+            display: block;
+        }
+
+        /* Lista de chats: pantalla completa deslizable */
         .wa-sidebar {
             position: fixed;
             left: 0;
             top: 0;
-            height: 100vh;
+            bottom: 0;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            height: 100dvh;
             z-index: 2000;
             transform: translateX(-100%);
             box-shadow: 2px 0 8px rgba(0,0,0,0.3);
@@ -1254,38 +1377,192 @@
             transform: translateX(0);
         }
 
+        /* Conversación: ocupa todo el viewport */
         .wa-chat-panel {
+            position: fixed;
+            inset: 0;
             width: 100%;
+            height: 100vh;
+            height: 100dvh;
+            max-height: 100dvh;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .wa-chat-messages {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .wa-input-container {
+            flex: 0 0 auto;
+            flex-shrink: 0;
+            padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
+            background: #202c33;
+        }
+
+        .wa-agent-handoff-banner {
+            flex-shrink: 0;
+        }
+
+        /* Header en 2 filas claras */
+        .wa-chat-header {
+            flex: 0 0 auto;
+            flex-shrink: 0;
+            flex-direction: column;
+            align-items: stretch;
+            padding: 0;
+            gap: 0;
+            min-height: 0;
+        }
+
+        .wa-chat-header-main {
+            display: grid;
+            grid-template-columns: 38px 38px 1fr 38px;
+            grid-template-areas: "menu back info stats";
+            align-items: center;
+            width: 100%;
+            gap: 4px;
+            padding: 6px 8px;
+        }
+
+        #waOpenAdminMenu { grid-area: menu; }
+        #waOpenSidebar { grid-area: back; }
+
+        .wa-chat-header-main .wa-chat-avatar {
+            display: none;
+        }
+
+        .wa-chat-header-info {
+            grid-area: info;
+            min-width: 0;
+        }
+
+        .wa-header-actions {
+            grid-area: stats;
+            margin-left: 0;
+        }
+
+        .wa-chat-header .wa-mobile-toggle {
+            min-width: 38px;
+            min-height: 38px;
+            padding: 0;
+            margin: 0;
+        }
+
+        .wa-chat-header-name {
+            font-size: 15px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .wa-chat-header-status {
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .wa-chat-header-bot {
+            width: 100%;
+            padding: 5px 10px 6px;
+            border-top: 1px solid #313d45;
+            justify-content: flex-start;
+        }
+
+        .wa-bot-avatar-inline,
+        .wa-bot-name-label {
+            display: none !important;
+        }
+
+        .wa-bot-toggle-label {
+            display: inline;
+            font-size: 11px;
         }
 
         .wa-sidebar-header .wa-mobile-toggle,
         .wa-chat-header .wa-mobile-toggle {
             display: flex !important;
         }
-
-        .wa-card {
-            flex-direction: column;
-        }
     }
 
     @media (max-width: 767.98px) {
-        .wa-sidebar {
-            min-width: 100%;
-            max-width: 100%;
-            width: 100%;
+        .wa-agent-handoff-banner {
+            font-size: 12px;
+            padding: 8px 10px;
+            flex-wrap: wrap;
         }
 
-        .wa-chat-header {
-            padding: 8px 12px;
+        .wa-header-action-btn {
+            width: 36px;
+            height: 36px;
+        }
+
+        .wa-chat-bot-control {
+            gap: 6px;
+        }
+
+        #bot-status-text {
+            min-width: auto !important;
+            font-size: 11px !important;
+        }
+
+        .bot-toggle-switch {
+            width: 38px;
+            height: 22px;
+        }
+
+        .bot-toggle-slider:before {
+            height: 16px;
+            width: 16px;
+        }
+
+        .bot-toggle-switch input:checked + .bot-toggle-slider:before {
+            transform: translateX(14px);
+        }
+
+        .wa-chat-messages {
+            padding: 10px 8px;
+        }
+
+        .wa-input-container {
+            padding: 8px 10px;
         }
 
         .wa-chat-input-area {
-            padding: 8px 12px;
+            gap: 6px;
+        }
+
+        .wa-input-attach-outside {
+            width: 38px;
+            height: 38px;
+        }
+
+        .wa-input-wrapper {
+            min-height: 38px;
+        }
+
+        .wa-input-textarea {
+            font-size: 16px;
+        }
+
+        .wa-send-button {
+            width: 42px;
+            height: 42px;
         }
 
         .wa-bubble-in,
         .wa-bubble-out {
-            max-width: 85%;
+            max-width: 88%;
+        }
+
+        .wa-message-wrapper {
+            padding: 0 4px;
         }
 
         .stats-panel {
@@ -1304,29 +1581,9 @@
             font-size: 0.85em;
         }
 
-        .wa-input-container {
-            position: sticky;
-            bottom: 0;
-            z-index: 1000;
-            background: #202c33;
-        }
-
-        .wa-chat-input-area {
-            position: relative;
-            z-index: 1000;
-        }
-
-        /* Asegurar que el input siempre esté visible */
-        .wa-chat-panel {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        .wa-chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding-bottom: 10px;
+        #typing-unavailable-hint {
+            font-size: 11px !important;
+            padding: 6px 8px !important;
         }
     }
     </style>
@@ -1387,23 +1644,31 @@
         <div class="wa-chat-panel">
             <!-- Header -->
             <div class="wa-chat-header">
-                <button type="button" class="wa-mobile-toggle" id="waOpenAdminMenu" title="Menú principal">
-                    <i class="fas fa-th-large"></i>
-                </button>
-                <button type="button" class="wa-mobile-toggle" id="waOpenSidebar" title="Lista de chats">
-                    <i class="fas fa-arrow-left"></i>
-                </button>
-                <div class="wa-chat-avatar" id="waChatAvatarToggle" title="Ver contactos">{{ strtoupper(mb_substr($contact->name ?? 'C', 0, 1)) }}</div>
-                <div class="wa-chat-header-info">
-                    <div class="wa-chat-header-name">{{ $contact->name ?? 'Cliente' }}</div>
-                    <div class="wa-chat-header-status">{{ $contact->phone_number }}</div>
+                <div class="wa-chat-header-main">
+                    <button type="button" class="wa-mobile-toggle" id="waOpenAdminMenu" title="Menú principal">
+                        <i class="fas fa-th-large"></i>
+                    </button>
+                    <button type="button" class="wa-mobile-toggle" id="waOpenSidebar" title="Lista de chats">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="wa-chat-avatar" id="waChatAvatarToggle" title="Ver contactos">{{ strtoupper(mb_substr($contact->name ?? 'C', 0, 1)) }}</div>
+                    <div class="wa-chat-header-info">
+                        <div class="wa-chat-header-name">{{ $contact->name ?? 'Cliente' }}</div>
+                        <div class="wa-chat-header-status">{{ $contact->phone_number }}</div>
+                    </div>
+                    <div class="wa-header-actions">
+                        <button type="button" id="stats-toggle-btn" class="wa-header-action-btn" title="Ver estadísticas">
+                            <i class="fas fa-chart-line"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="wa-header-actions">
+                <div class="wa-chat-header-bot">
                     <div class="wa-chat-bot-control">
                         @if($chatbotConfig?->bot_avatar_url)
-                            <img src="{{ $chatbotConfig->bot_avatar_url }}" alt="{{ $chatbotConfig->bot_name ?? 'Bot' }}" title="{{ $chatbotConfig->bot_name ?? 'Bot' }}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;">
+                            <img src="{{ $chatbotConfig->bot_avatar_url }}" alt="{{ $chatbotConfig->bot_name ?? 'Bot' }}" title="{{ $chatbotConfig->bot_name ?? 'Bot' }}" class="wa-bot-avatar-inline" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;">
                         @endif
-                        <span style="font-size: 12px; color: #8696a0;">{{ $chatbotConfig?->bot_name ?? 'Bot' }}</span>
+                        <span class="wa-bot-name-label" style="font-size: 12px; color: #8696a0;">{{ $chatbotConfig?->bot_name ?? 'Bot' }}</span>
+                        <span class="wa-bot-toggle-label">Bot</span>
                         <label class="bot-toggle-switch">
                             <input type="checkbox" id="bot-enabled-toggle"
                                    {{ ($contact->bot_enabled ?? true) ? 'checked' : '' }}
@@ -1414,9 +1679,6 @@
                             {{ ($contact->bot_enabled ?? true) ? 'Activo' : 'Inactivo' }}
                         </span>
                     </div>
-                    <button type="button" id="stats-toggle-btn" class="wa-header-action-btn" title="Ver estadísticas">
-                        <i class="fas fa-chart-line"></i>
-                    </button>
                 </div>
             </div>
             <div id="wa-agent-handoff-banner" class="wa-agent-handoff-banner{{ $contact->needsAgent() ? '' : ' hidden' }}">
