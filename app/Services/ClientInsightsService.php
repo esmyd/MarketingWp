@@ -237,12 +237,19 @@ class ClientInsightsService
 
     private function applySorting(Builder $query, string $sort): void
     {
+        // Ordenar con subconsultas: los alias de withMax/withCount no existen en el COUNT de paginación.
         match ($sort) {
-            'orders_desc' => $query->orderByDesc('orders_count')->orderByDesc('last_activity_at'),
-            'messages_desc' => $query->orderByDesc('client_messages_count')->orderByDesc('last_activity_at'),
-            'spent_desc' => $query->orderByDesc('total_spent')->orderByDesc('last_activity_at'),
-            'name_asc' => $query->orderByRaw('COALESCE(name, phone_number) ASC'),
-            default => $query->orderByDesc('last_activity_at'),
+            'orders_desc' => $query
+                ->orderBy($this->ordersCountSubquery(), 'desc')
+                ->orderBy($this->lastActivitySubquery(), 'desc'),
+            'messages_desc' => $query
+                ->orderBy($this->clientMessagesCountSubquery(), 'desc')
+                ->orderBy($this->lastActivitySubquery(), 'desc'),
+            'spent_desc' => $query
+                ->orderBy($this->totalSpentSubquery(), 'desc')
+                ->orderBy($this->lastActivitySubquery(), 'desc'),
+            'name_asc' => $query->orderByRaw('COALESCE(whatsapp_contacts.name, whatsapp_contacts.phone_number) ASC'),
+            default => $query->orderBy($this->lastActivitySubquery(), 'desc'),
         };
     }
 
@@ -283,12 +290,37 @@ class ClientInsightsService
         return $enriched;
     }
 
-    /** Subconsulta segura para filtrar por última actividad (no es columna física). */
+    /** Subconsulta segura para filtrar/ordenar por última actividad (no es columna física). */
     private function lastActivitySubquery(): Builder
     {
         return WhatsappMessage::query()
             ->selectRaw('MAX(created_at)')
             ->whereColumn('whatsapp_messages.contact_id', 'whatsapp_contacts.id');
+    }
+
+    private function ordersCountSubquery(): Builder
+    {
+        return WhatsappCart::query()
+            ->selectRaw('COUNT(*)')
+            ->whereColumn('whatsapp_carts.contact_id', 'whatsapp_contacts.id')
+            ->whereNotIn('status', ['active', 'abandoned']);
+    }
+
+    private function clientMessagesCountSubquery(): Builder
+    {
+        return WhatsappMessage::query()
+            ->selectRaw('COUNT(*)')
+            ->whereColumn('whatsapp_messages.contact_id', 'whatsapp_contacts.id')
+            ->where('sender_type', 'client');
+    }
+
+    private function totalSpentSubquery(): Builder
+    {
+        return WhatsappCart::query()
+            ->selectRaw('COALESCE(SUM(total), 0)')
+            ->whereColumn('whatsapp_carts.contact_id', 'whatsapp_contacts.id')
+            ->whereNotIn('status', ['active', 'abandoned'])
+            ->where('status', '!=', WhatsappCart::STATUS_CANCELLED);
     }
 
     private function pendingReplySql(): string
