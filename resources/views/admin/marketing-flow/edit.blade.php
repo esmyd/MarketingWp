@@ -1,7 +1,15 @@
 @extends('admin.layouts.app')
 
 @push('styles')
+@php
+    $flowPrimary = $chatbotConfig?->primary_color ?? '#128c7e';
+    $flowSecondary = $chatbotConfig?->secondary_color ?? '#075e54';
+@endphp
 <style>
+:root {
+    --flow-bot-primary: {{ $flowPrimary }};
+    --flow-bot-secondary: {{ $flowSecondary }};
+}
 /* ── Página flujo: aislar de Tailwind global ── */
 body.flow-builder-page .top-navbar { display: none; }
 body.flow-builder-page .main-content {
@@ -52,7 +60,7 @@ body.flow-builder-page .content-header {
 }
 .flow-steps-nav-header {
     padding: .9rem 1rem;
-    background: linear-gradient(135deg, #075e54, #128c7e);
+    background: linear-gradient(135deg, var(--flow-bot-secondary), var(--flow-bot-primary));
     color: #fff;
     font-size: .78rem;
     font-weight: 700;
@@ -93,8 +101,8 @@ body.flow-builder-page .content-header {
 }
 .flow-step-nav:hover { background: #f8fafc; }
 .flow-step-nav.active {
-    background: rgba(37, 211, 102, .1);
-    border-left-color: #25d366;
+    background: color-mix(in srgb, var(--flow-bot-primary) 12%, white);
+    border-left-color: var(--flow-bot-primary);
 }
 .flow-step-nav.disabled-step { opacity: .5; }
 .flow-step-nav-icon {
@@ -110,7 +118,7 @@ body.flow-builder-page .content-header {
     font-size: .82rem;
 }
 .flow-step-nav.active .flow-step-nav-icon {
-    background: #25d366;
+    background: var(--flow-bot-primary);
     color: #fff;
 }
 .flow-step-nav-label {
@@ -259,7 +267,7 @@ body.flow-builder-page .content-header {
     box-shadow: 0 10px 32px rgba(0,0,0,.12);
 }
 .wa-phone-header {
-    background: #075e54;
+    background: var(--flow-bot-secondary);
     color: #fff;
     padding: .8rem 1rem;
     font-size: .84rem;

@@ -112,8 +112,14 @@ class ChatbotController extends Controller
         $metadata = $config->metadata ?? [];
         $metadata['bot_name'] = $validated['bot_name'] ?? null;
         $metadata['response_delay'] = $validated['response_delay'] ?? 1000;
-        $metadata['primary_color'] = $validated['primary_color'] ?? '#3B82F6';
-        $metadata['secondary_color'] = $validated['secondary_color'] ?? '#1E40AF';
+        $metadata['primary_color'] = WhatsappChatbotConfig::normalizeHexColor(
+            $validated['primary_color'] ?? null,
+            '#005c4b'
+        );
+        $metadata['secondary_color'] = WhatsappChatbotConfig::normalizeHexColor(
+            $validated['secondary_color'] ?? null,
+            '#075e54'
+        );
         $metadata['bot_avatar'] = $validated['bot_avatar'] ?? null;
         $metadata['font_family'] = $validated['font_family'] ?? 'Arial';
 

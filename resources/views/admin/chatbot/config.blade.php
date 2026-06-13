@@ -41,17 +41,43 @@
 
                 <div class="space-y-4">
                     <h3 class="text-lg font-medium text-gray-900">Apariencia</h3>
+                    <p class="text-sm text-gray-500">El color primario pinta las burbujas del bot en el chat. El secundario se usa en encabezados y acentos del flujo de marketing.</p>
 
-                    <div>
-                        <label for="primary_color" class="block text-sm font-medium text-gray-700">Color Primario</label>
-                        <input type="color" id="primary_color" name="primary_color" value="{{ $config->primary_color ?? '#3B82F6' }}"
-                            class="mt-1 block w-full h-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="primary_color" class="block text-sm font-medium text-gray-700">Color primario (burbujas bot)</label>
+                            <div class="mt-1 flex items-center gap-2">
+                                <input type="color" id="primary_color" name="primary_color" value="{{ old('primary_color', $config->primary_color ?? '#005c4b') }}"
+                                    class="h-10 w-14 border border-gray-300 rounded-md cursor-pointer p-1">
+                                <input type="text" id="primary_color_hex" maxlength="7" pattern="#?[0-9a-fA-F]{6}"
+                                    value="{{ old('primary_color', $config->primary_color ?? '#005c4b') }}"
+                                    class="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm font-mono uppercase">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="secondary_color" class="block text-sm font-medium text-gray-700">Color secundario (acentos)</label>
+                            <div class="mt-1 flex items-center gap-2">
+                                <input type="color" id="secondary_color" name="secondary_color" value="{{ old('secondary_color', $config->secondary_color ?? '#075e54') }}"
+                                    class="h-10 w-14 border border-gray-300 rounded-md cursor-pointer p-1">
+                                <input type="text" id="secondary_color_hex" maxlength="7" pattern="#?[0-9a-fA-F]{6}"
+                                    value="{{ old('secondary_color', $config->secondary_color ?? '#075e54') }}"
+                                    class="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm font-mono uppercase">
+                            </div>
+                        </div>
                     </div>
 
-                    <div>
-                        <label for="secondary_color" class="block text-sm font-medium text-gray-700">Color Secundario</label>
-                        <input type="color" id="secondary_color" name="secondary_color" value="{{ $config->secondary_color ?? '#1E40AF' }}"
-                            class="mt-1 block w-full h-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <div id="color-preview" class="rounded-lg border border-gray-200 p-4 bg-gray-50">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Vista previa</p>
+                        <div class="flex flex-wrap items-end gap-4">
+                            <div>
+                                <div id="preview-bubble" class="inline-block px-3 py-2 rounded-lg text-white text-sm shadow-sm" style="background: {{ $config->primary_color ?? '#005c4b' }}; border-top-right-radius: 0;">
+                                    Mensaje del bot
+                                </div>
+                            </div>
+                            <div id="preview-header" class="px-3 py-2 rounded-md text-white text-sm font-medium" style="background: linear-gradient(135deg, {{ $config->secondary_color ?? '#075e54' }}, {{ $config->primary_color ?? '#005c4b' }});">
+                                Encabezado / flujo
+                            </div>
+                        </div>
                     </div>
 
                     <div>
@@ -154,6 +180,50 @@ $(document).ready(function() {
     const preview = document.getElementById('bot-avatar-preview');
     const previewWrap = document.getElementById('bot-avatar-preview-wrap');
     const placeholder = document.getElementById('bot-avatar-placeholder');
+
+    function normalizeHex(value, fallback) {
+        let v = (value || '').trim();
+        if (!v.startsWith('#')) v = '#' + v;
+        if (/^#[0-9a-fA-F]{6}$/.test(v)) return v.toLowerCase();
+        if (/^#[0-9a-fA-F]{3}$/.test(v)) {
+            const c = v.slice(1);
+            return ('#' + c[0] + c[0] + c[1] + c[1] + c[2] + c[2]).toLowerCase();
+        }
+        return fallback;
+    }
+
+    function bindColorPair(pickerId, hexId) {
+        const picker = document.getElementById(pickerId);
+        const hex = document.getElementById(hexId);
+        if (!picker || !hex) return;
+
+        const syncFromPicker = () => {
+            hex.value = picker.value;
+            updateColorPreview();
+        };
+        const syncFromHex = () => {
+            const normalized = normalizeHex(hex.value, picker.value);
+            hex.value = normalized;
+            picker.value = normalized;
+            updateColorPreview();
+        };
+
+        picker.addEventListener('input', syncFromPicker);
+        hex.addEventListener('change', syncFromHex);
+        hex.addEventListener('blur', syncFromHex);
+    }
+
+    function updateColorPreview() {
+        const primary = document.getElementById('primary_color')?.value || '#005c4b';
+        const secondary = document.getElementById('secondary_color')?.value || '#075e54';
+        const bubble = document.getElementById('preview-bubble');
+        const header = document.getElementById('preview-header');
+        if (bubble) bubble.style.background = primary;
+        if (header) header.style.background = `linear-gradient(135deg, ${secondary}, ${primary})`;
+    }
+
+    bindColorPair('primary_color', 'primary_color_hex');
+    bindColorPair('secondary_color', 'secondary_color_hex');
 
     if (fileInput) {
         fileInput.addEventListener('change', function () {

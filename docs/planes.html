@@ -807,10 +807,21 @@
                     <li><span class="icon yes">✓</span> <strong>10 GB</strong> de espacio en servidor (imágenes y archivos) <span class="tag tag-limited">Límite</span></li>
                     <li><span class="icon yes">✓</span> Carrito, checkout y gestión de pedidos</li>
                     <li><span class="icon yes">✓</span> Panel de chat en vivo con alerta de asesor</li>
+                    <li><span class="icon yes">✓</span> <strong>Módulo Clientes</strong>: listado, perfil, pedidos e historial por contacto</li>
+                    <li><span class="icon yes">✓</span> <strong>Pedidos en tabla</strong> con filtros y cambio de estado rápido</li>
+                    <li><span class="icon yes">✓</span> <strong>Exportación Excel</strong> de pedidos (una fila por producto: código, cantidad, cédula, teléfono, valor)</li>
+                    <li><span class="icon yes">✓</span> <strong>Dashboard</strong> con uso de tu plan (productos, categorías y GB)</li>
+                    <li><span class="icon yes">✓</span> Enlace <strong>wa.me</strong> para invitar al primer mensaje al bot</li>
                     <li><span class="icon yes">✓</span> Palabras clave y respuestas automáticas</li>
                     <li><span class="icon yes">✓</span> Configuración del bot (nombre, avatar, mensajes)</li>
+                    <li><span class="icon yes">✓</span> <strong>Historial</strong> de conversaciones por cliente (panel web)</li>
+                    <li><span class="icon yes">✓</span> <strong>Trazabilidad</strong> de pedidos (ORD, estados, ítems)</li>
                     <li><span class="icon yes">✓</span> Estadísticas básicas por contacto en el chat</li>
                     <li><span class="icon yes">✓</span> <strong>3 usuarios</strong> admin <span class="tag tag-limited">Límite</span></li>
+                    <li class="excluded"><span class="icon no">✕</span> Segmentación automática de clientes (VIP, frecuentes…)</li>
+                    <li class="excluded"><span class="icon no">✕</span> Gestión avanzada de pedidos (factura, notas, feedback)</li>
+                    <li class="excluded"><span class="icon no">✕</span> Estimado de consumo Meta en el dashboard</li>
+                    <li class="excluded"><span class="icon no">✕</span> Colores personalizados del bot en el panel</li>
                     <li class="excluded"><span class="icon no">✕</span> Envío de plantillas masivas</li>
                     <li class="excluded"><span class="icon no">✕</span> Recepción de imágenes/PDF del cliente en flujo</li>
                     <li class="excluded"><span class="icon no">✕</span> Comprobantes de pago por WhatsApp</li>
@@ -839,12 +850,17 @@
                     <li><span class="icon yes">✓</span> Hasta <strong>200</strong> productos y <strong>50</strong> categorías <span class="tag tag-full">Ampliado</span></li>
                     <li><span class="icon yes">✓</span> <strong>25 GB</strong> de espacio en servidor <span class="tag tag-full">Ampliado</span></li>
                     <li><span class="icon yes">✓</span> <strong>5 usuarios</strong> admin <span class="tag tag-full">Ampliado</span></li>
+                    <li><span class="icon yes">✓</span> <strong>Segmentación automática</strong> de clientes (VIP, frecuentes, atención pendiente)</li>
+                    <li><span class="icon yes">✓</span> <strong>Gestión avanzada de pedidos</strong>: factura, notas internas y feedback</li>
+                    <li><span class="icon yes">✓</span> Dashboard con <strong>estimado de consumo Meta</strong> del mes</li>
+                    <li><span class="icon yes">✓</span> <strong>Colores y avatar</strong> del bot en el panel de chat</li>
                     <li><span class="icon yes">✓</span> Cliente envía <strong>imágenes y PDF</strong> (comprobantes, documentos)</li>
                     <li><span class="icon yes">✓</span> Flujo de comprobante de pago configurable</li>
                     <li><span class="icon yes">✓</span> <strong>Plantillas masivas</strong> y campañas de marketing</li>
                     <li><span class="icon yes">✓</span> Envío programado a contactos segmentados</li>
                     <li><span class="icon yes">✓</span> Imágenes en productos y cabeceras del flujo</li>
                     <li><span class="icon yes">✓</span> Alertas de monitoreo (WhatsApp / email)</li>
+                    <li><span class="icon yes">✓</span> Reportes de pedidos y clientes activos en el panel</li>
                     <li><span class="icon yes">✓</span> Soporte por ticket (48 h hábiles)</li>
                     <li class="excluded"><span class="icon no">✕</span> Integraciones con ERP, CRM o APIs custom</li>
                     <li class="excluded"><span class="icon no">✕</span> Reportes ejecutivos y exportación avanzada</li>
@@ -988,6 +1004,38 @@
                         <td class="cell-partial">50 GB</td>
                     </tr>
 
+                    <tr class="category-row"><td colspan="4">Panel web · historial y trazabilidad</td></tr>
+                    <tr>
+                        <td>Historial completo de conversaciones por cliente</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Identificar mensajes: cliente, bot o asesor humano</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Listado centralizado de pedidos (número, total, estado)</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Reporte de clientes por número y actividad</td>
+                        <td class="cell-partial">Básico</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Trazabilidad de estados (pendiente → pagado → completado)</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+
                     <tr class="category-row"><td colspan="4">Panel de administración</td></tr>
                     <tr>
                         <td>Chat en vivo (responder como humano)</td>
@@ -1001,6 +1049,49 @@
                         <td class="cell-yes">✓</td>
                         <td class="cell-yes">✓</td>
                     </tr>
+                    <tr>
+                        <td>Módulo Clientes (CRM): listado y perfil</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Segmentación automática de clientes (VIP, frecuentes…)</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Gestión avanzada de pedidos (factura, notas, feedback)</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Exportación Excel de pedidos (detalle por producto y cliente)</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Dashboard de uso del plan (productos, categorías, GB)</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Estimado de consumo Meta en dashboard</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                    <tr>
+                        <td>Personalización visual del bot (colores en panel)</td>
+                        <td class="cell-no">✕</td>
+                        <td class="cell-yes">✓</td>
+                        <td class="cell-yes">✓</td>
+                    </tr>
+                  
                     <tr>
                         <td>Usuarios admin en el panel</td>
                         <td class="cell-partial">3</td>

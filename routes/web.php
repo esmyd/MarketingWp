@@ -18,6 +18,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/orders', [App\Http\Controllers\AdminController::class, 'orders'])
         ->middleware(['permission:orders.view,orders.menu', 'platform.feature:orders'])
         ->name('orders');
+    Route::get('/orders/export', [App\Http\Controllers\AdminController::class, 'exportOrders'])
+        ->middleware(['permission:orders.view,orders.menu', 'platform.feature:orders'])
+        ->name('orders.export');
     Route::get('/messages', [App\Http\Controllers\AdminController::class, 'messages'])
         ->middleware(['permission:chats.view,chats.menu', 'platform.feature:chat'])
         ->name('messages');

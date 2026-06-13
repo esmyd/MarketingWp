@@ -43,8 +43,24 @@
     .orders-toolbar {
         background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
         padding: .85rem 1rem; margin-bottom: .85rem;
-        display: flex; flex-wrap: wrap; gap: .75rem; align-items: center;
+        display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end;
     }
+    .orders-export-form {
+        display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-end; margin-left: auto;
+    }
+    .orders-export-form .field label {
+        display: block; font-size: .65rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .03em; color: #64748b; margin-bottom: .2rem;
+    }
+    .orders-export-form .field input,
+    .orders-export-form .field select {
+        border: 1px solid #e2e8f0; border-radius: 8px; padding: .4rem .55rem;
+        font-size: .8rem; min-width: 0;
+    }
+    .o-btn.export {
+        background: #0f766e; border-color: #0f766e; color: #fff !important;
+    }
+    .o-btn.export:hover { background: #115e59; }
     .orders-search { position: relative; flex: 1; min-width: 200px; max-width: 340px; }
     .orders-search i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: .85rem; }
     .orders-search input {
@@ -226,6 +242,30 @@
             <input type="text" id="orders-search" placeholder="Buscar por cliente o teléfono..." autocomplete="off">
         </div>
         <span class="text-muted small">{{ $orders->total() }} pedido(s)</span>
+
+        <form class="orders-export-form" method="get" action="{{ route('admin.orders.export') }}" id="orders-export-form">
+            <div class="field">
+                <label for="export-status">Estado</label>
+                <select name="status" id="export-status">
+                    <option value="">Todos</option>
+                    @foreach($statusLabels as $key => $label)
+                        <option value="{{ $key }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="field">
+                <label for="export-from">Desde</label>
+                <input type="date" name="date_from" id="export-from">
+            </div>
+            <div class="field">
+                <label for="export-to">Hasta</label>
+                <input type="date" name="date_to" id="export-to">
+            </div>
+            <input type="hidden" name="q" id="export-q" value="">
+            <button type="submit" class="o-btn export">
+                <i class="fas fa-file-excel"></i> Exportar Excel
+            </button>
+        </form>
     </div>
 
     <div class="orders-table-wrap" id="orders-list">
@@ -574,6 +614,12 @@ document.getElementById('orders-search')?.addEventListener('input', function() {
     document.querySelectorAll('[id^="order-row-"]').forEach(row => {
         row.style.display = !q || (row.getAttribute('data-search') || '').includes(q) ? '' : 'none';
     });
+});
+
+document.getElementById('orders-export-form')?.addEventListener('submit', function() {
+    const q = document.getElementById('orders-search')?.value.trim() || '';
+    const hidden = document.getElementById('export-q');
+    if (hidden) hidden.value = q;
 });
 
 document.getElementById('orderModal')?.addEventListener('click', e => {

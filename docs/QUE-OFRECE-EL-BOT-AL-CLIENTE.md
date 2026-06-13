@@ -274,7 +274,13 @@ Saludo personalizado + menú con botones
 |-----------|-------------|
 | **Ventas automatizadas** | El bot vende y registra pedidos sin intervención |
 | **Menos carga operativa** | Preguntas frecuentes resueltas automáticamente |
-| **Panel centralizado** | Chats, pedidos y catálogo en un solo lugar |
+| **Panel centralizado** | Chats, pedidos, clientes y catálogo en un solo lugar |
+| **CRM de clientes** | Listado, perfil, segmentos (VIP, frecuentes), notas y datos de facturación |
+| **Pedidos operativos** | Tabla con filtros, modal completo, factura, checklist y feedback (Pro+) |
+| **Exportación Excel** | Detalle por producto: código pedido, SKU, cantidad, teléfono, cédula/RUC, nombre y valor |
+| **Dashboard inteligente** | KPIs, barras de uso del plan y estimado de consumo Meta (Pro+) |
+| **Branding del bot** | Nombre, avatar y colores personalizados en el panel de chat (Pro+) |
+| **Primer contacto fácil** | Enlace wa.me para que nuevos clientes escriban sin guardar tu número |
 | **Personalizable** | Textos, flujos y productos editables sin código |
 | **Atención híbrida** | Bot + humano con transición fluida y alertas |
 | **Profesionalismo** | Imagen de empresa moderna y tecnológica |

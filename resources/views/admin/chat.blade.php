@@ -6,7 +6,19 @@
 @endsection
 
 @section('content')
+@php
+    $botPrimary = $chatbotConfig?->primary_color ?? '#005c4b';
+    $botSecondary = $chatbotConfig?->secondary_color ?? '#075e54';
+    $botPrimaryRgb = $chatbotConfig
+        ? $chatbotConfig->primaryColorRgb()
+        : \App\Models\WhatsappChatbotConfig::hexToRgb('#005c4b');
+@endphp
 <style>
+    :root {
+        --bot-primary: {{ $botPrimary }};
+        --bot-secondary: {{ $botSecondary }};
+        --bot-primary-rgb: {{ $botPrimaryRgb['r'] }}, {{ $botPrimaryRgb['g'] }}, {{ $botPrimaryRgb['b'] }};
+    }
     * {
         box-sizing: border-box;
     }
@@ -111,7 +123,7 @@
     }
 
     .wa-bubble-out {
-        background: #005c4b;
+        background: var(--bot-primary);
         color: #e9edef;
         border-radius: 7.5px;
         border-top-right-radius: 0;
@@ -125,11 +137,11 @@
     }
 
     .wa-bubble-out.wa-bubble-bot {
-        background: #005c4b;
+        background: var(--bot-primary);
     }
 
     .wa-bubble-out.wa-bubble-agent {
-        background: #176b5b;
+        background: var(--bot-secondary);
         box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
     }
 
@@ -142,15 +154,15 @@
         height: 0;
         border-style: solid;
         border-width: 8px 0 0 8px;
-        border-color: #005c4b transparent transparent transparent;
+        border-color: var(--bot-primary) transparent transparent transparent;
     }
 
     .wa-bubble-out.wa-bubble-bot::after {
-        border-color: #005c4b transparent transparent transparent;
+        border-color: var(--bot-primary) transparent transparent transparent;
     }
 
     .wa-bubble-out.wa-bubble-agent::after {
-        border-color: #176b5b transparent transparent transparent;
+        border-color: var(--bot-secondary) transparent transparent transparent;
     }
 
     .wa-badge {
@@ -712,7 +724,7 @@
     }
 
     .bot-toggle-switch input:checked + .bot-toggle-slider {
-        background-color: #25d366;
+        background-color: var(--bot-primary);
     }
 
     .bot-toggle-switch input:checked + .bot-toggle-slider:before {
@@ -720,7 +732,7 @@
     }
 
     .bot-toggle-switch input:focus + .bot-toggle-slider {
-        box-shadow: 0 0 1px #25d366;
+        box-shadow: 0 0 1px var(--bot-primary);
     }
 
     .bot-toggle-switch:hover .bot-toggle-slider {
@@ -814,9 +826,9 @@
     }
 
     .wa-msg-badge-bot {
-        background: rgba(0, 92, 75, 0.35);
-        color: #7fd4b8;
-        border: 1px solid rgba(0, 168, 132, 0.25);
+        background: rgba(var(--bot-primary-rgb), 0.35);
+        color: #e9edef;
+        border: 1px solid rgba(var(--bot-primary-rgb), 0.45);
     }
 
     .wa-msg-badge-agent {

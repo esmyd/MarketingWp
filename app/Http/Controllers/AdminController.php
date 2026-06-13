@@ -8,6 +8,7 @@ use App\Models\WhatsappMessage;
 use App\Models\WhatsappContact;
 use App\Models\WhatsappConversation;
 use App\Services\OrderAdminService;
+use App\Services\OrderExportService;
 use App\Services\WhatsappService;
 use App\Helpers\WhatsappMessageFormatter;
 use Illuminate\Http\Request;
@@ -51,6 +52,11 @@ class AdminController extends Controller
         ];
 
         return view('admin.orders', compact('orders', 'stats'));
+    }
+
+    public function exportOrders(Request $request, OrderExportService $export)
+    {
+        return $export->downloadResponse($request);
     }
 
     public function messages()
