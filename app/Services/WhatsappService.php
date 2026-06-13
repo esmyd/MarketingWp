@@ -65,6 +65,18 @@ class WhatsappService
         return app(PlatformBillingService::class)->botMayRespondToContact($contact);
     }
 
+    protected function logBotBlocked(string $context, $contact, array $extra = []): void
+    {
+        $billing = app(PlatformBillingService::class);
+
+        Log::info("[{$context}] 🛑 Bot no responde", array_merge([
+            'reason' => $billing->botBlockReason($contact),
+            'contact_id' => $contact->id ?? null,
+            'bot_enabled' => $contact->bot_enabled ?? null,
+            'suspensions' => $billing->suspensionSettings(),
+        ], $extra));
+    }
+
     public function __construct()
     {
         $this->baseUrl = config('whatsapp.api_url', 'https://graph.facebook.com');
@@ -1101,11 +1113,9 @@ class WhatsappService
 
             // Verificar si el bot está habilitado para este contacto
             if (!$this->botMayRespondToContact($contact)) {
-                Log::info('[handleChatbotResponse] 🛑 Bot detenido - suspendido o deshabilitado', [
-                    'contact_id' => $contact->id,
+                $this->logBotBlocked('handleChatbotResponse', $contact, [
                     'message_id' => $message->id,
                     'message_content' => substr($message->content, 0, 100),
-                    'bot_enabled' => $contact->bot_enabled
                 ]);
                 return null; // No enviar respuesta automática
             }
@@ -2027,10 +2037,8 @@ class WhatsappService
             // Verificar si el bot está habilitado para este contacto ANTES de procesar cualquier respuesta
             if (!$this->botMayRespondToContact($contact)) {
                 $this->markMessageAsRead($messageId, $from);
-                Log::info('[handleInteractiveMessage] 🛑 Bot detenido - Bot deshabilitado manualmente', [
-                    'contact_id' => $contact->id,
+                $this->logBotBlocked('handleInteractiveMessage', $contact, [
                     'phone' => substr($from, 0, 4) . '****' . substr($from, -4),
-                    'bot_enabled' => $contact->bot_enabled
                 ]);
                 return; // No procesar ninguna respuesta automática
             }
@@ -2867,9 +2875,8 @@ class WhatsappService
                 if ($contact) {
                     $contact->refresh();
                     if (!$this->botMayRespondToContact($contact)) {
-                        Log::info('[handleTextMessage] 🛑 Catálogo no enviado - Bot deshabilitado manualmente', [
-                            'contact_id' => $contact->id,
-                            'phone' => substr($from, 0, 4) . '****' . substr($from, -4)
+                        $this->logBotBlocked('handleTextMessage.catalog', $contact, [
+                            'phone' => substr($from, 0, 4) . '****' . substr($from, -4),
                         ]);
                         return;
                     }
@@ -3026,11 +3033,9 @@ class WhatsappService
 
                 // Verificar si el bot está habilitado para este contacto ANTES de generar respuesta
                 if (!$this->botMayRespondToContact($contact)) {
-                    Log::info('[handleTextMessage] 🛑 Bot detenido - Bot deshabilitado manualmente', [
-                        'contact_id' => $contact->id,
+                    $this->logBotBlocked('handleTextMessage', $contact, [
                         'phone' => substr($from, 0, 4) . '****' . substr($from, -4),
                         'message_content' => substr($text, 0, 100),
-                        'bot_enabled' => $contact->bot_enabled
                     ]);
                     // No generar ni enviar respuesta automática
                     $response = null;
@@ -4920,10 +4925,8 @@ class WhatsappService
 
             // Verificar si el bot está habilitado para este contacto
             if (!$this->botMayRespondToContact($contact)) {
-                Log::info('[sendCatalog] 🛑 Catálogo no enviado - Bot deshabilitado manualmente', [
+                $this->logBotBlocked('sendCatalog', $contact, [
                     'to' => substr($to, 0, 4) . '****' . substr($to, -4),
-                    'contact_id' => $contact->id,
-                    'bot_enabled' => $contact->bot_enabled
                 ]);
                 return false;
             }

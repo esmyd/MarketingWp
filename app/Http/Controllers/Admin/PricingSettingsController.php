@@ -178,14 +178,18 @@ class PricingSettingsController extends Controller
 
     public function updateBilling(Request $request, PlatformBillingService $billing): RedirectResponse
     {
+        if ($request->boolean('reactivate_all')) {
+            $billing->clearAllSuspensions();
+
+            return redirect()
+                ->to(route('admin.pricing-settings.edit') . '#billing')
+                ->with('success', 'Servicio reactivado: todas las suspensiones fueron desactivadas.');
+        }
+
         $validated = $request->validate([
             'plan_due_day' => ['required', 'integer', 'min:1', 'max:28'],
             'plan_amount' => ['required', 'numeric', 'min:0'],
             'meta_due_day' => ['required', 'integer', 'min:1', 'max:28'],
-            'suspend_bot' => ['nullable', 'boolean'],
-            'suspend_chat' => ['nullable', 'boolean'],
-            'suspend_orders' => ['nullable', 'boolean'],
-            'auto_suspend_on_overdue' => ['nullable', 'boolean'],
         ]);
 
         $billing->saveBillingAndSuspensions(
@@ -195,10 +199,10 @@ class PricingSettingsController extends Controller
                 'meta_due_day' => (int) $validated['meta_due_day'],
             ],
             [
-                'suspend_bot' => $request->boolean('suspend_bot'),
-                'suspend_chat' => $request->boolean('suspend_chat'),
-                'suspend_orders' => $request->boolean('suspend_orders'),
-                'auto_suspend_on_overdue' => $request->boolean('auto_suspend_on_overdue'),
+                'suspend_bot' => $request->has('suspend_bot'),
+                'suspend_chat' => $request->has('suspend_chat'),
+                'suspend_orders' => $request->has('suspend_orders'),
+                'auto_suspend_on_overdue' => $request->has('auto_suspend_on_overdue'),
             ]
         );
 

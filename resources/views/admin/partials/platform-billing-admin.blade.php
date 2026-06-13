@@ -37,12 +37,16 @@
                         @if($snap['orders_suspended'] ?? false) · pedidos @endif
                         <br>
                         <span class="text-muted">
+                            Config actual:
+                            bot={{ ($snap['suspensions_raw']['suspend_bot'] ?? false) ? 'off' : 'on' }},
+                            chat={{ ($snap['suspensions_raw']['suspend_chat'] ?? false) ? 'off' : 'on' }},
+                            pedidos={{ ($snap['suspensions_raw']['suspend_orders'] ?? false) ? 'off' : 'on' }},
+                            mora auto={{ ($snap['suspensions_raw']['auto_suspend_on_overdue'] ?? false) ? 'sí' : 'no' }}.
                             @if($snap['auto_overdue'] ?? false)
                                 Motivo: mora automática (sin pago aprobado del mes).
                             @elseif(($snap['manual_suspend_bot'] ?? false) || ($snap['manual_suspend_chat'] ?? false) || ($snap['manual_suspend_orders'] ?? false))
-                                Motivo: suspensiones manuales activas abajo.
+                                Motivo: suspensiones manuales activas. Usa «Reactivar todo el servicio» o desmarca y guarda.
                             @endif
-                            Si ya aprobaste el comprobante, desactiva las suspensiones manuales y guarda.
                         </span>
                     </div>
                 </div>
@@ -82,7 +86,6 @@
 
             <div class="billing-suspension-list mb-3">
                 <label class="billing-check-row">
-                    <input type="hidden" name="auto_suspend_on_overdue" value="0">
                     <input type="checkbox" name="auto_suspend_on_overdue" value="1"
                         @checked(old('auto_suspend_on_overdue', $suspensions['auto_suspend_on_overdue'] ?? true))>
                     <span>
@@ -91,7 +94,6 @@
                     </span>
                 </label>
                 <label class="billing-check-row">
-                    <input type="hidden" name="suspend_bot" value="0">
                     <input type="checkbox" name="suspend_bot" value="1"
                         @checked(old('suspend_bot', $suspensions['suspend_bot'] ?? false))>
                     <span>
@@ -100,7 +102,6 @@
                     </span>
                 </label>
                 <label class="billing-check-row">
-                    <input type="hidden" name="suspend_chat" value="0">
                     <input type="checkbox" name="suspend_chat" value="1"
                         @checked(old('suspend_chat', $suspensions['suspend_chat'] ?? false))>
                     <span>
@@ -109,7 +110,6 @@
                     </span>
                 </label>
                 <label class="billing-check-row">
-                    <input type="hidden" name="suspend_orders" value="0">
                     <input type="checkbox" name="suspend_orders" value="1"
                         @checked(old('suspend_orders', $suspensions['suspend_orders'] ?? false))>
                     <span>
@@ -121,9 +121,17 @@
 
             <div class="platform-save-bar billing-save-bar">
                 <p class="text-xs text-gray-500 mb-0">Los cambios aplican de inmediato al guardar.</p>
-                <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg border-0">
-                    <i class="fas fa-save"></i> Guardar facturación y suspensiones
-                </button>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg border-0">
+                        <i class="fas fa-save"></i> Guardar facturación y suspensiones
+                    </button>
+                    @if(($snap['any_suspended'] ?? false))
+                        <button type="submit" name="reactivate_all" value="1" class="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-emerald-700 text-sm font-semibold rounded-lg border border-emerald-300"
+                            onclick="return confirm('¿Reactivar bot, chat y pedidos ahora? Se desactivarán todas las suspensiones.');">
+                            <i class="fas fa-play-circle"></i> Reactivar todo el servicio
+                        </button>
+                    @endif
+                </div>
             </div>
         </form>
 

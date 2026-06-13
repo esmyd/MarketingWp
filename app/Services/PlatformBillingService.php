@@ -21,23 +21,59 @@ class PlatformBillingService
     public function suspensionSettings(): array
     {
         $raw = app(PlanLimitsService::class)->platformLimitsRaw();
-        $defaults = [
-            'suspend_bot' => false,
-            'suspend_chat' => false,
-            'suspend_orders' => false,
-            'auto_suspend_on_overdue' => true,
-        ];
+        $stored = is_array($raw['suspensions'] ?? null) ? $raw['suspensions'] : [];
 
-        return array_merge($defaults, is_array($raw['suspensions'] ?? null) ? $raw['suspensions'] : []);
+        return [
+            'suspend_bot' => $this->toBool($stored['suspend_bot'] ?? false),
+            'suspend_chat' => $this->toBool($stored['suspend_chat'] ?? false),
+            'suspend_orders' => $this->toBool($stored['suspend_orders'] ?? false),
+            'auto_suspend_on_overdue' => $this->toBool($stored['auto_suspend_on_overdue'] ?? true),
+        ];
     }
 
     public function saveBillingAndSuspensions(array $billing, array $suspensions): void
     {
         $limits = app(PlanLimitsService::class)->platformLimitsRaw();
         $limits['billing'] = array_merge($this->billingSettings(), $billing);
-        $limits['suspensions'] = array_merge($this->suspensionSettings(), $suspensions);
+        $limits['suspensions'] = [
+            'suspend_bot' => $this->toBool($suspensions['suspend_bot'] ?? false),
+            'suspend_chat' => $this->toBool($suspensions['suspend_chat'] ?? false),
+            'suspend_orders' => $this->toBool($suspensions['suspend_orders'] ?? false),
+            'auto_suspend_on_overdue' => $this->toBool($suspensions['auto_suspend_on_overdue'] ?? true),
+        ];
 
         PricingSetting::current()->update(['platform_limits' => $limits]);
+    }
+
+    /** Motivo por el que el bot no responde, o null si puede responder. */
+    public function botBlockReason(?object $contact = null): ?string
+    {
+        $s = $this->suspensionSettings();
+
+        if ($s['suspend_bot']) {
+            return 'platform_suspend_bot_manual';
+        }
+
+        if ($this->autoOverdueActive()) {
+            $payment = $this->paymentStatusForCurrentMonth();
+            if ($payment['plan_overdue'] && $payment['meta_overdue']) {
+                return 'platform_auto_overdue_plan_and_meta';
+            }
+            if ($payment['plan_overdue']) {
+                return 'platform_auto_overdue_plan';
+            }
+            if ($payment['meta_overdue']) {
+                return 'platform_auto_overdue_meta';
+            }
+
+            return 'platform_auto_overdue';
+        }
+
+        if ($contact && ! ($contact->bot_enabled ?? true)) {
+            return 'contact_bot_disabled';
+        }
+
+        return null;
     }
 
     public function dashboardSnapshot(?float $metaEstimate = null): array
@@ -45,7 +81,7 @@ class PlatformBillingService
         $billing = $this->billingSettings();
         $suspensions = $this->suspensionSettings();
         $payment = $this->paymentStatusForCurrentMonth();
-        $autoOverdue = !empty($suspensions['auto_suspend_on_overdue'])
+        $autoOverdue = $suspensions['auto_suspend_on_overdue']
             && ($payment['plan_overdue'] || $payment['meta_overdue']);
 
         return [
@@ -60,10 +96,11 @@ class PlatformBillingService
             'meta_overdue' => $payment['meta_overdue'],
             'meta_estimate' => $metaEstimate,
             'auto_overdue' => $autoOverdue,
-            'manual_suspend_bot' => !empty($suspensions['suspend_bot']),
-            'manual_suspend_chat' => !empty($suspensions['suspend_chat']),
-            'manual_suspend_orders' => !empty($suspensions['suspend_orders']),
-            'auto_suspend_enabled' => !empty($suspensions['auto_suspend_on_overdue']),
+            'manual_suspend_bot' => $suspensions['suspend_bot'],
+            'manual_suspend_chat' => $suspensions['suspend_chat'],
+            'manual_suspend_orders' => $suspensions['suspend_orders'],
+            'auto_suspend_enabled' => $suspensions['auto_suspend_on_overdue'],
+            'suspensions_raw' => $suspensions,
             'bot_suspended' => $this->isBotSuspended(),
             'chat_suspended' => $this->isChatSuspended(),
             'orders_suspended' => $this->isOrdersSuspended(),
@@ -75,7 +112,7 @@ class PlatformBillingService
     {
         $s = $this->suspensionSettings();
 
-        if (! empty($s['suspend_bot'])) {
+        if ($s['suspend_bot']) {
             return true;
         }
 
@@ -86,7 +123,7 @@ class PlatformBillingService
     {
         $s = $this->suspensionSettings();
 
-        if (! empty($s['suspend_chat'])) {
+        if ($s['suspend_chat']) {
             return true;
         }
 
@@ -97,7 +134,7 @@ class PlatformBillingService
     {
         $s = $this->suspensionSettings();
 
-        if (! empty($s['suspend_orders'])) {
+        if ($s['suspend_orders']) {
             return true;
         }
 
@@ -106,11 +143,17 @@ class PlatformBillingService
 
     public function botMayRespondToContact(object $contact): bool
     {
-        if ($this->isBotSuspended(null)) {
-            return false;
-        }
+        return $this->botBlockReason($contact) === null;
+    }
 
-        return (bool) ($contact->bot_enabled ?? true);
+    public function clearAllSuspensions(): void
+    {
+        $this->saveBillingAndSuspensions([], [
+            'suspend_bot' => false,
+            'suspend_chat' => false,
+            'suspend_orders' => false,
+            'auto_suspend_on_overdue' => false,
+        ]);
     }
 
     public function receiptsForWallet(int $limit = 50): Collection
@@ -142,13 +185,38 @@ class PlatformBillingService
 
     private function autoOverdueActive(): bool
     {
-        if (empty($this->suspensionSettings()['auto_suspend_on_overdue'])) {
+        if (! $this->suspensionSettings()['auto_suspend_on_overdue']) {
             return false;
         }
 
         $payment = $this->paymentStatusForCurrentMonth();
 
         return $payment['plan_overdue'] || $payment['meta_overdue'];
+    }
+
+    private function toBool(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (int) $value === 1;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+
+            if (in_array($normalized, ['1', 'true', 'yes', 'on'], true)) {
+                return true;
+            }
+
+            if (in_array($normalized, ['0', 'false', 'no', 'off', ''], true)) {
+                return false;
+            }
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 
     /** @return array{plan_due: Carbon, meta_due: Carbon, plan_paid: bool, meta_paid: bool, plan_overdue: bool, meta_overdue: bool} */
