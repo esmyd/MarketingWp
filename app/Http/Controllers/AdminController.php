@@ -997,6 +997,33 @@ class AdminController extends Controller
     }
 
     /**
+     * Polling ligero para alertas de asesor (cualquier pantalla del admin).
+     */
+    public function pollAgentRequests()
+    {
+        $requests = WhatsappContact::query()
+            ->whereRaw("JSON_EXTRACT(metadata, '$.needs_agent') = true")
+            ->orderByDesc('updated_at')
+            ->get(['id', 'name', 'phone_number', 'metadata']);
+
+        return response()->json([
+            'success' => true,
+            'count' => $requests->count(),
+            'requests' => $requests->map(function (WhatsappContact $contact) {
+                $metadata = $contact->metadata ?? [];
+
+                return [
+                    'id' => $contact->id,
+                    'name' => $contact->name ?? 'Cliente',
+                    'phone_number' => $contact->phone_number,
+                    'requested_at' => $metadata['agent_requested_at'] ?? null,
+                    'alert_token' => $metadata['agent_requested_at'] ?? ('contact-' . $contact->id),
+                ];
+            })->values(),
+        ]);
+    }
+
+    /**
      * Contactos del sidebar ordenados por último mensaje (más reciente primero).
      */
     private function getSidebarContacts(?int $currentContactId = null)

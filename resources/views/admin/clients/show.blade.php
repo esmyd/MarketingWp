@@ -147,8 +147,11 @@
             <div class="sub">Ratio {{ number_format($response_rate, 1) }}%</div>
         </div>
         <div class="detail-stat">
-            <div class="lbl">Gasto total</div>
+            <div class="lbl">Total comprado</div>
             <div class="val">${{ number_format((float) ($contact->total_spent ?? 0), 2) }}</div>
+            @if(($contact->orders_count ?? 0) === 0)
+                <div class="sub">Sin pedidos cerrados</div>
+            @endif
         </div>
         <div class="detail-stat">
             <div class="lbl">Último mensaje cliente</div>

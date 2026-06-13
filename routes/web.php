@@ -47,6 +47,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/chats/list/update', [App\Http\Controllers\AdminController::class, 'getContactsList'])
         ->middleware('permission:chats.view,chats.menu')
         ->name('chat.contacts.update');
+    Route::get('/agent-requests/poll', [App\Http\Controllers\AdminController::class, 'pollAgentRequests'])
+        ->middleware('permission:chats.view,chats.menu')
+        ->name('agent-requests.poll');
     Route::post('/chats/send', [App\Http\Controllers\AdminController::class, 'sendMessage'])
         ->middleware('permission:chats.send')
         ->name('chat.send');

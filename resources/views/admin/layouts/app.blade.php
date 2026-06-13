@@ -702,6 +702,111 @@
                 margin-bottom: 1rem;
             }
         }
+
+        /* Alertas globales de asesor */
+        .wa-agent-alerts-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-right: 12px;
+        }
+
+        .wa-notify-toggle {
+            position: relative;
+            background: #f1f3f5;
+            border: none;
+            color: #495057;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .15s, color .15s;
+        }
+
+        .wa-notify-toggle:hover { background: #e9ecef; color: #212529; }
+        .wa-notify-toggle.is-active { color: #128c7e; background: rgba(18, 140, 126, 0.12); }
+        .wa-notify-toggle.is-blocked { color: #dc3545; }
+
+        .global-agent-requests-count {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 9px;
+            background: #f15c6d;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #fff;
+        }
+
+        .global-agent-requests-count.hidden { display: none; }
+
+        .wa-agent-toast-stack {
+            position: fixed;
+            top: 72px;
+            right: 20px;
+            z-index: 10050;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+            max-width: min(380px, calc(100vw - 32px));
+        }
+
+        .wa-agent-toast {
+            pointer-events: auto;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            background: #fff;
+            border-radius: 14px;
+            padding: 14px 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(241, 92, 109, 0.25);
+            cursor: pointer;
+            animation: waToastIn .35s cubic-bezier(.21, 1.02, .73, 1);
+            border-left: 4px solid #f15c6d;
+        }
+
+        .wa-agent-toast-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f15c6d, #e74c3c);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+            animation: agentPulse 1.2s ease-in-out infinite;
+        }
+
+        .wa-agent-toast-title { font-size: 14px; font-weight: 700; color: #111b21; margin: 0 0 2px; }
+        .wa-agent-toast-text { font-size: 13px; color: #667781; margin: 0; line-height: 1.35; }
+        .wa-agent-toast-time { font-size: 11px; color: #8696a0; margin-top: 4px; }
+
+        @keyframes waToastIn {
+            from { opacity: 0; transform: translateX(28px) scale(.94); }
+            to { opacity: 1; transform: translateX(0) scale(1); }
+        }
+
+        @keyframes waToastOut {
+            to { opacity: 0; transform: translateX(28px) scale(.94); }
+        }
+
+        @keyframes agentPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+        }
     </style>
 
     <!-- CSRF Token -->
@@ -731,14 +836,14 @@
         <div class="sidebar-inner-scroll">
             <nav class="sidebar-nav sidebar-nav-main">
                 <div class="sidebar-section sidebar-text">Principal</div>
-                @perm('dashboard.menu')
-                <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
-                    <i class="fas fa-home"></i>
-                    <span class="sidebar-text">Dashboard</span>
+                @perm('orders.menu')
+                <a href="{{ route('admin.orders') }}" class="nav-link {{ request()->routeIs('admin.orders*') ? 'active' : '' }}">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span class="sidebar-text">Pedidos</span>
                 </a>
                 @endperm
                 @perm('chats.menu')
-                <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chat*') && !request()->routeIs('admin.clients*') ? 'active' : '' }}">
+                <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chat*') ? 'active' : '' }}">
                     <i class="fas fa-comments"></i>
                     <span class="sidebar-text">Chats</span>
                 </a>
@@ -749,10 +854,10 @@
                     <span class="sidebar-text">Clientes</span>
                 </a>
                 @endperm
-                @perm('orders.menu')
-                <a href="{{ route('admin.orders') }}" class="nav-link {{ request()->routeIs('admin.orders*') ? 'active' : '' }}">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span class="sidebar-text">Pedidos</span>
+                @perm('dashboard.menu')
+                <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+                    <i class="fas fa-chart-line"></i>
+                    <span class="sidebar-text">Dashboard</span>
                 </a>
                 @endperm
             </nav>
@@ -830,6 +935,9 @@
 
     <!-- Main Content -->
     <div class="main-wrapper" id="mainWrapper">
+        @perm('chats.view')
+        <div id="wa-agent-toast-stack" class="wa-agent-toast-stack" aria-live="assertive"></div>
+        @endperm
         <!-- Top Navbar -->
         <nav class="top-navbar">
             <div class="navbar-brand">
@@ -837,6 +945,14 @@
                 <span>Panel Administrativo</span>
             </div>
             <div class="user-menu">
+                @perm('chats.view')
+                <div class="wa-agent-alerts-nav">
+                    <button type="button" id="wa-enable-notifications-btn" class="wa-notify-toggle" title="Activar notificaciones de asesor">
+                        <i class="far fa-bell"></i>
+                        <span id="global-agent-requests-count" class="global-agent-requests-count hidden"></span>
+                    </button>
+                </div>
+                @endperm
                 <div class="user-dropdown" id="userDropdown">
                     <div class="user-info" onclick="document.getElementById('userDropdown').classList.toggle('show')">
                         <div class="user-avatar">
@@ -1011,5 +1127,16 @@
     </script>
 
     @stack('scripts')
+
+    @perm('chats.view')
+    <script>
+        window.WaAgentAlertsConfig = {
+            pollUrl: @json(route('admin.agent-requests.poll')),
+            chatUrl: @json(url('/admin/chats')),
+            favicon: @json(asset('favicon.svg')),
+        };
+    </script>
+    <script src="{{ asset('js/admin-agent-alerts.js') }}?v=2" defer></script>
+    @endperm
 </body>
 </html>

@@ -508,79 +508,6 @@
         background: rgba(255, 255, 255, 0.25);
     }
 
-    .wa-notify-toggle {
-        margin-left: auto;
-        background: rgba(255, 255, 255, 0.08);
-        border: none;
-        color: #8696a0;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        transition: background .15s, color .15s;
-        flex-shrink: 0;
-    }
-
-    .wa-notify-toggle:hover { background: rgba(255, 255, 255, 0.14); color: #e9edef; }
-    .wa-notify-toggle.is-active { color: #25d366; background: rgba(37, 211, 102, 0.12); }
-    .wa-notify-toggle.is-blocked { color: #f15c6d; opacity: .85; }
-
-    .wa-agent-toast-stack {
-        position: fixed;
-        top: 72px;
-        right: 20px;
-        z-index: 10050;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        pointer-events: none;
-        max-width: min(360px, calc(100vw - 32px));
-    }
-
-    .wa-agent-toast {
-        pointer-events: auto;
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        background: #fff;
-        border-radius: 14px;
-        padding: 14px 16px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
-        cursor: pointer;
-        animation: waToastIn .35s cubic-bezier(.21, 1.02, .73, 1);
-        border: 1px solid rgba(0, 0, 0, 0.06);
-    }
-
-    .wa-agent-toast-icon {
-        width: 42px;
-        height: 42px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #f15c6d, #e74c3c);
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-        flex-shrink: 0;
-    }
-
-    .wa-agent-toast-body { flex: 1; min-width: 0; }
-    .wa-agent-toast-title { font-size: 14px; font-weight: 700; color: #111b21; margin: 0 0 2px; }
-    .wa-agent-toast-text { font-size: 13px; color: #667781; margin: 0; line-height: 1.35; }
-    .wa-agent-toast-time { font-size: 11px; color: #8696a0; margin-top: 4px; }
-
-    @keyframes waToastIn {
-        from { opacity: 0; transform: translateX(24px) scale(.96); }
-        to { opacity: 1; transform: translateX(0) scale(1); }
-    }
-
-    @keyframes waToastOut {
-        to { opacity: 0; transform: translateX(24px) scale(.96); }
-    }
-
     @keyframes agentPulse {
         0%, 100% {
             opacity: 1;
@@ -1304,7 +1231,6 @@
     </style>
 
 <div class="wa-main-bg">
-    <div id="wa-agent-toast-stack" class="wa-agent-toast-stack" aria-live="polite"></div>
     <!-- Sidebar Overlay (Mobile) -->
     <div class="wa-sidebar-overlay" id="waSidebarOverlay"></div>
 
@@ -1319,9 +1245,6 @@
                     Chats
                     @php $agentRequestsCount = $contacts->filter(fn($c) => $c->needsAgent())->count(); @endphp
                     <span id="agent-requests-count" class="wa-agent-requests-count{{ $agentRequestsCount > 0 ? '' : ' hidden' }}">{{ $agentRequestsCount > 0 ? $agentRequestsCount : '' }}</span>
-                    <button type="button" id="wa-enable-notifications-btn" class="wa-notify-toggle" title="Activar notificaciones de asesor">
-                        <i class="fas fa-bell"></i>
-                    </button>
                 </div>
             </div>
             <div class="wa-sidebar-search">
@@ -3642,242 +3565,6 @@
         // Actualizar lista de contactos en tiempo real
         let contactsUpdateInterval = null;
         let currentContactId = {{ $contact->id }};
-        let agentSoundInitialized = false;
-        const alertedAgentContactIds = new Set();
-        let agentAudioContext = null;
-        const pageTitleBase = document.title;
-        let titleFlashTimer = null;
-
-        function unlockAgentAudio() {
-            try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (!AudioContext) return;
-                if (!agentAudioContext) {
-                    agentAudioContext = new AudioContext();
-                }
-                if (agentAudioContext.state === 'suspended') {
-                    agentAudioContext.resume();
-                }
-            } catch (e) { /* ignore */ }
-        }
-
-        document.addEventListener('click', unlockAgentAudio, { once: true, passive: true });
-        document.addEventListener('keydown', unlockAgentAudio, { once: true });
-
-        /** Sonido estilo app social (doble pop suave, tipo Messenger). */
-        function playAgentRequestSound() {
-            unlockAgentAudio();
-            try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (!AudioContext) return;
-
-                const ctx = agentAudioContext || new AudioContext();
-                agentAudioContext = ctx;
-
-                const playPop = (start, baseFreq = 640, volume = 0.28) => {
-                    const t0 = ctx.currentTime + start;
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    const filter = ctx.createBiquadFilter();
-
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(baseFreq, t0);
-                    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.55, t0 + 0.07);
-
-                    filter.type = 'lowpass';
-                    filter.frequency.setValueAtTime(2800, t0);
-                    filter.frequency.exponentialRampToValueAtTime(600, t0 + 0.1);
-
-                    osc.connect(filter);
-                    filter.connect(gain);
-                    gain.connect(ctx.destination);
-
-                    gain.gain.setValueAtTime(0.0001, t0);
-                    gain.gain.linearRampToValueAtTime(volume, t0 + 0.006);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.1);
-
-                    osc.start(t0);
-                    osc.stop(t0 + 0.11);
-                };
-
-                playPop(0, 720, 0.3);
-                playPop(0.11, 880, 0.26);
-            } catch (e) { /* ignore */ }
-        }
-
-        function updateNotifyButtonState() {
-            const btn = document.getElementById('wa-enable-notifications-btn');
-            if (!btn || !('Notification' in window)) return;
-
-            const icon = btn.querySelector('i');
-            btn.classList.remove('is-active', 'is-blocked');
-
-            if (Notification.permission === 'granted') {
-                btn.classList.add('is-active');
-                btn.title = 'Notificaciones activadas';
-                if (icon) icon.className = 'fas fa-bell';
-            } else if (Notification.permission === 'denied') {
-                btn.classList.add('is-blocked');
-                btn.title = 'Notificaciones bloqueadas en el navegador';
-                if (icon) icon.className = 'fas fa-bell-slash';
-            } else {
-                btn.title = 'Activar notificaciones de asesor';
-                if (icon) icon.className = 'far fa-bell';
-            }
-        }
-
-        async function requestAgentNotificationPermission() {
-            unlockAgentAudio();
-            if (!('Notification' in window)) {
-                alert('Tu navegador no soporta notificaciones de escritorio.');
-                return Notification.permission;
-            }
-            if (Notification.permission === 'granted') {
-                return 'granted';
-            }
-            if (Notification.permission === 'denied') {
-                alert('Las notificaciones están bloqueadas. Habilítalas en la configuración del navegador para este sitio.');
-                return 'denied';
-            }
-            const result = await Notification.requestPermission();
-            updateNotifyButtonState();
-            return result;
-        }
-
-        document.getElementById('wa-enable-notifications-btn')?.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            requestAgentNotificationPermission();
-        });
-
-        updateNotifyButtonState();
-
-        function showAgentDesktopNotification(contact) {
-            if (!('Notification' in window) || Notification.permission !== 'granted') {
-                return;
-            }
-
-            const name = contact.name || 'Cliente';
-            const body = `${name} quiere hablar con un asesor humano`;
-            const tag = `agent-request-${contact.id}`;
-
-            try {
-                const notification = new Notification('Solicitud de asesor · WhatsApp', {
-                    body,
-                    icon: '{{ asset('favicon.svg') }}',
-                    badge: '{{ asset('favicon.svg') }}',
-                    tag,
-                    renotify: true,
-                    requireInteraction: true,
-                    silent: true,
-                });
-
-                notification.onclick = function() {
-                    window.focus();
-                    if (typeof loadContactChat === 'function') {
-                        loadContactChat(contact.id);
-                    }
-                    notification.close();
-                };
-
-                setTimeout(() => notification.close(), 12000);
-            } catch (e) { /* ignore */ }
-        }
-
-        function showAgentToast(contact) {
-            const stack = document.getElementById('wa-agent-toast-stack');
-            if (!stack) return;
-
-            const name = contact.name || 'Cliente';
-            const toast = document.createElement('div');
-            toast.className = 'wa-agent-toast';
-            toast.innerHTML = `
-                <div class="wa-agent-toast-icon"><i class="fas fa-headset"></i></div>
-                <div class="wa-agent-toast-body">
-                    <p class="wa-agent-toast-title">${escapeHtml(name)}</p>
-                    <p class="wa-agent-toast-text">Solicita hablar con un asesor humano</p>
-                    <div class="wa-agent-toast-time">Ahora · Toca para abrir el chat</div>
-                </div>
-            `;
-
-            toast.addEventListener('click', function() {
-                if (typeof loadContactChat === 'function') {
-                    loadContactChat(contact.id);
-                }
-                removeToast(toast);
-            });
-
-            stack.prepend(toast);
-            setTimeout(() => removeToast(toast), 8000);
-        }
-
-        function removeToast(toast) {
-            if (!toast || toast.dataset.removing) return;
-            toast.dataset.removing = '1';
-            toast.style.animation = 'waToastOut .25s ease forwards';
-            setTimeout(() => toast.remove(), 260);
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function flashDocumentTitle(label) {
-            if (document.visibilityState === 'visible' && document.hasFocus()) {
-                return;
-            }
-
-            clearInterval(titleFlashTimer);
-            let showAlert = true;
-            titleFlashTimer = setInterval(function() {
-                document.title = showAlert ? `(1) ${label}` : pageTitleBase;
-                showAlert = !showAlert;
-            }, 1200);
-        }
-
-        document.addEventListener('visibilitychange', function() {
-            if (document.visibilityState === 'visible') {
-                clearInterval(titleFlashTimer);
-                titleFlashTimer = null;
-                document.title = pageTitleBase;
-            }
-        });
-
-        function notifyAgentRequest(contact) {
-            playAgentRequestSound();
-            showAgentToast(contact);
-            showAgentDesktopNotification(contact);
-            flashDocumentTitle('Asesor solicitado');
-        }
-
-        function handleAgentRequestAlerts(contacts) {
-            const requesting = contacts.filter(contact => contact.needs_agent);
-
-            if (!agentSoundInitialized) {
-                requesting.forEach(contact => alertedAgentContactIds.add(String(contact.id)));
-                agentSoundInitialized = true;
-                return;
-            }
-
-            const newRequests = [];
-            requesting.forEach(contact => {
-                const id = String(contact.id);
-                if (!alertedAgentContactIds.has(id)) {
-                    alertedAgentContactIds.add(id);
-                    newRequests.push(contact);
-                }
-            });
-
-            [...alertedAgentContactIds].forEach(id => {
-                if (!requesting.some(c => String(c.id) === id)) {
-                    alertedAgentContactIds.delete(id);
-                }
-            });
-
-            newRequests.forEach(contact => notifyAgentRequest(contact));
-        }
 
         function updateAgentHandoffBanner(needsAgent) {
             const banner = document.getElementById('wa-agent-handoff-banner');
@@ -3915,7 +3602,9 @@
             .then(data => {
                 if (data.success) {
                     updateAgentHandoffBanner(false);
-                    alertedAgentContactIds.delete(String(contactId));
+                    if (window.WaAgentAlerts?.clearContact) {
+                        window.WaAgentAlerts.clearContact(contactId);
+                    }
                     updateContactsList();
                 }
                 return data;
@@ -3950,8 +3639,6 @@
                     if (typeof data.agent_requests_count !== 'undefined') {
                         updateAgentRequestsCount(data.agent_requests_count);
                     }
-
-                    handleAgentRequestAlerts(data.contacts);
 
                     const contactsContainer = document.querySelector('.wa-sidebar-contacts');
                     if (!contactsContainer) return;

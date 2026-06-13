@@ -118,7 +118,7 @@
 <div class="clients-page">
     <div class="clients-hero">
         <h2><i class="fas fa-users me-2"></i>Clientes</h2>
-        <p>Trazabilidad de conversaciones y compras · ordenado por actividad más reciente</p>
+        <p>Trazabilidad de conversaciones y compras · el total comprado suma pedidos confirmados o pagados</p>
     </div>
 
     <div class="clients-stats">
@@ -192,7 +192,7 @@
                         <th class="text-center">Respuestas</th>
                         <th>Último msj. cliente</th>
                         <th>Última respuesta</th>
-                        <th>Gasto</th>
+                        <th title="Suma de pedidos cerrados (no carritos activos ni cancelados)">Total comprado</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -218,7 +218,13 @@
                             <td class="text-center"><span class="metric-pill">{{ $client->replied_messages_count ?? 0 }}</span></td>
                             <td class="dt-cell">{{ $fmt($client->last_client_message_at) }}</td>
                             <td class="dt-cell">{{ $fmt($client->last_reply_message_at) }}</td>
-                            <td>${{ number_format((float) ($client->total_spent ?? 0), 2) }}</td>
+                            <td>
+                                @if(($client->orders_count ?? 0) > 0)
+                                    ${{ number_format((float) ($client->total_spent ?? 0), 2) }}
+                                @else
+                                    <span class="text-muted" title="Sin pedidos cerrados aún">—</span>
+                                @endif
+                            </td>
                             <td>
                                 <div class="clients-actions">
                                     @perm('chats.open')
