@@ -38,4 +38,27 @@ class WhatsappBusinessProfile extends Model
     {
         return $this->hasMany(WhatsappContact::class);
     }
+
+    /** Enlace público wa.me para iniciar conversación con el bot. */
+    public static function publicWhatsAppLink(?string $message = null): ?array
+    {
+        $profile = static::query()->first();
+        $raw = $profile?->phone_number ?: config('whatsapp.phone_number');
+        $digits = preg_replace('/\D/', '', (string) $raw);
+
+        if ($digits === '') {
+            return null;
+        }
+
+        $message ??= 'Hola';
+
+        return [
+            'digits' => $digits,
+            'display_number' => '+' . $digits,
+            'label' => $profile?->display_name
+                ?? $profile?->business_name
+                ?? 'Bot WhatsApp',
+            'url' => 'https://wa.me/' . $digits . '?text=' . rawurlencode($message),
+        ];
+    }
 }

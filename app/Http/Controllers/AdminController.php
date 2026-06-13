@@ -130,8 +130,14 @@ class AdminController extends Controller
         if ($contacts->count() > 0) {
             return redirect()->route('admin.chat', $contacts->first()->id);
         }
-        // Si no hay contactos, mostrar la vista original
-        return view('admin.chats', compact('contacts'));
+
+        $botWhatsApp = \App\Models\WhatsappBusinessProfile::publicWhatsAppLink();
+        $chatbotConfig = \App\Models\WhatsappChatbotConfig::first();
+        if ($botWhatsApp && $chatbotConfig?->bot_name) {
+            $botWhatsApp['label'] = $chatbotConfig->bot_name;
+        }
+
+        return view('admin.chats', compact('contacts', 'botWhatsApp'));
     }
 
     public function chat($contactId)
