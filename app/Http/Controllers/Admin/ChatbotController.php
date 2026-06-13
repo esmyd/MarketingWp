@@ -13,11 +13,13 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use App\Services\PlanLimitsService;
+use App\Services\DemoClienteService;
 
 class ChatbotController extends Controller
 {
     public function __construct(
-        private readonly PlanLimitsService $planLimits
+        private readonly PlanLimitsService $planLimits,
+        private readonly DemoClienteService $demoCliente,
     ) {}
     /**
      * Gestión de categorías del catálogo (items del menú prices_menu).
@@ -47,7 +49,10 @@ class ChatbotController extends Controller
             'products_unassigned' => $productStats['total'] - WhatsappPrice::inCatalogCategoriesCount(),
         ];
 
-        return view('admin.menus.index', compact('categories', 'stats', 'planLimits'));
+        return view('admin.menus.index', compact('categories', 'stats', 'planLimits') + [
+            'demoClienteOptions' => $this->demoCliente->options(),
+            'activeDemoCliente' => $this->demoCliente->activeKey(),
+        ]);
     }
 
     /**
@@ -287,6 +292,7 @@ class ChatbotController extends Controller
             'icon' => 'nullable|string|max:50',
             'order' => 'nullable|integer|min:0',
             'is_active' => 'nullable|boolean',
+            'demo_cliente' => 'nullable|string|max:64',
         ]);
 
         $title = trim($validated['title']);
@@ -300,6 +306,9 @@ class ChatbotController extends Controller
             'icon' => $validated['icon'] ?? '📦',
             'order' => $order,
             'is_active' => $request->boolean('is_active', true),
+            'demo_cliente' => isset($validated['demo_cliente']) && trim((string) ($validated['demo_cliente'] ?? '')) !== ''
+                ? trim((string) $validated['demo_cliente'])
+                : null,
         ]);
 
         return response()->json([
@@ -321,6 +330,7 @@ class ChatbotController extends Controller
             'icon' => 'nullable|string|max:50',
             'order' => 'nullable|integer|min:0',
             'is_active' => 'nullable|boolean',
+            'demo_cliente' => 'nullable|string|max:64',
         ]);
 
         $title = trim($validated['title']);
@@ -331,6 +341,9 @@ class ChatbotController extends Controller
             'icon' => $validated['icon'] ?? $item->icon ?? '📦',
             'order' => $validated['order'] ?? $item->order,
             'is_active' => $request->boolean('is_active'),
+            'demo_cliente' => isset($validated['demo_cliente']) && trim((string) ($validated['demo_cliente'] ?? '')) !== ''
+                ? trim((string) $validated['demo_cliente'])
+                : null,
         ]);
 
         WhatsappPrice::where('menu_item_id', $item->id)->update(['category' => $title]);
@@ -415,6 +428,7 @@ class ChatbotController extends Controller
             'icon' => $item->icon,
             'order' => $item->order,
             'is_active' => (bool) $item->is_active,
+            'demo_cliente' => $item->demo_cliente,
             'action_id' => $item->action_id,
             'products_count' => (int) ($item->prices_count ?? 0),
             'active_products_count' => (int) ($item->active_prices_count ?? 0),

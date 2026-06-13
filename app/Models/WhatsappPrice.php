@@ -22,6 +22,7 @@ class WhatsappPrice extends Model
         'promo_start_date',
         'promo_end_date',
         'is_active',
+        'demo_cliente',
         'stock',
         'allow_quantity_selection',
         'min_quantity',

@@ -302,6 +302,7 @@
                             <th class="ps-3">Categoría</th>
                             <th>Descripción</th>
                             <th>Productos</th>
+                            <th>Demo cliente</th>
                             <th>Orden</th>
                             <th>Estado</th>
                             <th class="text-end pe-3">Acciones</th>
@@ -317,6 +318,7 @@
                         <tr class="category-row"
                             data-search="{{ strtolower($category->title . ' ' . ($category->description ?? '')) }}"
                             data-status="{{ $category->is_active ? '1' : '0' }}"
+                            data-demo="{{ $category->demo_cliente ?? '' }}"
                             data-products="{{ $totalProducts > 0 ? 'with' : 'empty' }}">
                             <td class="ps-3">
                                 <div class="category-cell">
@@ -345,6 +347,13 @@
                                     @if($activeProducts < $totalProducts)
                                         <div style="font-size:0.72rem;color:#166534;margin-top:0.2rem">{{ $activeProducts }} activo{{ $activeProducts === 1 ? '' : 's' }}</div>
                                     @endif
+                                @endif
+                            </td>
+                            <td>
+                                @if($category->demo_cliente)
+                                    <span class="badge bg-light text-dark border">{{ $category->demo_cliente }}</span>
+                                @else
+                                    <span class="text-muted">—</span>
                                 @endif
                             </td>
                             <td>{{ $category->order }}</td>
@@ -401,6 +410,15 @@
                     <div class="form-check form-switch mt-3">
                         <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
                         <label class="form-check-label" for="is_active">Categoría activa en el catálogo del bot</label>
+                    </div>
+                    <div class="mb-3 mt-3">
+                        <label for="demo_cliente" class="form-label">Demo cliente</label>
+                        <input type="text" class="form-control form-control-sm" id="demo_cliente" name="demo_cliente" maxlength="64" list="demo-cliente-list-cat" placeholder="CorlanQuimica, software…">
+                        <datalist id="demo-cliente-list-cat">
+                            @foreach($demoClienteOptions ?? [] as $slug => $label)
+                                <option value="{{ $slug }}">{{ $label }}</option>
+                            @endforeach
+                        </datalist>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -464,6 +482,7 @@ function openEditModal(id) {
         document.getElementById('description').value = data.description || '';
         document.getElementById('icon').value = data.icon || '';
         document.getElementById('order').value = data.order ?? 0;
+        document.getElementById('demo_cliente').value = data.demo_cliente || '';
         document.getElementById('is_active').checked = !!data.is_active;
         categoryModal.show();
     })
@@ -482,6 +501,7 @@ function submitCategoryForm(e) {
         description: document.getElementById('description').value,
         icon: document.getElementById('icon').value.trim() || '📦',
         order: document.getElementById('order').value,
+        demo_cliente: document.getElementById('demo_cliente').value.trim(),
         is_active: document.getElementById('is_active').checked,
     };
 

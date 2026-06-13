@@ -101,6 +101,10 @@ class PlanLimitsService
         if (array_key_exists('bulk_web_order_enabled', $data)) {
             $limits['bulk_web_order_enabled'] = (bool) $data['bulk_web_order_enabled'];
         }
+        if (array_key_exists('active_demo_cliente', $data)) {
+            $value = $data['active_demo_cliente'];
+            $limits['active_demo_cliente'] = is_string($value) && trim($value) !== '' ? trim($value) : null;
+        }
 
         PricingSetting::current()->update(['platform_limits' => $limits]);
     }

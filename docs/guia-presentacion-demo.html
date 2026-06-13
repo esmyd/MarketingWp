@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guía de presentación — MarketingWp Bot + Panel</title>
+  <style>
+    :root {
+      --bg: #0b141a;
+      --surface: #111b21;
+      --surface2: #1f2c34;
+      --border: #2a3942;
+      --text: #e9edef;
+      --muted: #8696a0;
+      --green: #25d366;
+      --green-dark: #128c7e;
+      --accent: #00a884;
+      --warn: #fbbf24;
+      --danger: #f87171;
+      --blue: #53bdeb;
+      --radius: 12px;
+      --shadow: 0 8px 32px rgba(0,0,0,.35);
+      --sidebar-w: 280px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* Layout */
+    .app {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr;
+      min-height: 100vh;
+    }
+
+    @media (max-width: 960px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .mobile-nav { display: flex !important; }
+    }
+
+    /* Sidebar */
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 1.25rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--green), var(--green-dark));
+      display: grid;
+      place-items: center;
+      font-size: 1.25rem;
+    }
+
+    .brand h1 { font-size: 1rem; line-height: 1.3; }
+    .brand p { font-size: .75rem; color: var(--muted); }
+
+    .progress-wrap { margin: 1rem 0; }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .75rem;
+      color: var(--muted);
+      margin-bottom: .35rem;
+    }
+    .progress-bar {
+      height: 6px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--green-dark), var(--green));
+      transition: width .4s ease;
+    }
+
+    .nav-section {
+      font-size: .65rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      margin: 1rem 0 .5rem;
+    }
+
+    .nav-link {
+      display: block;
+      padding: .45rem .65rem;
+      border-radius: 8px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .85rem;
+      transition: .15s;
+    }
+    .nav-link:hover { background: var(--surface2); color: var(--text); }
+    .nav-link.active { background: rgba(37,211,102,.12); color: var(--green); }
+    .nav-link.done { color: var(--accent); }
+    .nav-link .time { float: right; opacity: .7; font-size: .75rem; }
+
+    .mode-toggle {
+      display: flex;
+      gap: .35rem;
+      margin: 1rem 0;
+      background: var(--surface2);
+      padding: .25rem;
+      border-radius: 10px;
+    }
+    .mode-btn {
+      flex: 1;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: .45rem;
+      border-radius: 8px;
+      font-size: .75rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .mode-btn.active {
+      background: var(--green-dark);
+      color: #fff;
+    }
+
+    /* Main */
+    .main {
+      padding: 1.5rem 2rem 4rem;
+      max-width: 920px;
+    }
+
+    .mobile-nav {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: .75rem 1rem;
+      gap: .5rem;
+      overflow-x: auto;
+    }
+    .mobile-nav a {
+      white-space: nowrap;
+      padding: .35rem .75rem;
+      background: var(--surface2);
+      border-radius: 99px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: .8rem;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(18,140,126,.25), rgba(37,211,102,.08));
+      border: 1px solid rgba(37,211,102,.2);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      margin-bottom: 2rem;
+    }
+    .hero h2 { font-size: 1.6rem; margin-bottom: .5rem; }
+    .hero p { color: var(--muted); max-width: 60ch; }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-top: 1.25rem;
+    }
+    .stat {
+      background: rgba(0,0,0,.2);
+      padding: .65rem 1rem;
+      border-radius: 8px;
+      font-size: .85rem;
+    }
+    .stat strong { color: var(--green); }
+
+    /* Sections */
+    section {
+      scroll-margin-top: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .section-head h2 {
+      font-size: 1.35rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: .2rem .55rem;
+      border-radius: 99px;
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .badge-time { background: rgba(83,189,235,.15); color: var(--blue); }
+    .badge-prep { background: rgba(251,191,36,.15); color: var(--warn); }
+    .badge-wow { background: rgba(37,211,102,.15); color: var(--green); }
+    .badge-close { background: rgba(248,113,113,.15); color: var(--danger); }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow);
+    }
+
+    .card h3 {
+      font-size: .95rem;
+      color: var(--green);
+      margin-bottom: .75rem;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+    }
+
+    .card ul, .card ol { padding-left: 1.25rem; }
+    .card li { margin-bottom: .4rem; color: #d1d7db; }
+    .card li strong { color: var(--text); }
+
+    .script {
+      background: var(--surface2);
+      border-left: 3px solid var(--green);
+      padding: 1rem 1.15rem;
+      border-radius: 0 8px 8px 0;
+      font-style: italic;
+      color: #d1d7db;
+      margin: .75rem 0;
+    }
+    .script::before {
+      content: "💬 Di esto:";
+      display: block;
+      font-style: normal;
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--green);
+      margin-bottom: .5rem;
+    }
+
+    .route {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      background: rgba(83,189,235,.12);
+      color: var(--blue);
+      padding: .25rem .6rem;
+      border-radius: 6px;
+      font-family: Consolas, monospace;
+      font-size: .8rem;
+      margin: .25rem 0;
+    }
+
+    .tip {
+      background: rgba(251,191,36,.08);
+      border: 1px solid rgba(251,191,36,.25);
+      border-radius: 8px;
+      padding: .85rem 1rem;
+      font-size: .9rem;
+      margin-top: .75rem;
+    }
+    .tip::before { content: "💡 "; }
+
+    .warn-box {
+      background: rgba(248,113,113,.08);
+      border: 1px solid rgba(248,113,113,.25);
+      border-radius: 8px;
+      padding: .85rem 1rem;
+      font-size: .9rem;
+      margin-top: .75rem;
+    }
+
+    .step-actions {
+      display: flex;
+      gap: .75rem;
+      margin-top: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 0;
+      padding: .55rem 1.1rem;
+      border-radius: 8px;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: .15s;
+    }
+    .btn-primary { background: var(--green-dark); color: #fff; }
+    .btn-primary:hover { background: var(--green); color: #000; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: var(--green); color: var(--green); }
+
+    /* Checklist */
+    .checklist label {
+      display: flex;
+      align-items: flex-start;
+      gap: .65rem;
+      padding: .55rem 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      font-size: .9rem;
+    }
+    .checklist label:last-child { border-bottom: 0; }
+    .checklist input { margin-top: .25rem; accent-color: var(--green); }
+    .checklist input:checked + span { color: var(--muted); text-decoration: line-through; }
+
+    /* Timeline overview */
+    .timeline {
+      display: grid;
+      gap: .5rem;
+    }
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 72px 1fr auto;
+      gap: .75rem;
+      align-items: center;
+      padding: .65rem .85rem;
+      background: var(--surface2);
+      border-radius: 8px;
+      font-size: .85rem;
+    }
+    .timeline-item .num {
+      font-weight: 800;
+      color: var(--green);
+      font-size: .75rem;
+    }
+
+    .hidden-exec { display: none; }
+    body.mode-exec .hidden-exec { display: none !important; }
+    body.mode-exec .exec-only { display: block !important; }
+    body.mode-full .exec-only { display: none; }
+
+    .flow-diagram {
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: Consolas, monospace;
+      font-size: .78rem;
+      line-height: 1.8;
+      overflow-x: auto;
+      color: var(--muted);
+    }
+    .flow-diagram em { color: var(--green); font-style: normal; }
+
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .plan-card {
+      background: var(--surface2);
+      border-radius: var(--radius);
+      padding: 1rem;
+      border: 1px solid var(--border);
+    }
+    .plan-card.featured { border-color: var(--green); }
+    .plan-card h4 { color: var(--green); margin-bottom: .25rem; }
+    .plan-card .price { font-size: 1.4rem; font-weight: 800; margin: .5rem 0; }
+    .plan-card ul { font-size: .8rem; padding-left: 1rem; color: var(--muted); }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: .8rem;
+      padding: 2rem 0;
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+    }
+
+    @media print {
+      .sidebar, .step-actions, .mode-toggle, .mobile-nav { display: none !important; }
+      .app { display: block; }
+      body { background: #fff; color: #000; }
+      .card, .hero { box-shadow: none; border: 1px solid #ccc; }
+    }
+  </style>
+</head>
+<body class="mode-full">
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">📱</div>
+        <div>
+          <h1>Guía de presentación</h1>
+          <p>Bot WhatsApp + Panel Admin</p>
+        </div>
+      </div>
+
+      <div class="mode-toggle">
+        <button class="mode-btn active" data-mode="full" onclick="setMode('full')">Completa ~30 min</button>
+        <button class="mode-btn" data-mode="exec" onclick="setMode('exec')">Ejecutiva ~15 min</button>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span>Progreso</span>
+          <span id="progress-text">0 / 12</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+
+      <div class="nav-section">Antes de empezar</div>
+      <a class="nav-link" href="#prep">Preparación</a>
+      <a class="nav-link" href="#mapa">Mapa de la demo</a>
+
+      <div class="nav-section">La presentación</div>
+      <a class="nav-link" href="#paso-0" data-step="0">0. Apertura <span class="time">2 min</span></a>
+      <a class="nav-link" href="#paso-1" data-step="1">1. WhatsApp en vivo <span class="time">5 min</span></a>
+      <a class="nav-link" href="#paso-2" data-step="2">2. Handoff asesor <span class="time">3 min</span></a>
+      <a class="nav-link" href="#paso-3" data-step="3">3. Pedidos + PDF <span class="time">5 min</span></a>
+      <a class="nav-link hidden-exec" href="#paso-4" data-step="4">4. Flujo del bot <span class="time">4 min</span></a>
+      <a class="nav-link hidden-exec" href="#paso-5" data-step="5">5. Catálogo <span class="time">3 min</span></a>
+      <a class="nav-link" href="#paso-6" data-step="6">6. Dashboard <span class="time">3 min</span></a>
+      <a class="nav-link hidden-exec" href="#paso-7" data-step="7">7. Clientes + Chats <span class="time">2 min</span></a>
+      <a class="nav-link hidden-exec" href="#paso-8" data-step="8">8. Roles y equipo <span class="time">2 min</span></a>
+      <a class="nav-link hidden-exec" href="#paso-9" data-step="9">9. Pedido masivo Pro <span class="time">3 min</span></a>
+      <a class="nav-link" href="#paso-10" data-step="10">10. Planes y cierre <span class="time">3 min</span></a>
+
+      <div class="nav-section">Final</div>
+      <a class="nav-link" href="#checklist-final">Nada se escapa</a>
+      <a class="nav-link" href="#objeciones">Objeciones</a>
+    </aside>
+
+    <div>
+      <nav class="mobile-nav">
+        <a href="#prep">Prep</a>
+        <a href="#paso-1">WhatsApp</a>
+        <a href="#paso-3">PDF</a>
+        <a href="#paso-6">Dashboard</a>
+        <a href="#paso-10">Cierre</a>
+      </nav>
+
+      <main class="main">
+        <header class="hero">
+          <h2>Tu guion profesional, paso a paso</h2>
+          <p>
+            Esta guía te lleva de principio a fin sin saltarte nada: primero el impacto en WhatsApp,
+            luego el panel donde tu equipo opera. Alterna pantalla del celular y laptop para que no se vuelva monótono.
+          </p>
+          <div class="stats">
+            <div class="stat"><strong>30 min</strong> demo completa</div>
+            <div class="stat"><strong>15 min</strong> versión ejecutiva</div>
+            <div class="stat"><strong>2 dispositivos</strong> celular + panel</div>
+            <div class="stat"><strong>1 objetivo</strong> vender confianza + operación</div>
+          </div>
+        </header>
+
+        <!-- PREP -->
+        <section id="prep">
+          <div class="section-head">
+            <h2>🛠 Preparación (30 min antes)</h2>
+            <span class="badge badge-prep">Imprescindible</span>
+          </div>
+
+          <div class="card checklist" id="prep-checklist">
+            <h3>Checklist pre-demo</h3>
+            <label><input type="checkbox" data-prep><span>Reiniciar demo: Panel → Parámetros → botón «Reiniciar demo» (limpia chats/pedidos, conserva catálogo)</span></label>
+            <label><input type="checkbox" data-prep><span>Tener celular con WhatsApp conectado al número demo (escanea QR si hace falta)</span></label>
+            <label><input type="checkbox" data-prep><span>Panel abierto en <span class="route">/admin/orders</span> en otra pestaña</span></label>
+            <label><input type="checkbox" data-prep><span>Configurar PDF empresa en <span class="route">/admin/pricing-settings#order-pdf</span> (RUC, razón social)</span></label>
+            <label><input type="checkbox" data-prep><span>Verificar 3–5 productos con foto y precio en catálogo</span></label>
+            <label><input type="checkbox" data-prep><span>Probar audio del navegador (alertas de asesor suenan)</span></label>
+            <label><input type="checkbox" data-prep><span>Cerrar notificaciones personales del PC</span></label>
+            <label><input type="checkbox" data-prep><span>Tener un pedido «preparado» o saber que lo crearás en vivo en el paso 1</span></label>
+          </div>
+
+          <div class="card">
+            <h3>Credenciales demo (ajusta según tu .env)</h3>
+            <ul>
+              <li><strong>Panel:</strong> usuario y contraseña de <code>DEMO_PANEL_USER</code> / <code>DEMO_PANEL_PASSWORD</code></li>
+              <li><strong>WhatsApp:</strong> número en <code>DEMO_WHATSAPP_NUMBER</code></li>
+              <li><strong>Planes comerciales:</strong> <span class="route">/planes</span></li>
+            </ul>
+          </div>
+
+          <div class="tip">Regla de oro: nunca empieces mostrando configuración. El cliente debe sentir el producto en WhatsApp antes de ver «cómo se arma».</div>
+        </section>
+
+        <!-- MAPA -->
+        <section id="mapa">
+          <div class="section-head">
+            <h2>🗺 Mapa de la demo</h2>
+          </div>
+          <div class="card">
+            <h3>Orden narrativo (historia, no menú técnico)</h3>
+            <div class="flow-diagram">
+Cliente escribe <em>"Hola"</em>
+    → Bot vende solo (menú, productos, carrito, pago)
+        → Aparece pedido en panel
+            → Agente valida con PDF profesional
+                → Cliente confirma en WhatsApp
+                    → Equipo opera (chats, estados, export)
+                        → Tú muestras control (flujo, catálogo, roles, métricas)
+                            → Cierras con planes y próximo paso
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Línea de tiempo — demo completa</h3>
+            <div class="timeline">
+              <div class="timeline-item"><span class="num">0</span><span>Apertura + contexto del problema</span><span>2 min</span></div>
+              <div class="timeline-item"><span class="num">1</span><span>WhatsApp: compra completa en vivo</span><span>5 min</span></div>
+              <div class="timeline-item"><span class="num">2</span><span>Handoff: «Quiero un asesor» → panel alerta</span><span>3 min</span></div>
+              <div class="timeline-item"><span class="num">3</span><span>Pedido + PDF + confirmación cliente</span><span>5 min</span></div>
+              <div class="timeline-item hidden-exec"><span class="num">4</span><span>Editor flujo del bot (personalización)</span><span>4 min</span></div>
+              <div class="timeline-item hidden-exec"><span class="num">5</span><span>Catálogo: producto nuevo → bot</span><span>3 min</span></div>
+              <div class="timeline-item"><span class="num">6</span><span>Dashboard: ventas + consumo Meta</span><span>3 min</span></div>
+              <div class="timeline-item hidden-exec"><span class="num">7</span><span>Clientes + Chats (CRM ligero)</span><span>2 min</span></div>
+              <div class="timeline-item hidden-exec"><span class="num">8</span><span>Roles: quién ve qué</span><span>2 min</span></div>
+              <div class="timeline-item hidden-exec"><span class="num">9</span><span>Pedido masivo web (Plan Pro)</span><span>3 min</span></div>
+              <div class="timeline-item"><span class="num">10</span><span>Planes, diferenciadores y cierre</span><span>3 min</span></div>
+            </div>
+          </div>
+
+          <div class="card exec-only" style="display:none">
+            <h3>Versión ejecutiva (15 min)</h3>
+            <p>Solo pasos: <strong>0 → 1 → 3 → 6 → 10</strong>. Omites flujo, catálogo, roles y pedido masivo. Menciónalos verbalmente como «disponibles en la plataforma».</p>
+          </div>
+        </section>
+
+        <!-- PASO 0 -->
+        <section id="paso-0" data-step-section="0">
+          <div class="section-head">
+            <h2>Paso 0 — Apertura</h2>
+            <span class="badge badge-time">2 min</span>
+          </div>
+          <div class="card">
+            <h3>Objetivo</h3>
+            <p>Enmarcar el dolor del cliente y prometer una solución concreta en los próximos minutos.</p>
+            <div class="script">
+              «Hoy no les voy a mostrar slides. Les voy a enseñar cómo un cliente real compra por WhatsApp en menos de un minuto, y cómo su equipo lo gestiona desde un panel — sin perder mensajes, sin Excel, y con confirmaciones profesionales. Al final vemos planes y el siguiente paso para implementarlo en su negocio.»
+            </div>
+            <div class="card" style="background:transparent;border-style:dashed;margin-top:1rem">
+              <strong>Pregunta de enganche (elige una):</strong>
+              <ul>
+                <li>«¿Cuántos pedidos reciben hoy solo por WhatsApp?»</li>
+                <li>«¿Quién responde cuando el vendedor está ocupado?»</li>
+                <li>«¿Cómo confirman hoy un pedido grande: captura, voz, nota?»</li>
+              </ul>
+            </div>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-primary" onclick="markDone(0); goTo('#paso-1')">Siguiente: WhatsApp en vivo →</button>
+          </div>
+        </section>
+
+        <!-- PASO 1 -->
+        <section id="paso-1" data-step-section="1">
+          <div class="section-head">
+            <h2>Paso 1 — WhatsApp en vivo</h2>
+            <span class="badge badge-wow">Momento wow #1</span>
+            <span class="badge badge-time">5 min</span>
+          </div>
+          <div class="card">
+            <h3>Qué mostrar</h3>
+            <ol>
+              <li>Abre WhatsApp en el celular (proyector o compartir pantalla móvil).</li>
+              <li>Escribe: <strong>Hola</strong> → menú con botones nativos.</li>
+              <li>Toca <strong>Productos</strong> → elige categoría → producto.</li>
+              <li>Selecciona cantidad → <strong>Agregar al carrito</strong>.</li>
+              <li><strong>Ver carrito</strong> → <strong>Finalizar compra</strong>.</li>
+              <li>Nota opcional (o «sin nota»).</li>
+              <li>Método de pago: transferencia / efectivo / tarjeta.</li>
+              <li>Confirma el pedido.</li>
+            </ol>
+            <div class="script">
+              «Fíjense: no es un chatbot de texto plano. Son botones oficiales de WhatsApp — el cliente no tiene que aprender comandos. El bot guía catálogo, carrito y pago igual que una tienda, pero dentro del chat que ya usan todos los días.»
+            </div>
+            <div class="tip">Mientras confirmas en el celular, cambia rápido al panel en <span class="route">/admin/orders</span> y di: «El pedido ya apareció aquí, en tiempo real.» Ese contraste celular ↔ panel evita que se aburran.</div>
+          </div>
+          <div class="card">
+            <h3>Extras rápidos (si hay tiempo)</h3>
+            <ul>
+              <li>Escribe el nombre de un producto → el bot lo reconoce por SKU/nombre.</li>
+              <li>Botón <strong>Ver pedidos</strong> → historial del cliente.</li>
+              <li>Palabra clave: «horarios», «envíos», «pagos» (respuestas configuradas).</li>
+            </ul>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-ghost" onclick="goTo('#paso-0')">← Anterior</button>
+            <button class="btn btn-primary" onclick="markDone(1); goTo('#paso-2')">Siguiente: Handoff asesor →</button>
+          </div>
+        </section>
+
+        <!-- PASO 2 -->
+        <section id="paso-2" data-step-section="2">
+          <div class="section-head">
+            <h2>Paso 2 — Handoff a humano</h2>
+            <span class="badge badge-wow">Momento wow #2</span>
+            <span class="badge badge-time">3 min</span>
+          </div>
+          <div class="card">
+            <h3>Qué mostrar</h3>
+            <ol>
+              <li>En WhatsApp escribe: <strong>Quiero un asesor</strong> (o botón equivalente).</li>
+              <li>El bot se desactiva para ese contacto y avisa al cliente.</li>
+              <li>En el panel: campana 🔔, toast y badge rojo en <strong>Chats</strong>.</li>
+              <li>Abre <span class="route">/admin/chats</span> → selecciona el contacto.</li>
+              <li>Responde como agente (typing indicator visible en WhatsApp).</li>
+              <li>Muestra toggle «Bot activo/desactivado» por contacto.</li>
+            </ol>
+            <div class="script">
+              «El bot no reemplaza a su equipo: lo amplifica. Cuando el cliente necesita humano, el bot se aparta, ustedes reciben alerta al instante y responden desde el mismo panel — con historial completo, sin perder el hilo en el celular personal del vendedor.»
+            </div>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-ghost" onclick="goTo('#paso-1')">← Anterior</button>
+            <button class="btn btn-primary" onclick="markDone(2); goTo('#paso-3')">Siguiente: PDF y confirmación →</button>
+          </div>
+        </section>
+
+        <!-- PASO 3 -->
+        <section id="paso-3" data-step-section="3">
+          <div class="section-head">
+            <h2>Paso 3 — Pedidos + PDF + confirmación</h2>
+            <span class="badge badge-wow">Momento wow #3</span>
+            <span class="badge badge-time">5 min</span>
+          </div>
+          <div class="card">
+            <h3>Qué mostrar en panel</h3>
+            <ol>
+              <li><span class="route">/admin/orders</span> — lista con filtros y estados.</li>
+              <li>Abre el pedido del paso 1 (modal o detalle).</li>
+              <li>Descarga PDF: botón PDF → documento con datos de empresa, IVA, ítems.</li>
+              <li>Clic <strong>Enviar confirmación por WhatsApp</strong>.</li>
+              <li>En el celular: llega PDF + botones <strong>Confirmar / Modificar / Cancelar</strong>.</li>
+              <li>Cliente toca <strong>Confirmar</strong> → estado cambia en panel.</li>
+            </ol>
+            <div class="script">
+              «Aquí está la diferencia con un bot genérico: ustedes envían una orden formal en PDF — con su RUC, totales e IVA — y el cliente confirma con un toque. Sin capturas, sin «¿me confirmas?». Todo queda registrado en el panel y en WhatsApp.»
+            </div>
+            <div class="tip">Menciona que el enlace del PDF también funciona fuera de WhatsApp (URL firmada) por si el cliente lo reenvía a contabilidad.</div>
+          </div>
+          <div class="card">
+            <h3>Funciones extra del módulo pedidos</h3>
+            <ul>
+              <li>Notas internas del pedido (solo equipo).</li>
+              <li>Cambio de estado manual.</li>
+              <li>Export Excel por fechas/estado → <span class="route">/admin/orders/export</span>.</li>
+              <li>Etiqueta «Espera cliente» cuando falta confirmación.</li>
+            </ul>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-ghost" onclick="goTo('#paso-2')">← Anterior</button>
+            <button class="btn btn-primary hidden-exec" onclick="markDone(3); goTo('#paso-4')">Siguiente: Flujo del bot →</button>
+            <button class="btn btn-primary exec-only" style="display:none" onclick="markDone(3); goTo('#paso-6')">Siguiente: Dashboard →</button>
+          </div>
+        </section>
+
+        <!-- PASO 4 -->
+        <section id="paso-4" class="hidden-exec" data-step-section="4">
+          <div class="section-head">
+            <h2>Paso 4 — Flujo del bot (personalización)</h2>
+            <span class="badge badge-wow">Momento wow #4</span>
+            <span class="badge badge-time">4 min</span>
+          </div>
+          <div class="card">
+            <h3>Qué mostrar</h3>
+            <ol>
+              <li><span class="route">/admin/marketing-flow</span> — editor visual por pasos.</li>
+              <li>Pasos: bienvenida, menú, catálogo, carrito, checkout, comprobante, asesor, fallback.</li>
+              <li>Edita una línea de bienvenida con variable <code>{{nombre}}</code>.</li>
+              <li>Preview estilo WhatsApp en la misma pantalla.</li>
+              <li>Guarda → vuelve al celular y escribe «Hola» para mostrar el cambio.</li>
+            </ol>
+            <div class="script">
+              «No dependen de nosotros para cada cambio de texto. Su marketing edita mensajes, botones e imágenes del recorrido completo — y lo ven en preview antes de publicar. Es su marca hablando, no un script genérico.»
+            </div>
+          </div>
+          <div class="card">
+            <h3>Configuración del bot (complemento breve)</h3>
+            <p><span class="route">/admin/chatbot/config</span> — nombre del bot, colores, avatar, mensaje bienvenida, monitoreo por email/WhatsApp si algo falla.</p>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-ghost" onclick="goTo('#paso-3')">← Anterior</button>
+            <button class="btn btn-primary" onclick="markDone(4); goTo('#paso-5')">Siguiente: Catálogo →</button>
+          </div>
+        </section>
+
+        <!-- PASO 5 -->
+        <section id="paso-5" class="hidden-exec" data-step-section="5">
+          <div class="section-head">
+            <h2>Paso 5 — Catálogo en minutos</h2>
+            <span class="badge badge-time">3 min</span>
+          </div>
+          <div class="card">
+            <h3>Qué mostrar</h3>
+            <ol>
+              <li><span class="route">/admin/menus</span> — categorías (ej. Suplementos, Accesorios).</li>
+              <li><span class="route">/admin/products</span> — crea o edita un producto: SKU, precio, promo, imagen.</li>
+              <li>Vuelve al WhatsApp → catálogo refleja el cambio.</li>
+            </ol>
+            <div class="script">
+              «El catálogo vive en un solo lugar. Lo actualizan ustedes y el bot lo muestra al instante — sin tocar código ni pedirle a un desarrollador.»
+            </div>
+            <div class="tip">Menciona límites del plan (80 / 200 / 500 productos) solo si preguntan; no llenes de números la demo.</div>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-ghost" onclick="goTo('#paso-4')">← Anterior</button>
+            <button class="btn btn-primary" onclick="markDone(5); goTo('#paso-6')">Siguiente: Dashboard →</button>
+          </div>
+        </section>
+
+        <!-- PASO 6 -->
+        <section id="paso-6" data-step-section="6">
+          <div class="section-head">
+            <h2>Paso 6 — Dashboard y control del negocio</h2>
+            <span class="badge badge-wow">Momento wow #5</span>
+            <span class="badge badge-time">3 min</span>
+          </div>
+          <div class="card">
+            <h3>Qué mostrar</h3>
+            <ol>
+              <li><span class="route">/admin</span> — dashboard principal.</li>
+              <li><strong>Consumo Meta:</strong> estimado USD del mes, por tipo (service / utility).</li>
+              <li><strong>Ventas:</strong> pedidos, ingresos, ticket promedio, clientes activos.</li>
+              <li>Gráfico tendencia + últimos pedidos.</li>
+              <li>Widget límites del plan (productos, categorías, almacenamiento).</li>
+            </ol>
+            <div class="script">
+              «Muchos proveedores de bots esconden el costo de WhatsApp. Aquí ven ventas y consumo Meta en la misma pantalla — transparencia para finanzas y para decidir si conviene más bot o más agentes humanos.»
+            </div>
+          </div>
+          <div class="card">
+            <h3>Billetera (mención rápida)</h3>
+            <p><span class="route">/admin/wallet</span> — comprobantes de pago del plan y Meta. Útil si el cliente pregunta por facturación recurrente.</p>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-ghost" onclick="goTo('#paso-3')">← Anterior</button>
+            <button class="btn btn-primary hidden-exec" onclick="markDone(6); goTo('#paso-7')">Siguiente: Clientes →</button>
+            <button class="btn btn-primary exec-only" style="display:none" onclick="markDone(6); goTo('#paso-10')">Siguiente: Cierre →</button>
+          </div>
+        </section>
+
+        <!-- PASO 7 -->
+        <section id="paso-7" class="hidden-exec" data-step-section="7">
+          <div class="section-head">
+            <h2>Paso 7 — Clientes y chats (CRM ligero)</h2>
+            <span class="badge badge-time">2 min</span>
+          </div>
+          <div class="card">
+            <h3>Qué mostrar</h3>
+            <ol>
+              <li><span class="route">/admin/clients</span> — listado de contactos WhatsApp.</li>
+              <li>Ficha de un cliente: historial pedidos, métricas, notas internas.</li>
+              <li>Botón «Nuevo pedido» desde ficha (agente arma pedido por él).</li>
+              <li>Vuelve a <span class="route">/admin/chats</span> — interfaz tipo WhatsApp Web.</li>
+            </ol>
+            <div class="script">
+              «Cada contacto de WhatsApp es un cliente en el sistema — con historial, notas de su vendedor y acceso directo al chat. No es un CRM pesado: es lo justo para vender por chat.»
+            </div>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-ghost" onclick="goTo('#paso-6')">← Anterior</button>
+            <button class="btn btn-primary" onclick="markDone(7); goTo('#paso-8')">Siguiente: Roles →</button>
+          </div>
+        </section>
+
+        <!-- PASO 8 -->
+        <section id="paso-8" class="hidden-exec" data-step-section="8">
+          <div class="section-head">
+            <h2>Paso 8 — Roles y equipo</h2>
+            <span class="badge badge-time">2 min</span>
+          </div>
+          <div class="card">
+            <h3>Qué mostrar</h3>
+            <ol>
+              <li><span class="route">/admin/roles</span> — matriz de permisos.</li>
+              <li>Contrasta: <strong>Agente</strong> (opera chats/pedidos) vs <strong>Admin</strong> (configura bot/catálogo).</li>
+              <li><span class="route">/admin/users</span> — usuarios activos, invitar equipo.</li>
+            </ol>
+            <div class="script">
+              «El vendedor no puede borrar el flujo del bot por error. El administrador configura; el agente vende. Mismo sistema, distintos accesos — listo para crecer sin caos.»
+            </div>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-ghost" onclick="goTo('#paso-7')">← Anterior</button>
+            <button class="btn btn-primary" onclick="markDone(8); goTo('#paso-9')">Siguiente: Pedido masivo →</button>
+          </div>
+        </section>
+
+        <!-- PASO 9 -->
+        <section id="paso-9" class="hidden-exec" data-step-section="9">
+          <div class="section-head">
+            <h2>Paso 9 — Pedido masivo web (Plan Pro)</h2>
+            <span class="badge badge-wow">Momento wow #6</span>
+            <span class="badge badge-time">3 min</span>
+          </div>
+          <div class="card">
+            <h3>Qué mostrar</h3>
+            <ol>
+              <li>En WhatsApp: agrega productos → botón <strong>Armar lista</strong> → enlace al formulario web.</li>
+              <li>Formulario móvil: catálogo amplio, cantidades +/- , descripción por producto.</li>
+              <li>Al enviar: crea pedido + notificación WhatsApp (+ PDF si está configurado).</li>
+              <li>Alternativa agente: <span class="route">/admin/orders/bulk</span> — elige cliente y arma el pedido por él.</li>
+            </ol>
+            <div class="script">
+              «Para pedidos grandes — distribuidores, listas de reventa — el cliente no escribe ítem por ítem en el chat. Abre un formulario optimizado para móvil, arma su lista y ustedes reciben todo ordenado en el panel. Ideal cuando el ticket sube.»
+            </div>
+            <div class="warn-box">Este módulo requiere Plan Pro+ y toggle activo en Parámetros plataforma. Si tu demo es Starter, muéstralo como «upgrade» sin ejecutarlo en vivo.</div>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-ghost" onclick="goTo('#paso-8')">← Anterior</button>
+            <button class="btn btn-primary" onclick="markDone(9); goTo('#paso-10')">Siguiente: Cierre →</button>
+          </div>
+        </section>
+
+        <!-- PASO 10 -->
+        <section id="paso-10" data-step-section="10">
+          <div class="section-head">
+            <h2>Paso 10 — Planes y cierre</h2>
+            <span class="badge badge-close">Cierre comercial</span>
+            <span class="badge badge-time">3 min</span>
+          </div>
+          <div class="card">
+            <h3>Qué mostrar</h3>
+            <p>Abre <span class="route">/planes</span> o resume verbalmente:</p>
+            <div class="plans-grid" style="margin-top:1rem">
+              <div class="plan-card">
+                <h4>Starter — $60/mes</h4>
+                <div class="price">Esencial</div>
+                <ul>
+                  <li>Bot completo + panel operativo</li>
+                  <li>80 productos, 3 usuarios</li>
+                  <li>Chats, pedidos, catálogo</li>
+                </ul>
+              </div>
+              <div class="plan-card featured">
+                <h4>Pro — $90/mes</h4>
+                <div class="price">Recomendado</div>
+                <ul>
+                  <li>PDF, comprobantes, colores bot</li>
+                  <li>Pedido masivo web</li>
+                  <li>Consumo Meta en dashboard</li>
+                  <li>200 productos, 5 usuarios</li>
+                </ul>
+              </div>
+              <div class="plan-card">
+                <h4>Enterprise — desde $130</h4>
+                <div class="price">Escala</div>
+                <ul>
+                  <li>ChatGPT opcional</li>
+                  <li>Integraciones y reportes</li>
+                  <li>500+ productos, usuarios ilimitados</li>
+                </ul>
+              </div>
+            </div>
+            <div class="script" style="margin-top:1rem">
+              «Con lo que vieron hoy — bot vendiendo solo, PDF profesional, panel para el equipo — la mayoría arranca en Pro. Starter sirve si quieren probar operación básica; Enterprise cuando necesitan IA o integraciones. ¿Cuál se parece más a su volumen de pedidos hoy?»
+            </div>
+          </div>
+          <div class="card">
+            <h3>Cierre con próximo paso concreto</h3>
+            <div class="script">
+              «Propongo tres pasos: uno, les dejo acceso demo 48 h para que su equipo pruebe; dos, cargamos su catálogo real en una sesión de 1 hora; tres, activamos el número de WhatsApp Business en producción. ¿Les funciona agendar la sesión de catálogo esta semana?»
+            </div>
+          </div>
+          <div class="step-actions">
+            <button class="btn btn-ghost" onclick="goTo('#paso-6')">← Anterior</button>
+            <button class="btn btn-primary" onclick="markDone(10); goTo('#checklist-final')">Ver checklist final →</button>
+          </div>
+        </section>
+
+        <!-- CHECKLIST FINAL -->
+        <section id="checklist-final">
+          <div class="section-head">
+            <h2>✅ Checklist «nada se escapa»</h2>
+          </div>
+          <div class="card checklist">
+            <h3>Funcionalidades cubiertas en la demo</h3>
+            <label><input type="checkbox"><span>Bot: menú, catálogo, carrito, checkout, métodos de pago</span></label>
+            <label><input type="checkbox"><span>Bot: palabras clave (horarios, envíos, pagos)</span></label>
+            <label><input type="checkbox"><span>Bot: seguimiento «Ver pedidos»</span></label>
+            <label><input type="checkbox"><span>Handoff asesor + alertas panel + toggle bot por contacto</span></label>
+            <label><input type="checkbox"><span>Pedidos: estados, notas, export Excel</span></label>
+            <label><input type="checkbox"><span>PDF orden + confirmación WhatsApp (Confirmar/Modificar/Cancelar)</span></label>
+            <label><input type="checkbox"><span>Flujo del bot editable + preview</span></label>
+            <label><input type="checkbox"><span>Config bot: nombre, colores, bienvenida</span></label>
+            <label><input type="checkbox"><span>Catálogo: categorías + productos</span></label>
+            <label><input type="checkbox"><span>Dashboard: ventas + consumo Meta + límites plan</span></label>
+            <label><input type="checkbox"><span>Clientes: ficha, historial, notas</span></label>
+            <label><input type="checkbox"><span>Chats estilo WhatsApp Web</span></label>
+            <label><input type="checkbox"><span>Roles y usuarios del panel</span></label>
+            <label><input type="checkbox"><span>Pedido masivo web (Pro) — agente y cliente</span></label>
+            <label><input type="checkbox"><span>Parámetros: plan, PDF empresa, facturación</span></label>
+            <label><input type="checkbox"><span>Billetera / comprobantes</span></label>
+            <label><input type="checkbox"><span>Planes comerciales y propuesta de cierre</span></label>
+          </div>
+
+          <div class="card">
+            <h3>Ritmo para no aburrir</h3>
+            <ul>
+              <li><strong>Alterna dispositivos</strong> cada 3–5 min (celular ↔ laptop).</li>
+              <li><strong>Habla de beneficios</strong>, no de nombres técnicos («PDF con RUC» vs «OrderPdfService»).</li>
+              <li><strong>Involucra al cliente:</strong> «¿Qué producto elegiría su cliente típico?» y que elijan en vivo.</li>
+              <li><strong>Un wow cada 5 min:</strong> botones nativos → alerta asesor → PDF → dashboard Meta → pedido masivo.</li>
+              <li><strong>Config al final</strong> (pasos 4–5–8); primero emoción, después control.</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- OBJECIONES -->
+        <section id="objeciones">
+          <div class="section-head">
+            <h2>💬 Objeciones frecuentes</h2>
+          </div>
+          <div class="card">
+            <h3>«¿Cuánto cuesta WhatsApp?»</h3>
+            <p>Meta cobra por conversación (service cuando el cliente escribe, utility cuando el bot notifica). El dashboard muestra estimado mensual. Nosotros no escondemos eso — está en Pro con proyección incluida.</p>
+          </div>
+          <div class="card">
+            <h3>«¿Reemplaza a mis vendedores?»</h3>
+            <p>No. Atiende el 80% repetitivo (precios, catálogo, pedido estándar) y escala a humano cuando hace falta. Sus vendedores cierran lo complejo con mejor información en panel.</p>
+          </div>
+          <div class="card">
+            <h3>«¿Y si Meta cambia algo?»</h3>
+            <p>Usamos API oficial de WhatsApp Business. Actualizamos plantillas, webhooks y flujos — ustedes no mantienen código.</p>
+          </div>
+          <div class="card">
+            <h3>«¿Puedo probar antes?»</h3>
+            <p>Sí: demo con reinicio en un clic, número de prueba y panel incluidos. Siguiente paso: cargar catálogo piloto en 1 sesión.</p>
+          </div>
+        </section>
+
+        <footer>
+          Guía interna MarketingWp · Abre este archivo en el navegador mientras ensayas · Imprimible con Ctrl+P
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_PREP = 'demo_prep_checks';
+    const STORAGE_DONE = 'demo_steps_done';
+    const STORAGE_MODE = 'demo_mode';
+
+    function goTo(sel) {
+      document.querySelector(sel)?.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function setMode(mode) {
+      document.body.className = mode === 'exec' ? 'mode-exec' : 'mode-full';
+      document.querySelectorAll('.mode-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === mode);
+      });
+      localStorage.setItem(STORAGE_MODE, mode);
+      updateProgress();
+    }
+
+    function getDoneSteps() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_DONE) || '[]'); } catch { return []; }
+    }
+
+    function markDone(n) {
+      const done = getDoneSteps();
+      if (!done.includes(n)) done.push(n);
+      localStorage.setItem(STORAGE_DONE, JSON.stringify(done));
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const isExec = document.body.classList.contains('mode-exec');
+      const steps = isExec ? [0,1,2,3,6,10] : [0,1,2,3,4,5,6,7,8,9,10];
+      const done = getDoneSteps();
+      const count = steps.filter(s => done.includes(s)).length;
+      const total = steps.length;
+      document.getElementById('progress-text').textContent = count + ' / ' + total;
+      document.getElementById('progress-fill').style.width = (count / total * 100) + '%';
+
+      document.querySelectorAll('.nav-link[data-step]').forEach(link => {
+        const step = parseInt(link.dataset.step, 10);
+        link.classList.toggle('done', done.includes(step));
+        if (isExec && [4,5,7,8,9].includes(step)) {
+          link.style.display = 'none';
+        } else if (link.dataset.step !== undefined) {
+          link.style.display = '';
+        }
+      });
+    }
+
+    // Prep checklist persistence
+    document.querySelectorAll('[data-prep]').forEach((cb, i) => {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_PREP) || '{}');
+      cb.checked = !!saved[i];
+      cb.addEventListener('change', () => {
+        saved[i] = cb.checked;
+        localStorage.setItem(STORAGE_PREP, JSON.stringify(saved));
+      });
+    });
+
+    // Active nav on scroll
+    const sections = document.querySelectorAll('[data-step-section]');
+    const navLinks = document.querySelectorAll('.nav-link[data-step]');
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
+        }
+      });
+    }, { rootMargin: '-30% 0px -60% 0px' });
+
+    sections.forEach(s => observer.observe(s));
+
+    // Restore mode
+    const savedMode = localStorage.getItem(STORAGE_MODE);
+    if (savedMode) setMode(savedMode);
+    else updateProgress();
+  </script>
+</body>
+</html>

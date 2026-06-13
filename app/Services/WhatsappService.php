@@ -3206,10 +3206,13 @@ class WhatsappService
                 $searchTerm = $this->normalizeProductSearchTerm($text);
                 if (!in_array(strtolower($searchTerm), $commonResponses) && strlen($searchTerm) > 2) {
                     // Buscar producto por SKU o nombre en la base de datos
-                    $product = WhatsappPrice::where(function($query) use ($searchTerm) {
+                    $demoCliente = app(DemoClienteService::class);
+                    $product = $demoCliente->applyProductScope(
+                        WhatsappPrice::where(function($query) use ($searchTerm) {
                             $query->where('sku', 'like', '%' . $searchTerm . '%')
                                   ->orWhere('name', 'like', '%' . $searchTerm . '%');
                         })
+                    )
                         ->where('is_active', true)
                         ->first();
 
@@ -3587,7 +3590,10 @@ class WhatsappService
                 ];
             }
 
-            $menuItems = $menu->items()->where('is_active', true)->orderBy('order')->get();
+            $demoCliente = app(DemoClienteService::class);
+            $menuItems = $demoCliente->applyCategoryScope(
+                $menu->items()->where('is_active', true)
+            )->orderBy('order')->get();
 
             if ($menuItems->isEmpty()) {
                 return [
@@ -3601,10 +3607,9 @@ class WhatsappService
             $number = 1;
 
             foreach ($menuItems as $item) {
-                $prices = $item->prices()
-                    ->where('is_active', true)
-                    ->orderBy('name')
-                    ->get();
+                $prices = $demoCliente->applyProductScope(
+                    $item->prices()->where('is_active', true)
+                )->orderBy('name')->get();
 
                 if ($prices->isEmpty()) {
                     continue;

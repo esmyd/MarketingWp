@@ -15,7 +15,8 @@ use InvalidArgumentException;
 class BulkOrderService
 {
     public function __construct(
-        private PlanFeatureService $planFeatures
+        private PlanFeatureService $planFeatures,
+        private DemoClienteService $demoCliente,
     ) {}
 
     public function isAvailable(): bool
@@ -69,7 +70,10 @@ class BulkOrderService
      */
     public function catalogPayload(?int $categoryId = null, ?string $search = null): array
     {
-        $categories = WhatsappMenuItem::catalogCategories()
+        $categories = $this->demoCliente->applyCategoryScope(
+            WhatsappMenuItem::catalogCategories()
+        )
+            ->where('is_active', true)
             ->orderBy('order')
             ->get(['id', 'title', 'icon'])
             ->map(fn ($c) => [
@@ -80,8 +84,9 @@ class BulkOrderService
             ->values()
             ->all();
 
-        $query = WhatsappPrice::query()
-            ->where('is_active', true)
+        $query = $this->demoCliente->applyProductScope(
+            WhatsappPrice::query()->where('is_active', true)
+        )
             ->with('menuCategory:id,title,icon');
 
         if ($categoryId) {

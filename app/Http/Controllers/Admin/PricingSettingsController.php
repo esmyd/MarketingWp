@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PlatformPaymentReceipt;
 use App\Models\PricingSetting;
+use App\Services\DemoClienteService;
 use App\Services\OrderPdfSettingsService;
 use App\Services\PlanFeatureService;
 use App\Services\PlanLimitsService;
@@ -17,7 +18,7 @@ use Illuminate\View\View;
 
 class PricingSettingsController extends Controller
 {
-    public function edit(PricingService $pricing, PlanLimitsService $planLimits, PlatformBillingService $billing, PlanFeatureService $planFeatures, OrderPdfSettingsService $orderPdfSettings): View
+    public function edit(PricingService $pricing, PlanLimitsService $planLimits, PlatformBillingService $billing, PlanFeatureService $planFeatures, OrderPdfSettingsService $orderPdfSettings, DemoClienteService $demoCliente): View
     {
         $settings = $pricing->settings();
         $categories = config('pricing.meta_rates.per_conversation', []);
@@ -45,6 +46,8 @@ class PricingSettingsController extends Controller
             'bulkWebOrderEnabled' => $planFeatures->isPlatformBulkWebOrderEnabled(),
             'canManageBulkOrder' => $canManageBulkOrder,
             'orderPdfSettings' => $orderPdfSettings->get(),
+            'demoClienteOptions' => $demoCliente->options(),
+            'activeDemoCliente' => $demoCliente->activeKey(),
         ]);
     }
 
@@ -58,6 +61,10 @@ class PricingSettingsController extends Controller
 
         if ($section === 'order_pdf') {
             return $this->updateOrderPdf($request, $orderPdfSettings);
+        }
+
+        if ($section === 'demo_cliente') {
+            return $this->updateDemoCliente($request);
         }
 
         if ($section === 'meta') {
@@ -121,6 +128,19 @@ class PricingSettingsController extends Controller
         return redirect()
             ->to(route('admin.pricing-settings.edit') . '#order-pdf')
             ->with('success', 'Datos del PDF de orden guardados.');
+    }
+
+    private function updateDemoCliente(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'active_demo_cliente' => ['nullable', 'string', 'max:64'],
+        ]);
+
+        app(DemoClienteService::class)->saveActiveKey($validated['active_demo_cliente'] ?? null);
+
+        return redirect()
+            ->to(route('admin.pricing-settings.edit') . '#demo-cliente')
+            ->with('success', 'Demo de catálogo activa actualizada.');
     }
 
     private function updateMeta(Request $request): RedirectResponse

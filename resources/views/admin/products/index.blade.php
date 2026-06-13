@@ -291,6 +291,14 @@
         <div>
             <h2><i class="fas fa-box-open"></i> Catálogo de productos</h2>
             <p>Gestiona precios, stock y categorías del chatbot de WhatsApp</p>
+            @if(!empty($activeDemoCliente))
+                <p class="mt-2 mb-0 small opacity-90">
+                    <i class="fas fa-filter me-1"></i>
+                    Demo activa en bot: <strong>{{ $demoClienteOptions[$activeDemoCliente] ?? $activeDemoCliente }}</strong>
+                    — solo ese catálogo se muestra al cliente.
+                    <a href="{{ route('admin.pricing-settings.edit') }}#demo-cliente" class="text-white text-decoration-underline ms-1">Cambiar</a>
+                </p>
+            @endif
         </div>
         <button type="button" class="btn btn-light btn-sm px-3" onclick="openCreateModal()" @if($planLimits['products_at_limit'] ?? false) disabled title="Límite de productos alcanzado" @endif>
             <i class="fas fa-plus me-1"></i> Nuevo producto
@@ -333,6 +341,12 @@
                 <option value="{{ $category->title }}">{{ $category->icon }} {{ $category->title }}</option>
             @endforeach
         </select>
+        <select id="demo-filter" class="form-select form-select-sm" style="width:auto;min-width:150px">
+            <option value="">Todas las demos</option>
+            @foreach($demoClienteOptions ?? [] as $slug => $label)
+                <option value="{{ $slug }}">{{ $label }}</option>
+            @endforeach
+        </select>
         <select id="status-filter" class="form-select form-select-sm" style="width:auto;min-width:130px">
             <option value="">Todos</option>
             <option value="1">Activos</option>
@@ -358,6 +372,7 @@
                             <th class="ps-3">Producto</th>
                             <th>SKU</th>
                             <th>Categoría</th>
+                            <th>Demo cliente</th>
                             <th>Precio</th>
                             <th>Stock</th>
                             <th>Estado</th>
@@ -369,6 +384,7 @@
                         <tr class="product-row"
                             data-search="{{ strtolower($product->sku . ' ' . $product->name . ' ' . ($product->menuCategory?->title ?? $product->category)) }}"
                             data-category="{{ $product->menuCategory?->title ?? $product->category }}"
+                            data-demo="{{ $product->demo_cliente ?? '' }}"
                             data-status="{{ $product->is_active ? '1' : '0' }}">
                             <td class="ps-3">
                                 <div class="product-cell">
@@ -383,6 +399,13 @@
                             </td>
                             <td><code>{{ $product->sku }}</code></td>
                             <td>{{ $product->menuCategory?->title ?? $product->category ?? '—' }}</td>
+                            <td>
+                                @if($product->demo_cliente)
+                                    <span class="badge bg-light text-dark border">{{ $product->demo_cliente }}</span>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
                             <td>
                                 @if($product->is_promo && $product->promo_price)
                                     <div class="price-promo">${{ number_format($product->promo_price, 2) }}</div>
@@ -439,8 +462,8 @@
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label for="sku" class="form-label">SKU <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control form-control-sm" name="sku" id="sku" required maxlength="4" pattern="[A-Za-z0-9]{1,4}" title="Hasta 4 caracteres alfanuméricos">
-                            <div class="form-hint">Máximo 4 caracteres (ej: 1001, A01)</div>
+                            <input type="text" class="form-control form-control-sm" name="sku" id="sku" required maxlength="20" pattern="[A-Za-z0-9\-]{1,20}" title="Hasta 20 caracteres alfanuméricos">
+                            <div class="form-hint">Ej: CQ001, SW-001</div>
                         </div>
                         <div class="col-md-8">
                             <label for="menu_item_id" class="form-label">Categoría <span class="text-danger">*</span></label>
@@ -496,6 +519,16 @@
                             <div class="form-hint">Se muestran en el detalle del producto en WhatsApp</div>
                         </div>
                         <div class="col-md-6">
+                            <label for="demo_cliente" class="form-label">Demo cliente</label>
+                            <input type="text" class="form-control form-control-sm" name="demo_cliente" id="demo_cliente" maxlength="64" list="demo-cliente-list" placeholder="CorlanQuimica, software, herbalife…">
+                            <datalist id="demo-cliente-list">
+                                @foreach($demoClienteOptions ?? [] as $slug => $label)
+                                    <option value="{{ $slug }}">{{ $label }}</option>
+                                @endforeach
+                            </datalist>
+                            <div class="form-hint">Etiqueta para activar/inactivar por demo en Parámetros plataforma</div>
+                        </div>
+                        <div class="col-md-6">
                             <div class="form-check form-switch mt-2">
                                 <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
                                 <label class="form-check-label" for="is_active">Producto activo en el catálogo</label>
@@ -533,6 +566,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('search')?.addEventListener('input', filterTable);
     document.getElementById('category-filter')?.addEventListener('change', filterTable);
+    document.getElementById('demo-filter')?.addEventListener('change', filterTable);
     document.getElementById('status-filter')?.addEventListener('change', filterTable);
     document.getElementById('productForm')?.addEventListener('submit', submitProductForm);
 });
@@ -581,6 +615,7 @@ function openEditModal(id) {
         document.getElementById('stock').value = data.stock ?? 0;
         document.getElementById('min_quantity').value = data.min_quantity ?? 1;
         document.getElementById('max_quantity').value = data.max_quantity ?? 999;
+        document.getElementById('demo_cliente').value = data.demo_cliente || '';
         document.getElementById('is_active').checked = !!data.is_active;
         document.getElementById('allow_quantity_selection').checked = data.allow_quantity_selection !== false;
         productModal.show();
@@ -609,6 +644,7 @@ function submitProductForm(e) {
         stock: document.getElementById('stock').value,
         min_quantity: document.getElementById('min_quantity').value,
         max_quantity: document.getElementById('max_quantity').value,
+        demo_cliente: document.getElementById('demo_cliente').value.trim(),
         is_active: document.getElementById('is_active').checked,
         allow_quantity_selection: document.getElementById('allow_quantity_selection').checked,
     };
@@ -672,13 +708,15 @@ function deleteProduct(id) {
 function filterTable() {
     const search = (document.getElementById('search')?.value || '').toLowerCase();
     const category = document.getElementById('category-filter')?.value || '';
+    const demo = document.getElementById('demo-filter')?.value || '';
     const status = document.getElementById('status-filter')?.value || '';
 
     document.querySelectorAll('.product-row').forEach(row => {
         const matchesSearch = !search || row.dataset.search.includes(search);
         const matchesCategory = !category || row.dataset.category === category;
+        const matchesDemo = !demo || row.dataset.demo === demo;
         const matchesStatus = !status || row.dataset.status === status;
-        row.style.display = matchesSearch && matchesCategory && matchesStatus ? '' : 'none';
+        row.style.display = matchesSearch && matchesCategory && matchesDemo && matchesStatus ? '' : 'none';
     });
 }
 

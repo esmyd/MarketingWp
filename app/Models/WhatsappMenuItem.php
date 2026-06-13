@@ -16,7 +16,8 @@ class WhatsappMenuItem extends Model
         'action_id',
         'icon',
         'order',
-        'is_active'
+        'is_active',
+        'demo_cliente'
     ];
 
     protected $casts = [

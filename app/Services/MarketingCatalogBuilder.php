@@ -16,6 +16,7 @@ class MarketingCatalogBuilder
 {
     public function __construct(
         protected MarketingFlowPayloadBuilder $payloadBuilder,
+        protected DemoClienteService $demoCliente,
         protected ?WhatsappBusinessProfile $businessProfile = null,
     ) {
         if (!$this->businessProfile?->id) {
@@ -75,21 +76,31 @@ class MarketingCatalogBuilder
     {
         $menu = WhatsappMenu::where('action_id', 'prices_menu')->first();
         $categories = $menu
-            ? $menu->items()->where('is_active', true)->count()
+            ? $this->demoCliente->applyCategoryScope(
+                $menu->items()->where('is_active', true)
+            )->count()
             : 0;
         $products = $menu
-            ? $menu->items()->where('is_active', true)->get()->sum(
-                fn ($item) => $item->prices()->where('is_active', true)->count()
+            ? $this->demoCliente->applyCategoryScope(
+                $menu->items()->where('is_active', true)
+            )->get()->sum(
+                fn ($item) => $this->demoCliente->applyProductScope(
+                    $item->prices()->where('is_active', true)
+                )->count()
             )
             : 0;
+
+        $meta = is_array($this->businessProfile?->metadata) ? $this->businessProfile->metadata : [];
 
         return [
             'nombre' => $contact?->name ?? 'Cliente',
             'nombre_bot' => WhatsappChatbotConfig::where('business_profile_id', $this->businessProfile?->id)->first()?->bot_name
                 ?: 'Asistente virtual',
             'nombre_empresa' => $this->businessProfile?->business_name ?? 'Tienda',
-            'telefono_soporte' => config('whatsapp.demo_whatsapp_number', ''),
-            'horario_atencion' => 'Lunes a viernes 9:00 - 18:00',
+            'telefono_soporte' => $meta['whatsapp']
+                ?? $this->businessProfile?->phone_number
+                ?? config('whatsapp.demo_whatsapp_number', ''),
+            'horario_atencion' => $meta['business_hours'] ?? 'Lunes a viernes 9:00 - 18:00',
             'total_productos' => (string) $products,
             'total_categorias' => (string) $categories,
             'total' => '0.00',
@@ -116,14 +127,20 @@ class MarketingCatalogBuilder
             return WhatsappMessagePayload::text('Lo siento, el catálogo no está configurado.');
         }
 
-        $menuItems = $menu->items()->where('is_active', true)->orderBy('order')->get();
+        $menuItems = $menu->items()
+            ->where('is_active', true)
+            ->when(true, fn ($q) => $this->demoCliente->applyCategoryScope($q))
+            ->orderBy('order')
+            ->get();
         if ($menuItems->isEmpty()) {
             return WhatsappMessagePayload::text('No hay categorías de productos disponibles.');
         }
 
         $rows = [];
         foreach ($menuItems as $menuItem) {
-            $activeCount = $menuItem->prices()->where('is_active', true)->count();
+            $activeCount = $this->demoCliente->applyProductScope(
+                $menuItem->prices()->where('is_active', true)
+            )->count();
             if ($activeCount === 0) {
                 continue;
             }
@@ -153,7 +170,10 @@ class MarketingCatalogBuilder
         }
 
         $maxRows = max(1, min(8, (int) ($step->config['max_product_rows'] ?? 8)));
-        $menuItems = $menu->items()->where('is_active', true)->orderBy('order');
+        $menuItems = $menu->items()
+            ->where('is_active', true)
+            ->when(true, fn ($q) => $this->demoCliente->applyCategoryScope($q))
+            ->orderBy('order');
 
         if ($categoryId) {
             $menuItems->where('id', $categoryId);
@@ -169,8 +189,9 @@ class MarketingCatalogBuilder
         $totalRows = 0;
 
         foreach ($menuItems as $menuItem) {
-            $prices = $menuItem->prices()
-                ->where('is_active', true)
+            $prices = $this->demoCliente->applyProductScope(
+                $menuItem->prices()->where('is_active', true)
+            )
                 ->orderBy('name')
                 ->get();
 

@@ -16,14 +16,14 @@ class WhatsappPricesSeeder extends Seeder
         $profileId = WhatsappBusinessProfile::first()?->id ?? 1;
 
         $mainMenu = WhatsappMenu::updateOrCreate(
-            ['action_id' => 'prices_menu'],
-            [
+                ['action_id' => 'prices_menu'],
+                [
                 'business_profile_id' => $profileId,
                 'title'       => 'Catálogo de Soluciones',
                 'description' => 'Soluciones tecnológicas para tu empresa',
                 'type'        => 'list',
                 'content'     => "🛍️ *Catálogo de Soluciones Tecnológicas*\n\nSelecciona una categoría para explorar nuestros servicios y precios.\n\nTambién puedes escribir el código SKU directamente (ej: CB-001).",
-                'button_text' => 'Ver soluciones',
+                    'button_text' => 'Ver soluciones',
                 'icon'        => '💻',
                 'order'       => 1,
                 'is_active'   => true,
@@ -48,11 +48,11 @@ class WhatsappPricesSeeder extends Seeder
                     'icon'        => $cat['icon'],
                     'order'       => $cat['order'],
                     'is_active'   => true,
-                ]
-            );
-        }
+                    ]
+                );
+            }
 
-        $products = [
+            $products = [
             // ─── Software Empresarial ───────────────────────────────────────────
             [
                 'sku'           => 'SW-001',
@@ -284,9 +284,9 @@ class WhatsappPricesSeeder extends Seeder
                 'category_name' => 'Apps Móviles',
                 'metadata'      => ['tipo' => 'Servicio', 'facturacion' => 'pago único', 'entrega' => '45 días'],
             ],
-        ];
+            ];
 
-        foreach ($products as $product) {
+            foreach ($products as $product) {
             $menuItem = WhatsappMenuItem::where('menu_id', $mainMenu->id)
                 ->where('action_id', $product['category_id'])
                 ->first();
@@ -296,8 +296,8 @@ class WhatsappPricesSeeder extends Seeder
             }
 
             WhatsappPrice::updateOrCreate(
-                ['sku' => $product['sku']],
-                [
+                            ['sku' => $product['sku']],
+                            [
                     'menu_item_id'            => $menuItem->id,
                     'category'                => $product['category_name'],
                     'name'                    => Str::limit($product['name'], 24, ''),

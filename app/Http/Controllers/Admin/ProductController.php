@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\WhatsappMenuItem;
 use App\Models\WhatsappPrice;
+use App\Services\DemoClienteService;
 use App\Services\PlanLimitsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -13,7 +14,8 @@ use Illuminate\Validation\Rule;
 class ProductController extends Controller
 {
     public function __construct(
-        private readonly PlanLimitsService $planLimits
+        private readonly PlanLimitsService $planLimits,
+        private readonly DemoClienteService $demoCliente,
     ) {}
 
     public function index()
@@ -31,7 +33,10 @@ class ProductController extends Controller
         $stats = WhatsappPrice::summaryStats();
         $planLimits = $this->planLimits->snapshot();
 
-        return view('admin.products.index', compact('products', 'categories', 'stats', 'planLimits'));
+        return view('admin.products.index', compact('products', 'categories', 'stats', 'planLimits') + [
+            'demoClienteOptions' => $this->demoCliente->options(),
+            'activeDemoCliente' => $this->demoCliente->activeKey(),
+        ]);
     }
 
     public function create()
@@ -114,7 +119,7 @@ class ProductController extends Controller
             'sku' => [
                 'required',
                 'string',
-                'max:4',
+                'max:20',
                 Rule::unique('whatsapp_prices', 'sku')->ignore($productId),
             ],
             'name' => 'required|string|max:255',
@@ -129,6 +134,7 @@ class ProductController extends Controller
             'min_quantity' => 'nullable|integer|min:1',
             'max_quantity' => 'nullable|integer|min:1',
             'is_active' => 'nullable|boolean',
+            'demo_cliente' => 'nullable|string|max:64',
         ]);
 
         if ($validator->fails()) {
@@ -166,6 +172,9 @@ class ProductController extends Controller
             'promo_end_date' => ($promoPrice !== null && $promoPrice > 0) ? now()->addDays(30)->toDateString() : null,
             'currency' => 'USD',
             'is_active' => $request->boolean('is_active'),
+            'demo_cliente' => isset($validated['demo_cliente']) && trim((string) $validated['demo_cliente']) !== ''
+                ? trim((string) $validated['demo_cliente'])
+                : ($category->demo_cliente ?: null),
             'stock' => (int) ($validated['stock'] ?? 0),
             'allow_quantity_selection' => $request->boolean('allow_quantity_selection', true),
             'min_quantity' => $minQty,
@@ -218,6 +227,7 @@ class ProductController extends Controller
             'promo_price' => $product->promo_price,
             'is_promo' => $product->is_promo,
             'is_active' => (bool) $product->is_active,
+            'demo_cliente' => $product->demo_cliente,
             'stock' => $product->stock,
             'allow_quantity_selection' => (bool) $product->allow_quantity_selection,
             'min_quantity' => $product->min_quantity,

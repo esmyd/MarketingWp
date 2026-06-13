@@ -144,6 +144,7 @@
     <div class="mb-4">
         <p class="text-sm text-gray-600 mb-0">
             Panel interno de super administrador: define el <strong>plan contratado</strong>, los <strong>límites de capacidad</strong>,
+            el <strong><a href="#demo-cliente" class="text-emerald-700">demo de catálogo</a></strong>,
             el <strong><a href="#order-pdf" class="text-emerald-700">PDF de orden</a></strong> y los <strong>costos Meta WhatsApp</strong> que se reflejan en el dashboard.
         </p>
     </div>
@@ -259,6 +260,44 @@
                 <p class="text-xs text-gray-500 mb-0">Plan, productos, categorías y espacio en disco.</p>
                 <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg border-0">
                     <i class="fas fa-save"></i> Guardar plan y límites
+                </button>
+            </div>
+        </section>
+    </form>
+
+    <form action="{{ route('admin.pricing-settings.update') }}" method="POST" id="form-demo-cliente">
+        @csrf
+        @method('PUT')
+        <input type="hidden" name="_section" value="demo_cliente">
+
+        <section class="platform-section" id="demo-cliente">
+            <div class="platform-section-head">
+                <h2>🎯 Demo de catálogo (demoCliente)</h2>
+                <p>Elige qué conjunto de categorías y productos ve el cliente en WhatsApp. Cada ítem tiene su etiqueta <code>demoCliente</code> en Productos o Categorías.</p>
+            </div>
+            <div class="platform-section-body">
+                <div class="platform-grid">
+                    <div class="platform-field" style="grid-column: 1 / -1;">
+                        <label for="active_demo_cliente">Catálogo activo en el bot</label>
+                        <select id="active_demo_cliente" name="active_demo_cliente">
+                            <option value="">— Todos (sin filtrar por demo) —</option>
+                            @foreach($demoClienteOptions ?? [] as $slug => $label)
+                                <option value="{{ $slug }}" @selected(old('active_demo_cliente', $activeDemoCliente ?? '') === $slug)>
+                                    {{ $label }} ({{ $slug }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <p class="hint">
+                            Con <strong>CorlanQuimica</strong> solo se muestran productos/categorías con esa etiqueta.
+                            Software y Herbalife quedan ocultos hasta que cambies la demo activa.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="platform-save-bar" style="border-top: 1px solid #f1f5f9; border-radius: 0; margin: 0;">
+                <p class="text-xs text-gray-500 mb-0">Cambia entre demos comerciales sin borrar catálogos.</p>
+                <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg border-0">
+                    <i class="fas fa-save"></i> Guardar demo activa
                 </button>
             </div>
         </section>

@@ -58,12 +58,16 @@ trait UsesMarketingFlow
             ? WhatsappChatbotConfig::where('business_profile_id', $this->businessProfile->id)->first()
             : WhatsappChatbotConfig::first();
 
+        $meta = is_array($this->businessProfile?->metadata) ? $this->businessProfile->metadata : [];
+
         return [
             'nombre' => $contact?->name ?? 'Cliente',
             'nombre_bot' => $chatbotConfig?->bot_name ?: 'Asistente virtual',
             'nombre_empresa' => $this->businessProfile?->business_name ?? 'Tienda',
-            'telefono_soporte' => config('whatsapp.demo_whatsapp_number', ''),
-            'horario_atencion' => 'Lunes a viernes 9:00 - 18:00',
+            'telefono_soporte' => $meta['whatsapp']
+                ?? $this->businessProfile?->phone_number
+                ?? config('whatsapp.demo_whatsapp_number', ''),
+            'horario_atencion' => $meta['business_hours'] ?? 'Lunes a viernes 9:00 - 18:00',
             'total' => '0.00',
             'moneda' => 'USD',
             'cantidad_items' => '0',
