@@ -256,6 +256,68 @@
         color: #fff; opacity: .9; text-decoration: none; font-size: .82rem; margin-bottom: 8px;
     }
     .bulk-order-back-link:hover { opacity: 1; color: #fff; }
+    .bulk-order-btn.is-loading {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-width: 148px;
+    }
+    .bulk-order-btn-spinner,
+    .bulk-order-submit-spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(255,255,255,.35);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: bulk-order-spin .7s linear infinite;
+        flex-shrink: 0;
+    }
+    .bulk-order-submit-spinner {
+        width: 36px;
+        height: 36px;
+        border-width: 3px;
+        border-color: rgba(18, 140, 126, .2);
+        border-top-color: var(--wa);
+        margin: 0 auto 14px;
+    }
+    @keyframes bulk-order-spin {
+        to { transform: rotate(360deg); }
+    }
+    .bulk-order-submit-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(17, 24, 39, .45);
+        backdrop-filter: blur(2px);
+    }
+    .bulk-order-submit-overlay.is-visible {
+        display: flex;
+    }
+    .bulk-order-submit-overlay-card {
+        width: min(100%, 340px);
+        background: #fff;
+        border-radius: 14px;
+        padding: 24px 20px;
+        text-align: center;
+        box-shadow: 0 12px 40px rgba(0,0,0,.18);
+    }
+    .bulk-order-submit-overlay-card strong {
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 8px;
+        color: var(--wa-dark);
+    }
+    .bulk-order-submit-overlay-card p {
+        margin: 0;
+        font-size: .88rem;
+        line-height: 1.45;
+        color: var(--muted);
+    }
 </style>
 
 <div class="bulk-order-app" id="bulkOrderApp" data-mode="{{ $isAgent ? 'agent' : 'public' }}">
@@ -347,6 +409,14 @@
     </div>
 
     <div class="bulk-order-toast" id="bulkToast"></div>
+
+    <div class="bulk-order-submit-overlay" id="bulkSubmitOverlay" aria-hidden="true" aria-live="polite" aria-busy="false">
+        <div class="bulk-order-submit-overlay-card">
+            <div class="bulk-order-submit-spinner" aria-hidden="true"></div>
+            <strong id="bulkSubmitOverlayTitle">Enviando pedido…</strong>
+            <p id="bulkSubmitOverlayText">Estamos registrando tu pedido. Esto puede tardar unos segundos.</p>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -361,10 +431,47 @@
     let products = [];
     let cart = [];
     let selectedContact = initialContact ? { ...initialContact } : null;
+    let isSubmitting = false;
 
     const root = document.getElementById('bulkOrderApp');
     const el = (id) => document.getElementById(id);
     const fmt = (n) => '$' + Number(n).toFixed(2);
+    const submitBtnDefaultLabel = 'Enviar pedido';
+
+    function setSubmitting(submitting) {
+        isSubmitting = submitting;
+        const btn = el('bulkSubmitBtn');
+        const overlay = el('bulkSubmitOverlay');
+        const overlayTitle = el('bulkSubmitOverlayTitle');
+        const overlayText = el('bulkSubmitOverlayText');
+
+        if (overlay) {
+            overlay.classList.toggle('is-visible', submitting);
+            overlay.setAttribute('aria-hidden', submitting ? 'false' : 'true');
+            overlay.setAttribute('aria-busy', submitting ? 'true' : 'false');
+        }
+
+        if (overlayTitle) {
+            overlayTitle.textContent = isAgent ? 'Registrando pedido…' : 'Enviando pedido…';
+        }
+        if (overlayText) {
+            overlayText.textContent = isAgent
+                ? 'Guardando el pedido y, si corresponde, enviando WhatsApp al cliente. Un momento.'
+                : 'Estamos registrando tu pedido y preparando el mensaje en WhatsApp. Un momento.';
+        }
+
+        if (submitting) {
+            btn.disabled = true;
+            btn.classList.add('is-loading');
+            btn.innerHTML = '<span class="bulk-order-btn-spinner" aria-hidden="true"></span> Enviando…';
+            document.body.style.overflow = 'hidden';
+        } else {
+            btn.classList.remove('is-loading');
+            btn.textContent = submitBtnDefaultLabel;
+            document.body.style.overflow = '';
+            updateFormEnabled();
+        }
+    }
 
     function toast(msg) {
         const t = el('bulkToast');
@@ -433,11 +540,19 @@
     }
 
     function updateFormEnabled() {
-        if (!isAgent) return;
+        const btn = el('bulkSubmitBtn');
+        if (isSubmitting) {
+            btn.disabled = true;
+            return;
+        }
+        if (!isAgent) {
+            btn.disabled = cart.length === 0;
+            return;
+        }
         const body = el('bulkOrderFormBody');
         const enabled = !!selectedContact;
         body.classList.toggle('bulk-order-form-disabled', !enabled);
-        el('bulkSubmitBtn').disabled = cart.length === 0 || !enabled;
+        btn.disabled = cart.length === 0 || !enabled;
     }
 
     function renderSelectedContact() {
@@ -614,9 +729,6 @@
         el('bulkItemsCount').textContent = count + (count === 1 ? ' unidad' : ' unidades');
         el('bulkGrandTotal').textContent = fmt(total);
         updateFormEnabled();
-        if (!isAgent) {
-            el('bulkSubmitBtn').disabled = cart.length === 0;
-        }
     }
 
     el('bulkSearch').addEventListener('input', debounce(loadCatalog, 300));
@@ -637,11 +749,12 @@
     }
 
     el('bulkSubmitBtn').addEventListener('click', async () => {
+        if (isSubmitting) return;
         if (isAgent && !selectedContact) {
             toast('Selecciona un cliente');
             return;
         }
-        el('bulkSubmitBtn').disabled = true;
+        setSubmitting(true);
         try {
             const payload = {
                 items: cart.map(l => ({
@@ -672,6 +785,7 @@
             el('bulkFormScreen').style.display = 'none';
             el('bulkFooterBar').style.display = 'none';
             el('bulkSuccessScreen').style.display = 'block';
+            document.body.style.overflow = '';
             if (data.order_number) {
                 el('bulkSuccessOrderNumber').textContent = data.order_number;
             }
@@ -691,7 +805,7 @@
             }
         } catch (e) {
             toast(e.message || 'Error al enviar');
-            updateFormEnabled();
+            setSubmitting(false);
         }
     });
 
