@@ -755,6 +755,8 @@
             return;
         }
         setSubmitting(true);
+        const abortController = new AbortController();
+        const submitTimeout = setTimeout(() => abortController.abort(), 120000);
         try {
             const payload = {
                 items: cart.map(l => ({
@@ -777,15 +779,23 @@
                     'X-CSRF-TOKEN': csrf,
                 },
                 body: JSON.stringify(payload),
+                signal: abortController.signal,
             });
-            const data = await res.json();
+
+            let data = {};
+            try {
+                data = await res.json();
+            } catch (_) {
+                throw new Error('Respuesta inválida del servidor. Intenta de nuevo.');
+            }
+
             if (!res.ok || !data.ok) {
                 throw new Error(data.message || 'No se pudo enviar el pedido.');
             }
+
             el('bulkFormScreen').style.display = 'none';
             el('bulkFooterBar').style.display = 'none';
             el('bulkSuccessScreen').style.display = 'block';
-            document.body.style.overflow = '';
             if (data.order_number) {
                 el('bulkSuccessOrderNumber').textContent = data.order_number;
             }
@@ -799,12 +809,17 @@
                 const hint = el('bulkSuccessHint');
                 const parts = ['Pedido registrado para ' + (data.contact_name || 'el cliente') + '.'];
                 if (el('bulkNotifyWhatsapp').checked) {
-                    parts.push('Se envió el PDF con botones de confirmación por WhatsApp.');
+                    parts.push('El PDF con botones de confirmación se enviará por WhatsApp en breve.');
                 }
                 hint.textContent = parts.join(' ');
             }
         } catch (e) {
-            toast(e.message || 'Error al enviar');
+            const msg = e.name === 'AbortError'
+                ? 'La operación tardó demasiado. Revisa el listado de pedidos por si ya se registró.'
+                : (e.message || 'Error al enviar');
+            toast(msg);
+        } finally {
+            clearTimeout(submitTimeout);
             setSubmitting(false);
         }
     });

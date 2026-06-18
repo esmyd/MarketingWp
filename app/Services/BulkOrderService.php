@@ -189,7 +189,13 @@ class BulkOrderService
         );
 
         if ($notifyWhatsapp) {
-            $this->notifyContactViaWhatsapp($cart);
+            $cartId = $cart->id;
+            dispatch(function () use ($cartId) {
+                $loaded = WhatsappCart::with('contact')->find($cartId);
+                if ($loaded) {
+                    app(self::class)->notifyContactViaWhatsapp($loaded);
+                }
+            })->afterResponse();
         }
 
         return $cart;
