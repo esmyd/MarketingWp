@@ -6,8 +6,8 @@ return [
             'label' => 'Dashboard',
             'icon' => 'fa-chart-line',
             'permissions' => [
-                'dashboard.menu' => ['label' => 'Ver en menú', 'type' => 'menu'],
-                'dashboard.view' => ['label' => 'Ver resumen y consumo', 'type' => 'action'],
+                'dashboard.menu' => ['label' => 'Ver inicio en menú', 'type' => 'menu'],
+                'dashboard.view' => ['label' => 'Ver inicio y reportes WhatsApp', 'type' => 'action'],
             ],
         ],
         'chats' => [
@@ -37,7 +37,7 @@ return [
             'icon' => 'fa-shopping-cart',
             'permissions' => [
                 'orders.menu' => ['label' => 'Ver en menú', 'type' => 'menu'],
-                'orders.view' => ['label' => 'Ver pedidos', 'type' => 'action'],
+                'orders.view' => ['label' => 'Ver pedidos y reportes de ventas', 'type' => 'action'],
                 'orders.update' => ['label' => 'Cambiar estado de pedidos', 'type' => 'action'],
             ],
         ],

@@ -58,6 +58,7 @@ class ProductImportExportService
         'activo_en_catalogo' => 'activo',
         'allow_quantity_selection' => 'permitir_cantidad',
         'demo' => 'demo_cliente',
+        'empresa' => 'demo_cliente',
     ];
 
     public function __construct(
@@ -153,7 +154,7 @@ class ProductImportExportService
             }
         }
 
-        $categories = $this->loadCategoryIndex();
+        $categories = $this->loadCategoryCatalog();
         $existingSkus = WhatsappPrice::query()->pluck('id', 'sku')->mapWithKeys(
             fn ($id, $sku) => [strtoupper((string) $sku) => $id]
         )->all();
@@ -287,9 +288,11 @@ class ProductImportExportService
             ['5. precio_promo: opcional; debe ser menor que precio.'],
             ['6. caracteristicas: separe valores con | o saltos de línea dentro de la celda.'],
             ['7. activo / permitir_cantidad: Si, No, 1 o 0.'],
-            ['8. demo_cliente: opcional. Valores de referencia: ' . ($demoOptions ?: 'CorlanQuimica, software, herbalife') . '.'],
-            ['9. Si el SKU ya existe, el producto se actualiza (modo por defecto).'],
-            ['10. Respete el límite de productos de su plan.'],
+            ['8. demo_cliente (o empresa): opcional. Use el slug o la etiqueta de la hoja Categorias: ' . ($demoOptions ?: 'CorlanQuimica, software, herbalife') . '.'],
+            ['9. Si hay categorías con el mismo nombre en distintas empresas, demo_cliente es obligatorio en esa fila.'],
+            ['10. Si demo_cliente está vacío, se hereda el de la categoría asignada.'],
+            ['11. Si el SKU ya existe, el producto se actualiza (modo por defecto).'],
+            ['12. Respete el límite de productos de su plan.'],
             [''],
             ['Descargue plantilla vacía o exporte el catálogo actual desde Productos → Importar Excel.'],
         ];
@@ -393,29 +396,77 @@ class ProductImportExportService
         return true;
     }
 
-    /** @return array<string, WhatsappMenuItem> */
-    private function loadCategoryIndex(): array
+    /** @return array{index: array<string, WhatsappMenuItem>, title_counts: array<string, int>} */
+    private function loadCategoryCatalog(): array
     {
         $index = [];
+        $titleCounts = [];
 
         foreach (WhatsappMenuItem::catalogCategories()->get() as $category) {
+            $titleLower = mb_strtolower(trim($category->title));
+            $titleCounts[$titleLower] = ($titleCounts[$titleLower] ?? 0) + 1;
+
             $index['id:' . $category->id] = $category;
-            $index['title:' . mb_strtolower(trim($category->title))] = $category;
+            $index['title:' . $titleLower] = $category;
+
+            $demo = trim((string) ($category->demo_cliente ?? ''));
+            if ($demo !== '') {
+                $index['title:' . $titleLower . '|' . mb_strtolower($demo)] = $category;
+            }
 
             if ($category->action_id) {
                 $index['action:' . mb_strtolower(trim($category->action_id))] = $category;
             }
         }
 
-        return $index;
+        return [
+            'index' => $index,
+            'title_counts' => $titleCounts,
+        ];
     }
 
     /**
+     * @param array{index: array<string, WhatsappMenuItem>, title_counts: array<string, int>} $catalog
+     */
+    private function resolveCategory(string $ref, array $catalog, ?string $demoCliente): ?WhatsappMenuItem
+    {
+        if ($ref === '') {
+            return null;
+        }
+
+        $index = $catalog['index'];
+        $titleCounts = $catalog['title_counts'];
+
+        if (is_numeric($ref)) {
+            return $index['id:' . (int) $ref] ?? null;
+        }
+
+        $lower = mb_strtolower(trim($ref));
+
+        if ($demoCliente) {
+            $specific = $index['title:' . $lower . '|' . mb_strtolower($demoCliente)] ?? null;
+            if ($specific) {
+                return $specific;
+            }
+        }
+
+        if (($titleCounts[$lower] ?? 0) > 1 && !$demoCliente) {
+            throw new \InvalidArgumentException(
+                "Hay varias categorías «{$ref}» en distintas empresas. Indique demo_cliente en la fila (vea hoja Categorias)."
+            );
+        }
+
+        return $index['title:' . $lower]
+            ?? $index['action:' . $lower]
+            ?? null;
+    }
+
+    /**
+     * @param array{index: array<string, WhatsappMenuItem>, title_counts: array<string, int>} $catalog
      * @param array<string, mixed> $row
-     * @param array<string, WhatsappMenuItem> $categories
      * @return array<string, mixed>
      */
-    private function buildProductPayload(array $row, array $categories, int $excelRow): array
+    private function buildProductPayload(array $row, array $catalog, int $excelRow): array
     {
         $sku = strtoupper(trim((string) ($row['sku'] ?? '')));
         if ($sku === '' || strlen($sku) > 20 || !preg_match('/^[A-Z0-9\-]+$/', $sku)) {
@@ -432,10 +483,21 @@ class ProductImportExportService
         }
 
         $categoryRef = trim((string) ($row['categoria'] ?? ''));
-        $category = $this->resolveCategory($categoryRef, $categories);
+        $demoClienteRaw = trim((string) ($row['demo_cliente'] ?? ''));
+        $demoClienteForLookup = $demoClienteRaw !== ''
+            ? $this->normalizeDemoClienteSlug($demoClienteRaw)
+            : null;
+
+        if ($demoClienteRaw !== '' && $demoClienteForLookup === null) {
+            throw new \InvalidArgumentException($this->unknownDemoClienteMessage($demoClienteRaw));
+        }
+
+        $category = $this->resolveCategory($categoryRef, $catalog, $demoClienteForLookup);
         if (!$category) {
             throw new \InvalidArgumentException("Categoría «{$categoryRef}» no encontrada. Revise la hoja Categorias.");
         }
+
+        $demoCliente = $this->resolveDemoCliente($demoClienteRaw, $category);
 
         $price = $this->parseNumber($row['precio'] ?? null);
         if ($price === null || $price < 0) {
@@ -454,11 +516,6 @@ class ProductImportExportService
         $minQty = max(1, (int) ($this->parseNumber($row['cant_min'] ?? 1) ?? 1));
         $maxQty = max($minQty, (int) ($this->parseNumber($row['cant_max'] ?? 999) ?? 999));
 
-        $demoCliente = trim((string) ($row['demo_cliente'] ?? ''));
-        if ($demoCliente === '') {
-            $demoCliente = $category->demo_cliente ?: null;
-        }
-
         return [
             'menu_item_id' => $category->id,
             'category' => $category->title,
@@ -474,7 +531,7 @@ class ProductImportExportService
             'promo_end_date' => $promoPrice !== null ? now()->addDays(30)->toDateString() : null,
             'currency' => 'USD',
             'is_active' => $this->parseBool($row['activo'] ?? null, true),
-            'demo_cliente' => $demoCliente ?: null,
+            'demo_cliente' => $demoCliente,
             'stock' => max(0, (int) ($this->parseNumber($row['stock'] ?? 0) ?? 0)),
             'allow_quantity_selection' => $this->parseBool($row['permitir_cantidad'] ?? null, true),
             'min_quantity' => $minQty,
@@ -482,22 +539,60 @@ class ProductImportExportService
         ];
     }
 
-    /** @param array<string, WhatsappMenuItem> $categories */
-    private function resolveCategory(string $ref, array $categories): ?WhatsappMenuItem
+    private function resolveDemoCliente(string $raw, WhatsappMenuItem $category): ?string
     {
-        if ($ref === '') {
+        if ($raw === '') {
+            return $category->demo_cliente ?: null;
+        }
+
+        $normalized = $this->normalizeDemoClienteSlug($raw);
+        if ($normalized === null) {
+            throw new \InvalidArgumentException($this->unknownDemoClienteMessage($raw));
+        }
+
+        if ($category->demo_cliente && $category->demo_cliente !== $normalized) {
+            throw new \InvalidArgumentException(
+                "demo_cliente «{$normalized}» no coincide con la categoría «{$category->title}» ({$category->demo_cliente})."
+            );
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeDemoClienteSlug(string $value): ?string
+    {
+        $value = trim($value);
+        if ($value === '') {
             return null;
         }
 
-        if (is_numeric($ref)) {
-            return $categories['id:' . (int) $ref] ?? null;
+        $options = $this->demoCliente->options();
+
+        if (array_key_exists($value, $options)) {
+            return $value;
         }
 
-        $lower = mb_strtolower($ref);
+        foreach ($options as $slug => $label) {
+            if (strcasecmp($slug, $value) === 0 || strcasecmp($label, $value) === 0) {
+                return $slug;
+            }
+        }
 
-        return $categories['title:' . $lower]
-            ?? $categories['action:' . $lower]
-            ?? null;
+        return null;
+    }
+
+    private function unknownDemoClienteMessage(string $value): string
+    {
+        $options = $this->demoCliente->options();
+        $hints = [];
+
+        foreach ($options as $slug => $label) {
+            $hints[] = "{$slug} ({$label})";
+        }
+
+        $list = $hints !== [] ? implode(', ', $hints) : 'CorlanQuimica, software, herbalife';
+
+        return "demo_cliente «{$value}» no reconocido. Valores válidos: {$list}.";
     }
 
     private function productToRow(WhatsappPrice $product): array

@@ -224,6 +224,85 @@
             pointer-events: none;
         }
 
+        .sidebar .nav-link-sub {
+            padding-left: 1.65rem;
+            font-size: 0.8125rem;
+        }
+
+        .sidebar .nav-link-sub i {
+            width: 20px;
+            font-size: 0.875rem;
+        }
+
+        .nav-group {
+            margin: 0.12rem 0.35rem;
+        }
+
+        .nav-group-row {
+            display: flex;
+            align-items: stretch;
+        }
+
+        .nav-group-row > .nav-link {
+            flex: 1;
+            min-width: 0;
+            margin: 0;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .nav-group-toggle {
+            flex-shrink: 0;
+            width: 2rem;
+            border: none;
+            background: transparent;
+            color: #667781;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-top-right-radius: 0.55rem;
+            border-bottom-right-radius: 0.55rem;
+            border-left: 1px solid rgba(255, 255, 255, 0.06);
+            transition: color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .nav-group-toggle:hover {
+            color: #fff;
+            background-color: var(--sidebar-hover);
+        }
+
+        .nav-group-toggle i {
+            font-size: 0.7rem;
+            transition: transform 0.2s ease;
+            transform: rotate(-90deg);
+        }
+
+        .nav-group.is-open .nav-group-toggle i {
+            transform: rotate(0deg);
+        }
+
+        .nav-group-sub {
+            display: none;
+        }
+
+        .nav-group.is-open .nav-group-sub {
+            display: block;
+        }
+
+        .nav-group-sub .nav-link {
+            margin-top: 0.08rem;
+        }
+
+        .sidebar.collapsed .nav-group-toggle,
+        .sidebar.collapsed .nav-group-sub {
+            display: none;
+        }
+
+        .sidebar.collapsed .nav-group-row > .nav-link {
+            border-radius: 0.55rem;
+        }
+
         .sidebar .nav-link i {
             width: 24px;
             font-size: 1rem;
@@ -988,18 +1067,55 @@
         <div class="sidebar-inner-scroll">
             <nav class="sidebar-nav sidebar-nav-main">
                 <div class="sidebar-section sidebar-text">Principal</div>
+                @perm('dashboard.menu')
+                <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+                    <i class="fas fa-home"></i>
+                    <span class="sidebar-text">Inicio</span>
+                </a>
+                @endperm
                 @perm('orders.menu')
+                @php
+                    $ordersMenuOpen = request()->routeIs('admin.orders*') || request()->routeIs('admin.reports.orders');
+                @endphp
                 @if($platformFeatureAccess['orders_blocked'] ?? false)
-                    <span class="nav-link nav-link-disabled" title="Módulo de pedidos suspendido">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span class="sidebar-text">Pedidos</span>
-                        <span class="sidebar-nav-badge" style="background:#fecaca;color:#991b1b;">Off</span>
-                    </span>
+                    <div class="nav-group {{ $ordersMenuOpen ? 'is-open' : '' }}" data-nav-group="orders">
+                        <div class="nav-group-row">
+                            <span class="nav-link nav-link-disabled flex-grow-1" title="Módulo de pedidos suspendido">
+                                <i class="fas fa-shopping-cart"></i>
+                                <span class="sidebar-text">Pedidos</span>
+                                <span class="sidebar-nav-badge" style="background:#fecaca;color:#991b1b;">Off</span>
+                            </span>
+                            <button type="button" class="nav-group-toggle" aria-label="Mostrar u ocultar submenú de pedidos" aria-expanded="{{ $ordersMenuOpen ? 'true' : 'false' }}">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </div>
+                        <div class="nav-group-sub">
+                            <span class="nav-link nav-link-disabled nav-link-sub" title="Módulo de pedidos suspendido">
+                                <i class="fas fa-chart-bar"></i>
+                                <span class="sidebar-text">Reportes pedidos</span>
+                            </span>
+                        </div>
+                    </div>
                 @else
-                    <a href="{{ route('admin.orders') }}" class="nav-link {{ request()->routeIs('admin.orders*') ? 'active' : '' }}">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span class="sidebar-text">Pedidos</span>
-                    </a>
+                    <div class="nav-group {{ $ordersMenuOpen ? 'is-open' : '' }}" data-nav-group="orders">
+                        <div class="nav-group-row">
+                            <a href="{{ route('admin.orders') }}" class="nav-link {{ request()->routeIs('admin.orders') || request()->routeIs('admin.orders.details') || request()->routeIs('admin.orders.bulk.*') ? 'active' : '' }}">
+                                <i class="fas fa-shopping-cart"></i>
+                                <span class="sidebar-text">Pedidos</span>
+                            </a>
+                            <button type="button" class="nav-group-toggle" aria-label="Mostrar u ocultar submenú de pedidos" aria-expanded="{{ $ordersMenuOpen ? 'true' : 'false' }}">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </div>
+                        <div class="nav-group-sub">
+                            @perm('orders.view')
+                            <a href="{{ route('admin.reports.orders') }}" class="nav-link nav-link-sub {{ request()->routeIs('admin.reports.orders') ? 'active' : '' }}">
+                                <i class="fas fa-chart-bar"></i>
+                                <span class="sidebar-text">Reportes pedidos</span>
+                            </a>
+                            @endperm
+                        </div>
+                    </div>
                 @endif
                 @endperm
                 @perm('clients.menu')
@@ -1008,34 +1124,58 @@
                     <span class="sidebar-text">Clientes</span>
                 </a>
                 @endperm
-                @perm('chats.menu')
-                @if($platformFeatureAccess['chat_blocked'] ?? false)
-                    <span class="nav-link nav-link-disabled" title="Interfaz de chat suspendida">
-                        <i class="fas fa-comments"></i>
-                        <span class="sidebar-text">Chats</span>
-                        <span class="sidebar-nav-badge" style="background:#fecaca;color:#991b1b;">Off</span>
-                    </span>
-                @else
-                    <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chat*') ? 'active' : '' }}">
-                        <i class="fas fa-comments"></i>
-                        <span class="sidebar-text">Chats</span>
-                        <span id="sidebar-chats-agent-count" class="sidebar-nav-badge hidden"></span>
-                    </a>
-                @endif
-                @endperm
 
-                @perm('dashboard.menu')
-                <a href="{{ route('admin.dashboard') }}" class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
-                    <i class="fas fa-chart-line"></i>
-                    <span class="sidebar-text">Dashboard</span>
-                </a>
-                @endperm
-                @perm('wallet.menu')
-                <a href="{{ route('admin.wallet.index') }}" class="nav-link {{ request()->routeIs('admin.wallet*') ? 'active' : '' }}">
-                    <i class="fas fa-wallet"></i>
-                    <span class="sidebar-text">Billetera</span>
-                </a>
-                @endperm
+            </nav>
+
+            <nav class="sidebar-nav sidebar-nav-main">
+                <div class="sidebar-section sidebar-text">WhatsApp</div>
+                @php
+                    $whatsappMenuOpen = request()->routeIs('admin.chat*')
+                        || request()->routeIs('admin.reports.whatsapp')
+                        || request()->routeIs('admin.wallet*');
+                @endphp
+                <div class="nav-group {{ $whatsappMenuOpen ? 'is-open' : '' }}" data-nav-group="whatsapp">
+                    <div class="nav-group-row">
+                        @perm('chats.menu')
+                        @if($platformFeatureAccess['chat_blocked'] ?? false)
+                            <span class="nav-link nav-link-disabled flex-grow-1" title="Interfaz de chat suspendida">
+                                <i class="fab fa-whatsapp"></i>
+                                <span class="sidebar-text">WhatsApp</span>
+                                <span class="sidebar-nav-badge" style="background:#fecaca;color:#991b1b;">Off</span>
+                            </span>
+                        @else
+                            <a href="{{ route('admin.chats') }}" class="nav-link {{ request()->routeIs('admin.chat*') ? 'active' : '' }}">
+                                <i class="fab fa-whatsapp"></i>
+                                <span class="sidebar-text">WhatsApp</span>
+                                <span id="sidebar-chats-agent-count" class="sidebar-nav-badge hidden"></span>
+                            </a>
+                        @endif
+                        @else
+                            <span class="nav-link nav-link-disabled flex-grow-1">
+                                <i class="fab fa-whatsapp"></i>
+                                <span class="sidebar-text">WhatsApp</span>
+                            </span>
+                        @endperm
+                        <button type="button" class="nav-group-toggle" aria-label="Mostrar u ocultar submenú de WhatsApp" aria-expanded="{{ $whatsappMenuOpen ? 'true' : 'false' }}">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+                    <div class="nav-group-sub">
+                        @perm('dashboard.menu')
+                        <a href="{{ route('admin.reports.whatsapp') }}" class="nav-link nav-link-sub {{ request()->routeIs('admin.reports.whatsapp') ? 'active' : '' }}">
+                            <i class="fas fa-chart-line"></i>
+                            <span class="sidebar-text">Reportes</span>
+                        </a>
+                        @endperm
+                        @perm('wallet.menu')
+                        <a href="{{ route('admin.wallet.index') }}" class="nav-link nav-link-sub {{ request()->routeIs('admin.wallet*') ? 'active' : '' }}">
+                            <i class="fas fa-wallet"></i>
+                            <span class="sidebar-text">Billetera</span>
+                        </a>
+                        @endperm
+                    </div>
+                </div>
+
             </nav>
 
             <nav class="sidebar-nav sidebar-nav-config">
@@ -1273,6 +1413,36 @@
                     sidebarToggle.querySelector('i').classList.add('fa-chevron-right');
                 }
             }
+
+            // Nav group toggles (Pedidos, WhatsApp, etc.)
+            document.querySelectorAll('.nav-group').forEach(function(group) {
+                const key = group.dataset.navGroup;
+                const toggle = group.querySelector('.nav-group-toggle');
+                const hasActive = !!group.querySelector('.nav-link.active');
+                const saved = key ? localStorage.getItem('nav-group-' + key) : null;
+
+                if (saved === '1') {
+                    group.classList.add('is-open');
+                } else if (saved === '0') {
+                    group.classList.remove('is-open');
+                } else if (hasActive) {
+                    group.classList.add('is-open');
+                }
+
+                if (toggle) {
+                    toggle.setAttribute('aria-expanded', group.classList.contains('is-open') ? 'true' : 'false');
+                    toggle.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        group.classList.toggle('is-open');
+                        const isOpen = group.classList.contains('is-open');
+                        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                        if (key) {
+                            localStorage.setItem('nav-group-' + key, isOpen ? '1' : '0');
+                        }
+                    });
+                }
+            });
 
             // Desktop toggle
             if (sidebarToggle) {

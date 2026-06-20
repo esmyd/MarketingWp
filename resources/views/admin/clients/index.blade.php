@@ -8,6 +8,7 @@
 
     $fmt = fn ($dt) => $dt ? \Carbon\Carbon::parse($dt)->format('d/m/Y H:i') : '—';
     $fmtShort = fn ($dt) => $dt ? \Carbon\Carbon::parse($dt)->format('d/m H:i') : '—';
+    $bestContactTimeHint = ClientInsightsService::BEST_CONTACT_TIME_HINT;
     $hasFilters = collect($filters ?? [])->filter(fn ($v) => $v !== null && $v !== '')->isNotEmpty();
     $attentionTotal = ($summary['pending_reply'] ?? 0) + ($summary['needs_agent'] ?? 0);
     $segmentHints = ClientInsightsService::SEGMENT_HINTS;
@@ -79,6 +80,16 @@
         line-height: 1; flex-shrink: 0;
     }
     .segment-info-btn:hover { color: #128c7e; }
+    .th-label-row {
+        display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap;
+    }
+    .metric-info-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 16px; height: 16px; padding: 0; border: none; background: transparent;
+        color: #94a3b8; cursor: help; border-radius: 50%; font-size: .72rem;
+        line-height: 1; vertical-align: middle;
+    }
+    .metric-info-btn:hover { color: #128c7e; }
     .segment-hint {
         font-size: .72rem; color: #64748b; line-height: 1.35;
         margin: .35rem 0 0; min-height: 2.5em;
@@ -315,6 +326,14 @@
                         <th>Estado</th>
                         <th>Pedidos</th>
                         <th>Comprado</th>
+                        <th>
+                            <span class="th-label-row">
+                                Mejor hora
+                                <button type="button" class="metric-info-btn" title="{{ $bestContactTimeHint }}" aria-label="Cómo se calcula la mejor hora de contacto">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </span>
+                        </th>
                         <th>Último msg.</th>
                         <th class="text-end">Acciones</th>
                     </tr>
@@ -360,6 +379,14 @@
                                     ${{ number_format((float) ($client->total_spent ?? 0), 0) }}
                                 @else
                                     <span class="client-cell-muted">—</span>
+                                @endif
+                            </td>
+                            @php $bestTime = $bestContactTimes[$client->id] ?? null; @endphp
+                            <td class="client-cell-muted" title="{{ $bestTime ? 'Basado en '.$bestTime['total_messages'].' mensajes del último año' : 'Sin mensajes del cliente' }}">
+                                @if($bestTime)
+                                    <i class="fas fa-clock text-success me-1"></i>{{ $bestTime['window'] }}
+                                @else
+                                    —
                                 @endif
                             </td>
                             <td class="client-cell-muted">{{ $fmtShort($client->last_client_message_at) }}</td>

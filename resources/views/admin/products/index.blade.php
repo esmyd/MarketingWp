@@ -94,6 +94,33 @@
         border-radius: 8px;
     }
 
+    .products-bulk-bar {
+        display: none;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 10px;
+        padding: 0.65rem 0.85rem;
+        margin-bottom: 0.75rem;
+        font-size: 0.85rem;
+        color: #166534;
+    }
+
+    .products-bulk-bar.is-visible {
+        display: flex;
+    }
+
+    .products-bulk-bar .bulk-count {
+        font-weight: 700;
+        margin-right: 0.25rem;
+    }
+
+    .products-table .col-check {
+        width: 42px;
+    }
+
     .products-table-wrap {
         background: #fff;
         border: 1px solid #e9ecef;
@@ -407,10 +434,11 @@
                 <option value="{{ $category->title }}">{{ $category->icon }} {{ $category->title }}</option>
             @endforeach
         </select>
-        <select id="demo-filter" class="form-select form-select-sm" style="width:auto;min-width:150px">
-            <option value="">Todas las demos</option>
+        <select id="demo-filter" class="form-select form-select-sm" style="width:auto;min-width:180px">
+            <option value="">Todas las empresas</option>
+            <option value="__none__">Sin empresa asignada</option>
             @foreach($demoClienteOptions ?? [] as $slug => $label)
-                <option value="{{ $slug }}">{{ $label }}</option>
+                <option value="{{ $slug }}" @selected(($activeDemoCliente ?? '') === $slug)>{{ $label }}</option>
             @endforeach
         </select>
         <select id="status-filter" class="form-select form-select-sm" style="width:auto;min-width:130px">
@@ -418,6 +446,17 @@
             <option value="1">Activos</option>
             <option value="0">Inactivos</option>
         </select>
+    </div>
+
+    <div id="bulk-bar" class="products-bulk-bar">
+        <span><span class="bulk-count" id="bulk-selected-count">0</span> seleccionado(s)</span>
+        <button type="button" class="btn btn-success btn-sm" id="bulk-activate-btn">
+            <i class="fas fa-check me-1"></i> Activar
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="bulk-deactivate-btn">
+            <i class="fas fa-ban me-1"></i> Desactivar
+        </button>
+        <button type="button" class="btn btn-link btn-sm text-muted" id="bulk-clear-btn">Limpiar</button>
     </div>
 
     <div class="products-table-wrap">
@@ -435,24 +474,32 @@
                 <table class="table products-table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th class="ps-3">Producto</th>
+                            <th class="col-check ps-3">
+                                <input type="checkbox" id="select-all-products" title="Seleccionar visibles">
+                            </th>
+                            <th>Producto</th>
                             <th>SKU</th>
                             <th>Categoría</th>
-                            <th>Demo cliente</th>
+                            <th>Empresa</th>
                             <th>Precio</th>
                             <th>Stock</th>
                             <th>Estado</th>
+                            <th>Modificado</th>
                             <th class="text-end pe-3">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="productsTableBody">
                         @foreach($products as $product)
                         <tr class="product-row"
+                            data-id="{{ $product->id }}"
                             data-search="{{ strtolower($product->sku . ' ' . $product->name . ' ' . ($product->menuCategory?->title ?? $product->category)) }}"
                             data-category="{{ $product->menuCategory?->title ?? $product->category }}"
                             data-demo="{{ $product->demo_cliente ?? '' }}"
                             data-status="{{ $product->is_active ? '1' : '0' }}">
-                            <td class="ps-3">
+                            <td class="col-check ps-3">
+                                <input type="checkbox" class="product-select" value="{{ $product->id }}" aria-label="Seleccionar {{ $product->name }}">
+                            </td>
+                            <td class="ps-0">
                                 <div class="product-cell">
                                     <div class="product-icon">
                                         @if($product->image_url)
@@ -473,7 +520,7 @@
                             <td>{{ $product->menuCategory?->title ?? $product->category ?? '—' }}</td>
                             <td>
                                 @if($product->demo_cliente)
-                                    <span class="badge bg-light text-dark border">{{ $product->demo_cliente }}</span>
+                                    <span class="badge bg-light text-dark border">{{ $demoClienteOptions[$product->demo_cliente] ?? $product->demo_cliente }}</span>
                                 @else
                                     <span class="text-muted">—</span>
                                 @endif
@@ -502,6 +549,9 @@
                                 @if($product->is_promo)
                                     <span class="badge badge-product badge-promo ms-1">Promo</span>
                                 @endif
+                            </td>
+                            <td class="text-muted" style="font-size:0.78rem;white-space:nowrap;">
+                                {{ $product->updated_at?->format('d/m/Y H:i') ?? '—' }}
                             </td>
                             <td class="text-end pe-3">
                                 <button type="button" class="btn btn-outline-secondary btn-action me-1" title="Editar" onclick="openEditModal({{ $product->id }})">
@@ -653,7 +703,8 @@
                         <ul class="mb-0 mt-2 ps-3">
                             <li>Descargue la <a href="{{ route('admin.products.import.template') }}">plantilla con instrucciones</a> o exporte el catálogo actual como base.</li>
                             <li>Hoja <strong>Productos</strong>: columnas <code>sku</code>, <code>nombre</code>, <code>categoria</code>, <code>precio</code> (obligatorias).</li>
-                            <li>Opcionales: <code>precio_promo</code>, <code>descripcion</code>, <code>beneficios</code>, <code>caracteristicas</code> (separar con <code>|</code>), <code>stock</code>, <code>cant_min</code>, <code>cant_max</code>, <code>activo</code>, <code>permitir_cantidad</code>, <code>demo_cliente</code>.</li>
+                            <li>Opcionales: <code>precio_promo</code>, <code>descripcion</code>, <code>beneficios</code>, <code>caracteristicas</code> (separar con <code>|</code>), <code>stock</code>, <code>cant_min</code>, <code>cant_max</code>, <code>activo</code>, <code>permitir_cantidad</code>, <code>demo_cliente</code> / <code>empresa</code>.</li>
+                            <li>Si hay categorías con el mismo nombre en distintas empresas, indique <code>demo_cliente</code> en cada fila (consulte la hoja <strong>Categorias</strong> del Excel).</li>
                             <li>La hoja <strong>Categorias</strong> lista los nombres válidos para la columna <code>categoria</code>.</li>
                             <li>Si el SKU ya existe, el producto se actualiza (modo por defecto).</li>
                         </ul>
@@ -716,6 +767,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('importProductsForm')?.addEventListener('submit', submitImportForm);
     document.getElementById('importProductsModal')?.addEventListener('hidden.bs.modal', resetImportModal);
     document.getElementById('product_image')?.addEventListener('change', previewProductImage);
+    document.getElementById('select-all-products')?.addEventListener('change', toggleSelectAllVisible);
+    document.querySelectorAll('.product-select').forEach(cb => cb.addEventListener('change', updateBulkBar));
+    document.getElementById('bulk-activate-btn')?.addEventListener('click', () => bulkUpdateStatus(true));
+    document.getElementById('bulk-deactivate-btn')?.addEventListener('click', () => bulkUpdateStatus(false));
+    document.getElementById('bulk-clear-btn')?.addEventListener('click', clearSelection);
+    filterTable();
 });
 
 const productsAtLimit = @json($planLimits['products_at_limit'] ?? false);
@@ -902,10 +959,101 @@ function filterTable() {
     document.querySelectorAll('.product-row').forEach(row => {
         const matchesSearch = !search || row.dataset.search.includes(search);
         const matchesCategory = !category || row.dataset.category === category;
-        const matchesDemo = !demo || row.dataset.demo === demo;
+        const rowDemo = row.dataset.demo || '';
+        const matchesDemo = !demo || (demo === '__none__' ? rowDemo === '' : rowDemo === demo);
         const matchesStatus = !status || row.dataset.status === status;
         row.style.display = matchesSearch && matchesCategory && matchesDemo && matchesStatus ? '' : 'none';
     });
+
+    syncSelectAllCheckbox();
+    updateBulkBar();
+}
+
+function getVisibleRows() {
+    return [...document.querySelectorAll('.product-row')].filter(row => row.style.display !== 'none');
+}
+
+function getSelectedIds() {
+    return [...document.querySelectorAll('.product-select:checked')].map(cb => parseInt(cb.value, 10));
+}
+
+function updateBulkBar() {
+    const count = getSelectedIds().length;
+    const bar = document.getElementById('bulk-bar');
+    const countEl = document.getElementById('bulk-selected-count');
+    if (countEl) countEl.textContent = String(count);
+    if (bar) bar.classList.toggle('is-visible', count > 0);
+    syncSelectAllCheckbox();
+}
+
+function syncSelectAllCheckbox() {
+    const master = document.getElementById('select-all-products');
+    if (!master) return;
+    const visibleChecks = getVisibleRows()
+        .map(row => row.querySelector('.product-select'))
+        .filter(Boolean);
+    const checkedVisible = visibleChecks.filter(cb => cb.checked).length;
+    master.indeterminate = checkedVisible > 0 && checkedVisible < visibleChecks.length;
+    master.checked = visibleChecks.length > 0 && checkedVisible === visibleChecks.length;
+}
+
+function toggleSelectAllVisible(e) {
+    const checked = e.target.checked;
+    getVisibleRows().forEach(row => {
+        const cb = row.querySelector('.product-select');
+        if (cb) cb.checked = checked;
+    });
+    updateBulkBar();
+}
+
+function clearSelection() {
+    document.querySelectorAll('.product-select').forEach(cb => { cb.checked = false; });
+    const master = document.getElementById('select-all-products');
+    if (master) {
+        master.checked = false;
+        master.indeterminate = false;
+    }
+    updateBulkBar();
+}
+
+function bulkUpdateStatus(isActive) {
+    const ids = getSelectedIds();
+    if (ids.length === 0) {
+        showToast('Seleccione al menos un producto.', 'danger');
+        return;
+    }
+
+    const action = isActive ? 'activar' : 'desactivar';
+    if (!confirm(`¿${action.charAt(0).toUpperCase() + action.slice(1)} ${ids.length} producto(s)?`)) {
+        return;
+    }
+
+    fetch('/admin/products/bulk-status', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ ids, is_active: isActive }),
+        credentials: 'same-origin',
+    })
+    .then(async r => {
+        let data = {};
+        try {
+            data = await r.json();
+        } catch (e) {
+            throw new Error(r.ok ? 'Respuesta inválida del servidor' : `Error ${r.status}`);
+        }
+        if (!r.ok) throw new Error(data.message || `Error ${r.status}`);
+        return data;
+    })
+    .then(data => {
+        showToast(data.message, 'success');
+        setTimeout(() => window.location.reload(), 700);
+    })
+    .catch(err => showToast(err.message || 'No se pudo conectar con el servidor', 'danger'));
 }
 
 function showFormErrors(errors) {

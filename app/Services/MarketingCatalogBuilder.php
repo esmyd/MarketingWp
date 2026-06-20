@@ -15,6 +15,8 @@ use Illuminate\Support\Str;
 
 class MarketingCatalogBuilder
 {
+    protected ?WhatsappMenu $catalogMenuCache = null;
+
     public function __construct(
         protected MarketingFlowPayloadBuilder $payloadBuilder,
         protected DemoClienteService $demoCliente,
@@ -75,7 +77,7 @@ class MarketingCatalogBuilder
 
     protected function variables(?WhatsappContact $contact): array
     {
-        $menu = WhatsappMenu::where('action_id', 'prices_menu')->first();
+        $menu = $this->getCatalogMenu();
         $categories = $menu
             ? $this->countCategoriesWithProducts($menu)
             : 0;
@@ -115,7 +117,7 @@ class MarketingCatalogBuilder
 
     protected function buildCategoryListPayload(MarketingFlowStep $step, array $vars): array
     {
-        $menu = WhatsappMenu::where('action_id', 'prices_menu')->first();
+        $menu = $this->getCatalogMenu();
         if (!$menu) {
             return WhatsappMessagePayload::text('Lo siento, el catálogo no está configurado.');
         }
@@ -150,7 +152,7 @@ class MarketingCatalogBuilder
 
     protected function buildProductListPayload(MarketingFlowStep $step, array $vars, ?int $categoryId = null): array
     {
-        $menu = WhatsappMenu::where('action_id', 'prices_menu')->first();
+        $menu = $this->getCatalogMenu();
         if (!$menu) {
             return WhatsappMessagePayload::text('Lo siento, el catálogo no está configurado.');
         }
@@ -295,9 +297,30 @@ class MarketingCatalogBuilder
             $body .= "*{$productCount}* producto(s) disponible(s).\n\n";
         }
 
-        $body .= 'Seleccione un producto de la lista o escriba el código SKU (ej. *CQ001*).';
+        $exampleSku = $this->exampleSkuForCategory($category);
+        $body .= $exampleSku
+            ? "Seleccione un producto de la lista o escriba el código SKU (ej. *{$exampleSku}*)."
+            : 'Seleccione un producto de la lista o escriba el código SKU.';
 
         return $body;
+    }
+
+    protected function getCatalogMenu(): ?WhatsappMenu
+    {
+        if ($this->catalogMenuCache === null) {
+            $this->catalogMenuCache = WhatsappMenu::where('action_id', 'prices_menu')->first();
+        }
+
+        return $this->catalogMenuCache;
+    }
+
+    protected function exampleSkuForCategory(WhatsappMenuItem $category): ?string
+    {
+        $price = $this->demoCliente->applyProductScope(
+            $category->prices()->where('is_active', true)->orderBy('sku')
+        )->first();
+
+        return $price?->sku;
     }
 
     protected function visibleCatalogCategoriesQuery(WhatsappMenu $menu)
@@ -442,12 +465,20 @@ class MarketingCatalogBuilder
         ?string $listButtonOverride = null,
         ?array $headerOverride = null,
     ): array {
+        $catalogMenu = $this->getCatalogMenu();
         $body = $bodyOverride ?? $step->renderMessage($vars);
         if ($body === '') {
-            $body = "🛍️ *Catálogo de productos*\n\nSelecciona un producto para ver más detalles.\nTambién puedes escribir el código SKU directamente.";
+            $body = trim((string) ($catalogMenu?->content ?? ''));
+        }
+        if ($body === '') {
+            $empresa = $vars['nombre_empresa'] ?? 'Catálogo';
+            $body = "*Catálogo de productos*\n*{$empresa}*\n\nSeleccione una categoría o escriba el código SKU del producto.";
         }
 
-        $listButton = $listButtonOverride ?? ($step->getListConfig()['button'] ?? 'Ver productos');
+        $listButton = $listButtonOverride
+            ?? ($step->getListConfig()['button'] ?? null)
+            ?? ($catalogMenu?->button_text ?? null)
+            ?? 'Ver categorías';
         $header = $headerOverride ?? $step->getRenderedHeader($vars);
         $footer = $step->getRenderedFooter($vars);
 

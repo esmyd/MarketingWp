@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\PlatformPaymentReceipt;
+use App\Services\PlanLimitsService;
 use App\Services\PlatformBillingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -11,11 +12,12 @@ use Illuminate\View\View;
 
 class WalletController extends Controller
 {
-    public function index(PlatformBillingService $billing): View
+    public function index(PlatformBillingService $billing, PlanLimitsService $planLimits): View
     {
         return view('admin.wallet.index', [
             'receipts' => $billing->receiptsForWallet(),
             'billing' => $billing->dashboardSnapshot(),
+            'planLimitsSnapshot' => $planLimits->snapshot(),
             'paymentMethods' => $this->paymentMethods(),
             'paymentForOptions' => $this->paymentForOptions(),
         ]);

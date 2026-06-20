@@ -32,7 +32,12 @@
         <div class="alert alert-danger">{{ session('error') }}</div>
     @endif
 
-    @include('admin.partials.platform-billing-reminder', ['platformBillingSnapshot' => $b])
+    @include('admin.partials.plan-limits-widget', ['planLimits' => $planLimitsSnapshot])
+
+    @include('admin.partials.platform-billing-reminder', [
+        'platformBillingSnapshot' => $b,
+        'showWalletLink' => false,
+    ])
 
     @perm('wallet.submit')
     <div class="wallet-card">

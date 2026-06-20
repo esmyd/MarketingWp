@@ -94,6 +94,39 @@
         border-radius: 8px;
     }
 
+    .categories-bulk-bar {
+        display: none;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 10px;
+        padding: 0.65rem 0.85rem;
+        margin-bottom: 0.75rem;
+        font-size: 0.85rem;
+        color: #166534;
+    }
+
+    .categories-bulk-bar.is-visible {
+        display: flex;
+    }
+
+    .categories-bulk-bar .bulk-count {
+        font-weight: 700;
+        margin-right: 0.25rem;
+    }
+
+    .categories-table .col-check {
+        width: 42px;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .categories-table .col-check input {
+        cursor: pointer;
+    }
+
     .categories-table-wrap {
         background: #fff;
         border: 1px solid #e9ecef;
@@ -282,6 +315,24 @@
             <option value="1">Activas</option>
             <option value="0">Inactivas</option>
         </select>
+        <select id="demo-filter" class="form-select form-select-sm" style="width:auto;min-width:180px">
+            <option value="">Todas las empresas</option>
+            <option value="__none__">Sin empresa asignada</option>
+            @foreach($demoClienteOptions ?? [] as $slug => $label)
+                <option value="{{ $slug }}" @selected(($activeDemoCliente ?? '') === $slug)>{{ $label }}</option>
+            @endforeach
+        </select>
+    </div>
+
+    <div id="bulk-bar" class="categories-bulk-bar">
+        <span><span class="bulk-count" id="bulk-selected-count">0</span> seleccionada(s)</span>
+        <button type="button" class="btn btn-success btn-sm" id="bulk-activate-btn">
+            <i class="fas fa-check me-1"></i> Activar
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="bulk-deactivate-btn">
+            <i class="fas fa-ban me-1"></i> Desactivar
+        </button>
+        <button type="button" class="btn btn-link btn-sm text-muted" id="bulk-clear-btn">Limpiar</button>
     </div>
 
     <div class="categories-table-wrap">
@@ -299,10 +350,13 @@
                 <table class="table table-hover mb-0 categories-table">
                     <thead>
                         <tr>
-                            <th class="ps-3">Categoría</th>
+                            <th class="col-check ps-3">
+                                <input type="checkbox" id="select-all-categories" title="Seleccionar visibles">
+                            </th>
+                            <th>Categoría</th>
                             <th>Descripción</th>
                             <th>Productos</th>
-                            <th>Demo cliente</th>
+                            <th>Empresa</th>
                             <th>Orden</th>
                             <th>Estado</th>
                             <th class="text-end pe-3">Acciones</th>
@@ -316,11 +370,15 @@
                             $productLabel = $totalProducts === 1 ? '1 producto' : $totalProducts . ' productos';
                         @endphp
                         <tr class="category-row"
+                            data-id="{{ $category->id }}"
                             data-search="{{ strtolower($category->title . ' ' . ($category->description ?? '')) }}"
                             data-status="{{ $category->is_active ? '1' : '0' }}"
                             data-demo="{{ $category->demo_cliente ?? '' }}"
                             data-products="{{ $totalProducts > 0 ? 'with' : 'empty' }}">
-                            <td class="ps-3">
+                            <td class="col-check ps-3">
+                                <input type="checkbox" class="category-select" value="{{ $category->id }}" aria-label="Seleccionar {{ $category->title }}">
+                            </td>
+                            <td>
                                 <div class="category-cell">
                                     <div class="category-icon">{{ $category->icon ?: '📦' }}</div>
                                     <div>
@@ -351,7 +409,7 @@
                             </td>
                             <td>
                                 @if($category->demo_cliente)
-                                    <span class="badge bg-light text-dark border">{{ $category->demo_cliente }}</span>
+                                    <span class="badge bg-light text-dark border">{{ $demoClienteOptions[$category->demo_cliente] ?? $category->demo_cliente }}</span>
                                 @else
                                     <span class="text-muted">—</span>
                                 @endif
@@ -446,7 +504,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('search')?.addEventListener('input', filterTable);
     document.getElementById('status-filter')?.addEventListener('change', filterTable);
     document.getElementById('products-filter')?.addEventListener('change', filterTable);
+    document.getElementById('demo-filter')?.addEventListener('change', filterTable);
     document.getElementById('categoryForm')?.addEventListener('submit', submitCategoryForm);
+    document.getElementById('select-all-categories')?.addEventListener('change', toggleSelectAllVisible);
+    document.querySelectorAll('.category-select').forEach(cb => cb.addEventListener('change', updateBulkBar));
+    document.getElementById('bulk-activate-btn')?.addEventListener('click', () => bulkUpdateStatus(true));
+    document.getElementById('bulk-deactivate-btn')?.addEventListener('click', () => bulkUpdateStatus(false));
+    document.getElementById('bulk-clear-btn')?.addEventListener('click', clearSelection);
+    filterTable();
 });
 
 const categoriesAtLimit = @json($planLimits['categories_at_limit'] ?? false);
@@ -506,7 +571,7 @@ function submitCategoryForm(e) {
     };
 
     const isEdit = currentCategoryId !== null;
-    const url = isEdit ? `/admin/menu-items/${currentCategoryId}` : '{{ route("admin.menu-items.store") }}';
+    const url = isEdit ? `/admin/menu-items/${currentCategoryId}` : '/admin/menu-items';
     const method = isEdit ? 'PUT' : 'POST';
 
     fetch(url, {
@@ -570,13 +635,105 @@ function filterTable() {
     const search = (document.getElementById('search')?.value || '').toLowerCase();
     const status = document.getElementById('status-filter')?.value || '';
     const products = document.getElementById('products-filter')?.value || '';
+    const demo = document.getElementById('demo-filter')?.value || '';
 
     document.querySelectorAll('.category-row').forEach(row => {
         const okSearch = !search || row.dataset.search.includes(search);
         const okStatus = !status || row.dataset.status === status;
         const okProducts = !products || row.dataset.products === products;
-        row.style.display = okSearch && okStatus && okProducts ? '' : 'none';
+        const rowDemo = row.dataset.demo || '';
+        const okDemo = !demo || (demo === '__none__' ? rowDemo === '' : rowDemo === demo);
+        row.style.display = okSearch && okStatus && okProducts && okDemo ? '' : 'none';
     });
+
+    syncSelectAllCheckbox();
+    updateBulkBar();
+}
+
+function getVisibleRows() {
+    return [...document.querySelectorAll('.category-row')].filter(row => row.style.display !== 'none');
+}
+
+function getSelectedIds() {
+    return [...document.querySelectorAll('.category-select:checked')].map(cb => parseInt(cb.value, 10));
+}
+
+function updateBulkBar() {
+    const count = getSelectedIds().length;
+    const bar = document.getElementById('bulk-bar');
+    const countEl = document.getElementById('bulk-selected-count');
+    if (countEl) countEl.textContent = String(count);
+    if (bar) bar.classList.toggle('is-visible', count > 0);
+    syncSelectAllCheckbox();
+}
+
+function syncSelectAllCheckbox() {
+    const master = document.getElementById('select-all-categories');
+    if (!master) return;
+    const visible = getVisibleRows();
+    const visibleChecks = visible.map(row => row.querySelector('.category-select')).filter(Boolean);
+    const checkedVisible = visibleChecks.filter(cb => cb.checked).length;
+    master.indeterminate = checkedVisible > 0 && checkedVisible < visibleChecks.length;
+    master.checked = visibleChecks.length > 0 && checkedVisible === visibleChecks.length;
+}
+
+function toggleSelectAllVisible(e) {
+    const checked = e.target.checked;
+    getVisibleRows().forEach(row => {
+        const cb = row.querySelector('.category-select');
+        if (cb) cb.checked = checked;
+    });
+    updateBulkBar();
+}
+
+function clearSelection() {
+    document.querySelectorAll('.category-select').forEach(cb => { cb.checked = false; });
+    const master = document.getElementById('select-all-categories');
+    if (master) {
+        master.checked = false;
+        master.indeterminate = false;
+    }
+    updateBulkBar();
+}
+
+function bulkUpdateStatus(isActive) {
+    const ids = getSelectedIds();
+    if (ids.length === 0) {
+        showToast('Seleccione al menos una categoría.', 'danger');
+        return;
+    }
+
+    const action = isActive ? 'activar' : 'desactivar';
+    if (!confirm(`¿${action.charAt(0).toUpperCase() + action.slice(1)} ${ids.length} categoría(s)?`)) {
+        return;
+    }
+
+    fetch('/admin/menu-items/bulk-status', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ ids, is_active: isActive }),
+        credentials: 'same-origin',
+    })
+    .then(async r => {
+        let data = {};
+        try {
+            data = await r.json();
+        } catch (e) {
+            throw new Error(r.ok ? 'Respuesta inválida del servidor' : `Error ${r.status}`);
+        }
+        if (!r.ok) throw new Error(data.message || `Error ${r.status}`);
+        return data;
+    })
+    .then(data => {
+        showToast(data.message, 'success');
+        setTimeout(() => window.location.reload(), 700);
+    })
+    .catch(err => showToast(err.message || 'No se pudo conectar con el servidor', 'danger'));
 }
 
 function showFormErrors(errors) {

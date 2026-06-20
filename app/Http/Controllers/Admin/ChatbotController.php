@@ -355,6 +355,36 @@ class ChatbotController extends Controller
     }
 
     /**
+     * Activa o desactiva categorías del catálogo en lote.
+     */
+    public function bulkUpdateMenuItemsStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:whatsapp_menu_items,id',
+            'is_active' => 'required',
+        ]);
+
+        $pricesMenu = $this->getPricesMenu();
+        $isActive = filter_var($request->input('is_active'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($isActive === null) {
+            return response()->json(['message' => 'Estado inválido.'], 422);
+        }
+
+        $updated = WhatsappMenuItem::query()
+            ->where('menu_id', $pricesMenu->id)
+            ->whereIn('id', $validated['ids'])
+            ->update(['is_active' => $isActive]);
+
+        return response()->json([
+            'message' => $isActive
+                ? "{$updated} categoría(s) activada(s) correctamente."
+                : "{$updated} categoría(s) desactivada(s) correctamente.",
+            'updated' => $updated,
+        ]);
+    }
+
+    /**
      * Elimina una categoría (solo si no tiene productos).
      */
     public function deleteMenuItem(WhatsappMenuItem $item)

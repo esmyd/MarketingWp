@@ -149,4 +149,29 @@ class WhatsappCart extends Model
         return $this->metadata['order_details']['order_number']
             ?? 'ORD-' . str_pad((string) $this->id, 6, '0', STR_PAD_LEFT);
     }
+
+    public function paymentProofMessage(): ?WhatsappMessage
+    {
+        $byCart = WhatsappMessage::query()
+            ->where('metadata->cart_id', $this->id)
+            ->where('metadata->payment_proof', true)
+            ->latest()
+            ->first();
+
+        if ($byCart) {
+            return $byCart;
+        }
+
+        $waMessageId = $this->metadata['payment_proof']['message_id'] ?? null;
+        if ($waMessageId) {
+            return WhatsappMessage::query()->where('message_id', $waMessageId)->first();
+        }
+
+        return null;
+    }
+
+    public function requiresPaymentProof(): bool
+    {
+        return in_array($this->payment_method, ['transferencia', 'tarjeta'], true);
+    }
 }

@@ -48,6 +48,8 @@ class ClientInsightsService
         'name_asc' => 'Nombre A–Z',
     ];
 
+    public const BEST_CONTACT_TIME_HINT = 'Se calcula con los mensajes que envió el cliente en los últimos 12 meses. Se agrupa por hora del día (hora local) y se muestra la franja de 1 hora con más mensajes. Confianza: baja (<5 msgs), media (5–14), alta (15 o más).';
+
     public function paginate(Request $request, int $perPage = 20): LengthAwarePaginator
     {
         $query = $this->baseQuery($request);
@@ -116,12 +118,125 @@ class ClientInsightsService
         return [
             'contact' => $contact,
             'indicators' => $this->indicators($contact),
+            'best_contact_time' => $this->bestContactTimeForContact($contact->id),
             'orders' => $orders,
             'recent_messages' => $recentMessages,
             'contact_notes' => $notes,
             'messages_by_month' => $messagesByMonth,
             'response_rate' => $this->responseRateFromMetrics($contact),
             'response_metrics' => $this->responseMetricsForContact($contact->id),
+        ];
+    }
+
+    /**
+     * @param  list<int>  $contactIds
+     * @return array<int, array<string, mixed>|null>
+     */
+    public function bestContactTimesForContacts(array $contactIds, ?int $lookbackDays = 365): array
+    {
+        if ($contactIds === []) {
+            return [];
+        }
+
+        $hourCountsByContact = [];
+        $totalsByContact = array_fill_keys($contactIds, 0);
+        $timezone = config('app.timezone');
+
+        $query = WhatsappMessage::query()
+            ->whereIn('contact_id', $contactIds)
+            ->where('sender_type', 'client')
+            ->select(['contact_id', 'created_at']);
+
+        if ($lookbackDays !== null) {
+            $query->where('created_at', '>=', now()->subDays($lookbackDays));
+        }
+
+        $query->orderBy('id')->chunk(2000, function ($messages) use (&$hourCountsByContact, &$totalsByContact, $timezone) {
+            foreach ($messages as $message) {
+                $contactId = (int) $message->contact_id;
+                if (!isset($hourCountsByContact[$contactId])) {
+                    $hourCountsByContact[$contactId] = array_fill(0, 24, 0);
+                }
+
+                $hour = $message->created_at->timezone($timezone)->hour;
+                $hourCountsByContact[$contactId][$hour]++;
+                $totalsByContact[$contactId]++;
+            }
+        });
+
+        $results = [];
+        foreach ($contactIds as $contactId) {
+            $total = $totalsByContact[$contactId] ?? 0;
+            if ($total === 0) {
+                $results[$contactId] = null;
+
+                continue;
+            }
+
+            $results[$contactId] = $this->buildBestContactTimeResult(
+                $hourCountsByContact[$contactId],
+                $total
+            );
+        }
+
+        return $results;
+    }
+
+    /**
+     * @return array{
+     *     hour: int,
+     *     window: string,
+     *     label: string,
+     *     message_count: int,
+     *     total_messages: int,
+     *     share_percent: float,
+     *     confidence: string
+     * }|null
+     */
+    public function bestContactTimeForContact(int $contactId, ?int $lookbackDays = 365): ?array
+    {
+        return $this->bestContactTimesForContacts([$contactId], $lookbackDays)[$contactId] ?? null;
+    }
+
+    /**
+     * @param  array<int, int>  $hourCounts
+     * @return array{
+     *     hour: int,
+     *     window: string,
+     *     label: string,
+     *     message_count: int,
+     *     total_messages: int,
+     *     share_percent: float,
+     *     confidence: string
+     * }
+     */
+    private function buildBestContactTimeResult(array $hourCounts, int $total): array
+    {
+        $maxCount = max($hourCounts);
+        $bestHour = 0;
+
+        foreach ($hourCounts as $hour => $count) {
+            if ($count === $maxCount) {
+                $bestHour = $hour;
+                break;
+            }
+        }
+
+        $nextHour = ($bestHour + 1) % 24;
+        $window = sprintf('%02d:00 – %02d:00', $bestHour, $nextHour);
+
+        return [
+            'hour' => $bestHour,
+            'window' => $window,
+            'label' => $window,
+            'message_count' => $maxCount,
+            'total_messages' => $total,
+            'share_percent' => round(($maxCount / $total) * 100, 1),
+            'confidence' => match (true) {
+                $total < 5 => 'baja',
+                $total < 15 => 'media',
+                default => 'alta',
+            },
         ];
     }
 
@@ -572,16 +687,21 @@ class ClientInsightsService
         return $clientAt->gt(Carbon::parse($contact->last_reply_message_at));
     }
 
-    private function responseRateFromMetrics(object $contact): float
+    public function responseRatioPercent(int $inbound, int $outbound): float
     {
-        $inbound = (int) ($contact->client_messages_count ?? 0);
         if ($inbound === 0) {
             return 0;
         }
 
-        $outbound = (int) ($contact->replied_messages_count ?? 0);
-
         return min(round(($outbound / $inbound) * 100, 1), 100);
+    }
+
+    private function responseRateFromMetrics(object $contact): float
+    {
+        return $this->responseRatioPercent(
+            (int) ($contact->client_messages_count ?? 0),
+            (int) ($contact->replied_messages_count ?? 0)
+        );
     }
 
     private function responseRate(int $contactId): float
@@ -590,14 +710,10 @@ class ClientInsightsService
             ->where('sender_type', 'client')
             ->count();
 
-        if ($inbound === 0) {
-            return 0;
-        }
-
         $outbound = WhatsappMessage::where('contact_id', $contactId)
             ->whereIn('sender_type', ['system', 'humano'])
             ->count();
 
-        return min(round(($outbound / $inbound) * 100, 1), 100);
+        return $this->responseRatioPercent($inbound, $outbound);
     }
 }

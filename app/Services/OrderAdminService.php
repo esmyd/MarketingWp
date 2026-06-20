@@ -15,6 +15,20 @@ class OrderAdminService
         'issued' => 'Factura emitida',
     ];
 
+    public const PAYMENT_METHOD_LABELS = [
+        'transferencia' => 'Transferencia bancaria',
+        'tarjeta' => 'Tarjeta',
+        'efectivo' => 'Efectivo',
+    ];
+
+    public const PAYMENT_STATUS_LABELS = [
+        'awaiting_proof' => 'Esperando comprobante',
+        'proof_submitted' => 'Comprobante recibido',
+        'pending' => 'Pago pendiente',
+        'confirmed' => 'Confirmado',
+        'cash_on_delivery' => 'Efectivo contra entrega',
+    ];
+
     public function orderPayload(WhatsappCart $order): array
     {
         $order->load([
@@ -63,6 +77,55 @@ class OrderAdminService
             'internal_notes_count' => $order->notes->where('type', WhatsappCartNote::TYPE_INTERNAL)->count(),
             'feedback_count' => $order->notes->where('type', WhatsappCartNote::TYPE_FEEDBACK)->count(),
             'agent_checklist' => $this->agentChecklist($order, $billing),
+            'payment' => $this->paymentPayload($order),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function paymentPayload(WhatsappCart $order): array
+    {
+        $visible = $order->hasPaymentProof()
+            || $order->isAwaitingPaymentProof()
+            || $order->requiresPaymentProof();
+
+        if (!$visible) {
+            return ['visible' => false];
+        }
+
+        $method = (string) ($order->payment_method ?? '');
+        $state = 'none';
+        if ($order->hasPaymentProof()) {
+            $state = 'submitted';
+        } elseif ($order->isAwaitingPaymentProof()) {
+            $state = 'awaiting';
+        }
+
+        $proofMeta = is_array($order->metadata['payment_proof'] ?? null)
+            ? $order->metadata['payment_proof']
+            : null;
+
+        $proof = null;
+        if ($state === 'submitted') {
+            $message = $order->paymentProofMessage();
+            $type = $proofMeta['type'] ?? $message?->type ?? 'image';
+
+            $proof = [
+                'type' => $type,
+                'filename' => $proofMeta['filename'] ?? ($type === 'document' ? 'comprobante.pdf' : 'comprobante.jpg'),
+                'received_at' => $proofMeta['received_at'] ?? $message?->created_at?->toIso8601String(),
+                'media_url' => route('admin.orders.payment-proof', $order->id),
+            ];
+        }
+
+        return [
+            'visible' => true,
+            'method' => $method,
+            'method_label' => self::PAYMENT_METHOD_LABELS[$method] ?? ($method !== '' ? ucfirst($method) : '—'),
+            'status' => $order->payment_status,
+            'status_label' => self::PAYMENT_STATUS_LABELS[$order->payment_status ?? '']
+                ?? ($order->payment_status ?: '—'),
+            'state' => $state,
+            'proof' => $proof,
         ];
     }
 

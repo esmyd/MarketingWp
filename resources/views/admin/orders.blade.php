@@ -18,6 +18,38 @@
     $invoiceLabels = OrderAdminService::INVOICE_STATUSES;
     $canUpdate = auth()->user()?->hasPermission('orders.update') ?? false;
     $canBulkCreate = auth()->user()?->hasPermission('bulk_orders.create') ?? false;
+    $columnHints = [
+        'id' => 'Identificador único del pedido en el sistema. Sirve para buscarlo, exportarlo o referenciarlo en notas internas.',
+        'client' => 'Nombre del contacto de WhatsApp vinculado al pedido. Si tiene cédula en su perfil, aparece debajo del nombre.',
+        'phone' => 'Número de WhatsApp del cliente. Es el canal usado para confirmaciones, comprobantes y seguimiento.',
+        'date' => 'Fecha y hora en que se registró el pedido (hora del servidor).',
+        'total' => 'Monto total del pedido: suma de productos, cantidades y ajustes aplicados al momento de la compra.',
+        'products' => 'Cantidad de líneas de producto incluidas en el pedido (no es la suma de unidades).',
+        'tags' => 'Indicadores rápidos: observaciones internas, feedback con el cliente, espera de confirmación por WhatsApp, comprobante de pago recibido o pendiente.',
+        'status' => 'Etapa del pedido: Pendiente (nuevo), Confirmado, Pago pendiente, Pagado, Completado o Cancelado. Puede cambiarse desde aquí si tiene permiso.',
+        'actions' => 'Abrir chat con el cliente, ver el detalle completo del pedido o descargar el PDF de la orden.',
+    ];
+    $sectionHints = [
+        'products' => 'Detalle de lo que compró el cliente: productos, cantidades, precios unitarios y subtotales que forman el total del pedido.',
+        'payment_proof' => 'Comprobante de pago enviado por WhatsApp (foto o PDF). Aparece automáticamente cuando el cliente lo adjunta tras transferencia o tarjeta.',
+        'confirmation' => 'Envía al cliente el PDF del pedido con botones para confirmar, modificar o cancelar. Solo disponible en pedidos pendientes o con pago pendiente.',
+        'billing' => 'Datos fiscales para emitir factura. Al guardar, se copian al perfil del cliente para futuros pedidos.',
+        'internal_notes' => 'Notas visibles solo para el equipo administrativo. El cliente no las ve en WhatsApp ni en el PDF.',
+        'feedback' => 'Registro de comunicaciones y acuerdos con el cliente (envíos, confirmaciones, incidencias). Útil para el historial del pedido.',
+    ];
+    $fieldHints = [
+        'requires_invoice' => 'Actívelo si el cliente pidió factura fiscal. Desbloquea el seguimiento de estado y los datos de facturación.',
+        'invoice_status' => 'Progreso de la factura: sin factura, solicitada, datos listos, emitida o entregada al cliente.',
+        'billing_type' => 'Tipo de identificación fiscal del cliente: cédula de persona natural o RUC de empresa.',
+        'billing_id' => 'Número de cédula o RUC según el tipo seleccionado. Debe coincidir con los datos del SRI.',
+        'billing_legal_name' => 'Nombre completo o razón social tal como debe figurar en la factura.',
+        'address' => 'Dirección fiscal registrada para la factura electrónica.',
+        'confirmation_message' => 'Texto opcional que acompaña el PDF y los botones de confirmación en WhatsApp.',
+        'product_name' => 'Nombre del producto o servicio incluido en el pedido.',
+        'product_qty' => 'Unidades solicitadas de ese producto.',
+        'product_price' => 'Precio unitario al momento de la compra.',
+        'product_subtotal' => 'Cantidad × precio unitario para esa línea.',
+    ];
 @endphp
 
 <style>
@@ -81,6 +113,16 @@
         text-transform: uppercase; letter-spacing: .03em; color: #64748b;
         background: #f8fafc; border-bottom: 1px solid #e5e7eb; white-space: nowrap;
     }
+    .th-label-row {
+        display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap;
+    }
+    .metric-info-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 16px; height: 16px; padding: 0; border: none; background: transparent;
+        color: #94a3b8; cursor: help; border-radius: 50%; font-size: .72rem;
+        line-height: 1; vertical-align: middle;
+    }
+    .metric-info-btn:hover { color: #128c7e; }
     .orders-table td {
         padding: .5rem .65rem; border-bottom: 1px solid #f1f5f9;
         vertical-align: middle; color: #334155;
@@ -101,6 +143,8 @@
     .o-tag.notes { background: #e0e7ff; color: #3730a3; }
     .o-tag.feedback { background: #dcfce7; color: #166534; }
     .o-tag.confirm { background: #fef3c7; color: #92400e; }
+    .o-tag.proof-ok { background: #dbeafe; color: #1d4ed8; }
+    .o-tag.proof-wait { background: #ffedd5; color: #c2410c; }
     .o-tag.empty { color: #cbd5e1; }
 
     .order-status-select {
@@ -152,20 +196,84 @@
         width: 34px; height: 34px; border: none; background: #e2e8f0; border-radius: 50%;
         cursor: pointer; color: #475569;
     }
-    .modal-body { padding: 1rem 1.25rem; overflow-y: auto; flex: 1; }
+    .modal-body {
+        padding: 1rem 1.15rem 1.25rem; overflow-y: auto; flex: 1;
+        background: linear-gradient(180deg, #e8edf3 0%, #eef2f7 100%);
+    }
     .modal-footer {
-        padding: .85rem 1.25rem; border-top: 1px solid #f1f5f9;
-        display: flex; gap: .5rem; justify-content: flex-end; flex-wrap: wrap; background: #fafbfc;
+        padding: .85rem 1.25rem; border-top: 1px solid #e2e8f0;
+        display: flex; gap: .5rem; justify-content: flex-end; flex-wrap: wrap;
+        background: #fff; box-shadow: 0 -4px 12px rgba(15, 23, 42, .04);
     }
 
+    .order-sections-stack { display: flex; flex-direction: column; gap: .9rem; }
+
     .order-section {
-        border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: .85rem; overflow: hidden;
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+        overflow: hidden; box-shadow: 0 2px 10px rgba(15, 23, 42, .06);
     }
+    .order-section[data-theme="products"] { border-left: 4px solid #64748b; }
+    .order-section[data-theme="payment"] { border-left: 4px solid #2563eb; }
+    .order-section[data-theme="confirmation"] { border-left: 4px solid #16a34a; }
+    .order-section[data-theme="billing"] { border-left: 4px solid #d97706; }
+    .order-section[data-theme="notes"] { border-left: 4px solid #6366f1; }
+    .order-section[data-theme="feedback"] { border-left: 4px solid #0d9488; }
+
     .order-section-head {
-        padding: .65rem .85rem; background: #f8fafc; border-bottom: 1px solid #f1f5f9;
-        font-size: .82rem; font-weight: 700; color: #334155;
+        padding: .75rem 1rem; border-bottom: 1px solid #f1f5f9;
+        display: flex; align-items: center; justify-content: space-between; gap: .5rem;
     }
-    .order-section-body { padding: .85rem; }
+    .order-section[data-theme="products"] .order-section-head { background: linear-gradient(90deg, #f8fafc 0%, #fff 100%); }
+    .order-section[data-theme="payment"] .order-section-head { background: linear-gradient(90deg, #eff6ff 0%, #fff 100%); }
+    .order-section[data-theme="confirmation"] .order-section-head { background: linear-gradient(90deg, #ecfdf5 0%, #fff 100%); }
+    .order-section[data-theme="billing"] .order-section-head { background: linear-gradient(90deg, #fffbeb 0%, #fff 100%); }
+    .order-section[data-theme="notes"] .order-section-head { background: linear-gradient(90deg, #eef2ff 0%, #fff 100%); }
+    .order-section[data-theme="feedback"] .order-section-head { background: linear-gradient(90deg, #f0fdfa 0%, #fff 100%); }
+
+    .order-section-head-main {
+        display: flex; align-items: center; gap: .55rem;
+        font-size: .84rem; font-weight: 700; color: #0f172a; min-width: 0;
+    }
+    .order-section-icon {
+        width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; font-size: .88rem;
+    }
+    .order-section[data-theme="products"] .order-section-icon { background: #e2e8f0; color: #475569; }
+    .order-section[data-theme="payment"] .order-section-icon { background: #dbeafe; color: #1d4ed8; }
+    .order-section[data-theme="confirmation"] .order-section-icon { background: #dcfce7; color: #15803d; }
+    .order-section[data-theme="billing"] .order-section-icon { background: #fef3c7; color: #b45309; }
+    .order-section[data-theme="notes"] .order-section-icon { background: #e0e7ff; color: #4338ca; }
+    .order-section[data-theme="feedback"] .order-section-icon { background: #ccfbf1; color: #0f766e; }
+
+    .order-section-body { padding: 1rem; background: #fff; }
+    .order-section-body.flush { padding: 0; }
+
+    .section-info-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 18px; height: 18px; padding: 0; border: none; background: transparent;
+        color: #94a3b8; cursor: help; border-radius: 50%; font-size: .78rem;
+        line-height: 1; flex-shrink: 0; margin-left: .15rem;
+    }
+    .section-info-btn:hover { color: #128c7e; }
+
+    .field-label-row {
+        display: inline-flex; align-items: center; gap: .25rem; flex-wrap: wrap;
+    }
+    .field-info-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 15px; height: 15px; padding: 0; border: none; background: transparent;
+        color: #94a3b8; cursor: help; border-radius: 50%; font-size: .68rem;
+        line-height: 1; vertical-align: middle;
+    }
+    .field-info-btn:hover { color: #128c7e; }
+
+    .order-callout {
+        padding: .65rem .75rem; border-radius: 10px; font-size: .8rem; margin-bottom: .75rem;
+        border: 1px solid transparent;
+    }
+    .order-callout.warning { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+    .order-callout.info { background: #f8fafc; border-color: #e2e8f0; color: #64748b; }
+    .order-callout.sync { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
 
     .checklist { list-style: none; margin: 0; padding: 0; }
     .checklist li {
@@ -188,6 +296,99 @@
     .products-table { width: 100%; font-size: .82rem; border-collapse: collapse; }
     .products-table th, .products-table td { padding: .45rem .5rem; border-bottom: 1px solid #f1f5f9; }
     .products-table th { font-size: .68rem; text-transform: uppercase; color: #64748b; text-align: left; }
+    .products-table .th-label-row {
+        display: inline-flex; align-items: center; gap: .25rem; white-space: nowrap;
+    }
+
+    /* Comprobante de pago */
+    .payment-proof-card {
+        border-radius: 14px;
+        overflow: hidden;
+        background: linear-gradient(135deg, #f0fdf4 0%, #ecfeff 55%, #eff6ff 100%);
+        border: 1px solid #bbf7d0;
+        box-shadow: 0 4px 18px rgba(15, 118, 110, .08);
+    }
+    .payment-proof-card.is-awaiting {
+        background: linear-gradient(135deg, #fffbeb 0%, #fff7ed 100%);
+        border-color: #fed7aa;
+        box-shadow: 0 4px 18px rgba(234, 88, 12, .06);
+    }
+    .payment-proof-top {
+        display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem;
+        padding: 1rem 1.1rem .75rem;
+    }
+    .payment-proof-title-wrap { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+    .payment-proof-icon {
+        width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, #059669, #0d9488);
+        color: #fff; font-size: 1.1rem;
+        box-shadow: 0 6px 16px rgba(5, 150, 105, .25);
+    }
+    .payment-proof-card.is-awaiting .payment-proof-icon {
+        background: linear-gradient(135deg, #ea580c, #f59e0b);
+        box-shadow: 0 6px 16px rgba(234, 88, 12, .2);
+    }
+    .payment-proof-title { margin: 0; font-size: .95rem; font-weight: 800; color: #0f172a; }
+    .payment-proof-sub { margin: .15rem 0 0; font-size: .75rem; color: #64748b; }
+    .payment-proof-badge {
+        font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+        padding: .35rem .65rem; border-radius: 999px; white-space: nowrap;
+    }
+    .payment-proof-badge.ok { background: #dcfce7; color: #166534; }
+    .payment-proof-badge.wait { background: #ffedd5; color: #c2410c; }
+    .payment-proof-meta {
+        display: flex; flex-wrap: wrap; gap: .5rem 1rem;
+        padding: 0 1.1rem .85rem; font-size: .78rem; color: #475569;
+    }
+    .payment-proof-meta span { display: inline-flex; align-items: center; gap: .35rem; }
+    .payment-proof-meta i { color: #0f766e; font-size: .72rem; }
+    .payment-proof-preview {
+        margin: 0 1.1rem 1rem;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+    }
+    .payment-proof-preview img {
+        display: block; width: 100%; max-height: 320px; object-fit: contain;
+        background: #0f172a; cursor: zoom-in;
+    }
+    .payment-proof-doc {
+        display: flex; align-items: center; gap: .85rem;
+        padding: 1rem 1.1rem;
+    }
+    .payment-proof-doc-icon {
+        width: 52px; height: 52px; border-radius: 12px; flex-shrink: 0;
+        background: linear-gradient(135deg, #ef4444, #f97316);
+        color: #fff; display: flex; align-items: center; justify-content: center;
+        font-size: .72rem; font-weight: 800; letter-spacing: .03em;
+    }
+    .payment-proof-doc-name {
+        font-size: .88rem; font-weight: 700; color: #0f172a;
+        word-break: break-word;
+    }
+    .payment-proof-doc-hint { font-size: .75rem; color: #64748b; margin-top: .15rem; }
+    .payment-proof-actions {
+        display: flex; flex-wrap: wrap; gap: .5rem;
+        padding: 0 1.1rem 1rem;
+    }
+    .payment-proof-btn {
+        display: inline-flex; align-items: center; gap: .4rem;
+        padding: .5rem .85rem; border-radius: 10px; font-size: .78rem; font-weight: 700;
+        text-decoration: none; border: 1px solid transparent; cursor: pointer;
+    }
+    .payment-proof-btn.primary {
+        background: linear-gradient(135deg, #128c7e, #075e54); color: #fff !important;
+    }
+    .payment-proof-btn.ghost {
+        background: #fff; border-color: #cbd5e1; color: #334155 !important;
+    }
+    .payment-proof-empty {
+        padding: 1rem 1.1rem 1.1rem; font-size: .82rem; color: #92400e;
+    }
+    .payment-proof-empty i { margin-right: .35rem; }
 
     .toast-orders {
         position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1100;
@@ -234,7 +435,7 @@
     <div class="orders-toolbar">
         <div class="orders-search">
             <i class="fas fa-search"></i>
-            <input type="text" id="orders-search" placeholder="Buscar por cliente o teléfono..." autocomplete="off">
+            <input type="text" id="orders-search" placeholder="Buscar por cliente, teléfono o cédula..." autocomplete="off">
         </div>
         @if($canBulkCreate)
             <a href="{{ route('admin.orders.bulk.create') }}" class="o-btn primary">
@@ -278,30 +479,103 @@
             <table class="orders-table">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Cliente</th>
-                        <th>Teléfono</th>
-                        <th>Fecha</th>
-                        <th>Total</th>
-                        <th>Prod.</th>
-                        <th>Etiquetas</th>
-                        <th>Estado</th>
-                        <th class="text-end">Acciones</th>
+                        <th>
+                            <span class="th-label-row">
+                                #
+                                <button type="button" class="metric-info-btn" title="{{ $columnHints['id'] }}" aria-label="Qué significa el número de pedido">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </span>
+                        </th>
+                        <th>
+                            <span class="th-label-row">
+                                Cliente
+                                <button type="button" class="metric-info-btn" title="{{ $columnHints['client'] }}" aria-label="Qué significa Cliente">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </span>
+                        </th>
+                        <th>
+                            <span class="th-label-row">
+                                Teléfono
+                                <button type="button" class="metric-info-btn" title="{{ $columnHints['phone'] }}" aria-label="Qué significa Teléfono">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </span>
+                        </th>
+                        <th>
+                            <span class="th-label-row">
+                                Fecha
+                                <button type="button" class="metric-info-btn" title="{{ $columnHints['date'] }}" aria-label="Qué significa Fecha">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </span>
+                        </th>
+                        <th>
+                            <span class="th-label-row">
+                                Total
+                                <button type="button" class="metric-info-btn" title="{{ $columnHints['total'] }}" aria-label="Qué significa Total">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </span>
+                        </th>
+                        <th>
+                            <span class="th-label-row">
+                                Prod.
+                                <button type="button" class="metric-info-btn" title="{{ $columnHints['products'] }}" aria-label="Qué significa Prod.">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </span>
+                        </th>
+                        <th>
+                            <span class="th-label-row">
+                                Etiquetas
+                                <button type="button" class="metric-info-btn" title="{{ $columnHints['tags'] }}" aria-label="Qué significan las etiquetas">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </span>
+                        </th>
+                        <th>
+                            <span class="th-label-row">
+                                Estado
+                                <button type="button" class="metric-info-btn" title="{{ $columnHints['status'] }}" aria-label="Qué significa Estado">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </span>
+                        </th>
+                        <th class="text-end">
+                            <span class="th-label-row">
+                                Acciones
+                                <button type="button" class="metric-info-btn" title="{{ $columnHints['actions'] }}" aria-label="Qué significa Acciones">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($orders as $order)
                         @php
                             $itemsCount = $order->items->count();
+                            $contact = $order->contact;
+                            $clientNationalId = $contact?->national_id
+                                ?: (($contact?->billing_type === 'cedula' && $contact?->billing_id) ? $contact->billing_id : null);
                             $hasTags = ($order->internal_notes_count ?? 0) > 0
                                 || ($order->feedback_count ?? 0) > 0
-                                || (($order->metadata['awaiting_client_confirmation'] ?? false) && $order->status === 'pending');
+                                || (($order->metadata['awaiting_client_confirmation'] ?? false) && $order->status === 'pending')
+                                || $order->hasPaymentProof()
+                                || $order->isAwaitingPaymentProof();
                         @endphp
                         <tr id="order-row-{{ $order->id }}"
-                            data-search="{{ strtolower(($order->contact->name ?? '') . ' ' . ($order->contact->phone_number ?? '')) }}">
+                            data-search="{{ strtolower(trim(($contact->name ?? '') . ' ' . ($contact->phone_number ?? '') . ' ' . ($clientNationalId ?? ''))) }}">
                             <td><span class="order-cell-id">#{{ $order->id }}</span></td>
-                            <td><span class="order-cell-name">{{ $order->contact->name ?? 'Cliente' }}</span></td>
-                            <td class="order-cell-muted"><i class="fab fa-whatsapp text-success me-1"></i>{{ $order->contact->phone_number ?? '—' }}</td>
+                            <td>
+                                <span class="order-cell-name">{{ $contact->name ?? 'Cliente' }}</span>
+                                @if($clientNationalId)
+                                    <div class="order-cell-muted"><i class="fas fa-id-card me-1"></i>{{ $clientNationalId }}</div>
+                                @endif
+                            </td>
+                            <td class="order-cell-muted"><i class="fab fa-whatsapp text-success me-1"></i>{{ $contact->phone_number ?? '—' }}</td>
                             <td class="order-cell-muted">{{ $order->created_at->format('d/m/Y H:i') }}</td>
                             <td class="order-cell-money">${{ number_format($order->total, 0) }}</td>
                             <td>{{ $itemsCount }}</td>
@@ -315,6 +589,11 @@
                                     @endif
                                     @if(($order->metadata['awaiting_client_confirmation'] ?? false) && $order->status === 'pending')
                                         <span class="o-tag confirm"><i class="fas fa-clock"></i> Espera cliente</span>
+                                    @endif
+                                    @if($order->hasPaymentProof())
+                                        <span class="o-tag proof-ok"><i class="fas fa-receipt"></i> Comprobante</span>
+                                    @elseif($order->isAwaitingPaymentProof())
+                                        <span class="o-tag proof-wait"><i class="fas fa-hourglass-half"></i> Sin comprobante</span>
                                     @endif
                                     @unless($hasTags)
                                         <span class="o-tag empty">—</span>
@@ -384,10 +663,35 @@
 <script>
 const STATUS_LABELS = @json($statusLabels);
 const INVOICE_LABELS = @json($invoiceLabels);
+const SECTION_HINTS = @json($sectionHints);
+const FIELD_HINTS = @json($fieldHints);
 const CHAT_URL_TEMPLATE = @json(url('/admin/chats/__ID__'));
 const CAN_UPDATE = @json($canUpdate);
 const CSRF = @json(csrf_token());
 let currentOrderId = null;
+
+function infoBtn(hint, ariaLabel, btnClass = 'section-info-btn') {
+    if (!hint) return '';
+    return `<button type="button" class="${btnClass}" title="${esc(hint)}" aria-label="${esc(ariaLabel || hint)}"><i class="fas fa-info-circle"></i></button>`;
+}
+
+function sectionHead(title, icon, theme, hintKey) {
+    return `<div class="order-section-head">
+        <div class="order-section-head-main">
+            <span class="order-section-icon"><i class="${icon}"></i></span>
+            <span>${esc(title)}</span>
+            ${infoBtn(SECTION_HINTS[hintKey] || '', 'Información: ' + title)}
+        </div>
+    </div>`;
+}
+
+function fieldLabel(text, hintKey) {
+    return `<span class="field-label-row">${esc(text)} ${infoBtn(FIELD_HINTS[hintKey] || '', text, 'field-info-btn')}</span>`;
+}
+
+function productTh(label, hintKey) {
+    return `<span class="th-label-row">${esc(label)} ${infoBtn(FIELD_HINTS[hintKey] || '', label, 'field-info-btn')}</span>`;
+}
 
 function showToast(msg, type = 'success') {
     const t = document.getElementById('orders-toast');
@@ -427,11 +731,16 @@ function renderOrderModal(order) {
         (order.contact?.name ?? 'Cliente') + ' · ' + formatDate(order.created_at) + ' · $' + parseFloat(order.total).toFixed(2);
 
     const b = order.billing || {};
-    let html = '';
+    let html = '<div class="order-sections-stack">';
 
-    html += `<div class="order-section"><div class="order-section-head"><i class="fas fa-box me-1"></i> Productos</div><div class="order-section-body">`;
+    html += `<div class="order-section" data-theme="products">${sectionHead('Productos', 'fas fa-box', 'products', 'products')}<div class="order-section-body">`;
     if (order.items?.length) {
-        html += `<table class="products-table"><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>`;
+        html += `<table class="products-table"><thead><tr>
+            <th>${productTh('Producto', 'product_name')}</th>
+            <th>${productTh('Cant.', 'product_qty')}</th>
+            <th>${productTh('Precio', 'product_price')}</th>
+            <th>${productTh('Subtotal', 'product_subtotal')}</th>
+        </tr></thead><tbody>`;
         order.items.forEach(item => {
             const sub = (parseFloat(item.price) * parseInt(item.quantity)).toFixed(2);
             html += `<tr><td>${esc(item.name)}</td><td>${item.quantity}</td><td>$${parseFloat(item.price).toFixed(2)}</td><td>$${sub}</td></tr>`;
@@ -442,54 +751,57 @@ function renderOrderModal(order) {
     }
     html += `</div></div>`;
 
+    html += renderPaymentProofSection(order);
+
     if (CAN_UPDATE && ['pending', 'payment_pending'].includes(order.status)) {
-        html += `<div class="order-section"><div class="order-section-head"><i class="fab fa-whatsapp me-1 text-success"></i> Confirmación del cliente</div><div class="order-section-body">`;
+        html += `<div class="order-section" data-theme="confirmation">${sectionHead('Confirmación del cliente', 'fab fa-whatsapp', 'confirmation', 'confirmation')}<div class="order-section-body">`;
         if (order.awaiting_client_confirmation) {
-            html += `<p class="small mb-2 text-warning-emphasis"><i class="fas fa-clock me-1"></i> Esperando respuesta del cliente (PDF y botones enviados).</p>`;
+            html += `<div class="order-callout warning"><i class="fas fa-clock me-1"></i> Esperando respuesta del cliente (PDF y botones enviados).</div>`;
         } else {
-            html += `<p class="small mb-2 text-muted">Envía el PDF de la orden con botones para confirmar, modificar o cancelar.</p>`;
+            html += `<div class="order-callout info">Envía el PDF de la orden con botones para confirmar, modificar o cancelar.</div>`;
         }
-        html += `<textarea class="form-control form-control-sm mb-2" id="confirmationMessage" rows="2" placeholder="Mensaje opcional para el cliente…"></textarea>`;
+        html += `<label class="form-label small d-block mb-1">${fieldLabel('Mensaje opcional', 'confirmation_message')}</label>`;
+        html += `<textarea class="form-control form-control-sm mb-2" id="confirmationMessage" rows="2" placeholder="Texto que acompaña el PDF en WhatsApp…"></textarea>`;
         html += `<button type="button" class="o-btn primary" onclick="sendOrderConfirmation()"><i class="fab fa-whatsapp me-1"></i>Enviar confirmación por WhatsApp</button>`;
         html += `</div></div>`;
     }
 
     if (order.requires_invoice || CAN_UPDATE) {
-        html += `<div class="order-section"><div class="order-section-head"><i class="fas fa-file-invoice me-1 text-warning"></i> Facturación</div><div class="order-section-body">`;
+        html += `<div class="order-section" data-theme="billing">${sectionHead('Facturación', 'fas fa-file-invoice', 'billing', 'billing')}<div class="order-section-body">`;
         if (CAN_UPDATE) {
             html += `<form id="invoice-form" onsubmit="saveOrderInvoice(event)">
                 <div class="form-check form-switch mb-3">
                     <input class="form-check-input" type="checkbox" id="requires_invoice" name="requires_invoice" ${order.requires_invoice ? 'checked' : ''}>
-                    <label class="form-check-label" for="requires_invoice">Cliente solicita factura</label>
+                    <label class="form-check-label" for="requires_invoice">${fieldLabel('Cliente solicita factura', 'requires_invoice')}</label>
                 </div>
                 <div class="row g-2 mb-2">
                     <div class="col-md-4">
-                        <label class="form-label small">Estado factura</label>
+                        <label class="form-label small d-block">${fieldLabel('Estado factura', 'invoice_status')}</label>
                         <select class="form-select form-select-sm" name="invoice_status" id="invoice_status">
                             ${Object.entries(INVOICE_LABELS).map(([k,v]) => `<option value="${k}" ${order.invoice_status===k?'selected':''}>${esc(v)}</option>`).join('')}
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label small">Tipo</label>
+                        <label class="form-label small d-block">${fieldLabel('Tipo', 'billing_type')}</label>
                         <select class="form-select form-select-sm" name="billing_type">
                             <option value="cedula" ${b.billing_type==='cedula'?'selected':''}>Cédula</option>
                             <option value="ruc" ${b.billing_type==='ruc'?'selected':''}>RUC</option>
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label small">${b.billing_type==='ruc'?'RUC':'Cédula'}</label>
+                        <label class="form-label small d-block">${fieldLabel(b.billing_type==='ruc'?'RUC':'Cédula', 'billing_id')}</label>
                         <input type="text" class="form-control form-control-sm" name="billing_id" value="${esc(b.billing_id || '')}" placeholder="Número">
                     </div>
                     <div class="col-12">
-                        <label class="form-label small">Nombre / Razón social</label>
+                        <label class="form-label small d-block">${fieldLabel('Nombre / Razón social', 'billing_legal_name')}</label>
                         <input type="text" class="form-control form-control-sm" name="billing_legal_name" value="${esc(b.billing_legal_name || '')}">
                     </div>
                     <div class="col-12">
-                        <label class="form-label small">Dirección fiscal</label>
+                        <label class="form-label small d-block">${fieldLabel('Dirección fiscal', 'address')}</label>
                         <input type="text" class="form-control form-control-sm" name="address" value="${esc(b.address || '')}">
                     </div>
                 </div>
-                <p class="text-muted small mb-2"><i class="fas fa-info-circle me-1"></i> Al guardar, los datos fiscales se copian al perfil del cliente.</p>
+                <div class="order-callout sync mb-2"><i class="fas fa-sync-alt me-1"></i> Al guardar, los datos fiscales se copian al perfil del cliente.</div>
                 <button type="submit" class="o-btn primary btn-sm"><i class="fas fa-save me-1"></i>Guardar facturación</button>
             </form>`;
         } else if (order.requires_invoice) {
@@ -509,25 +821,27 @@ function renderOrderModal(order) {
         html += `</div></div>`;
     }
 
-    html += `<div class="order-section"><div class="order-section-head"><i class="fas fa-sticky-note me-1"></i> Observaciones internas</div><div class="order-section-body">`;
+    html += `<div class="order-section" data-theme="notes">${sectionHead('Observaciones internas', 'fas fa-sticky-note', 'notes', 'internal_notes')}<div class="order-section-body">`;
     html += `<div id="internal-notes-list">${renderNotesList(order.notes?.filter(n => n.type === 'internal') || [])}</div>`;
     if (CAN_UPDATE) {
-        html += `<form class="mt-2" onsubmit="addOrderNote(event, 'internal')">
+        html += `<form class="mt-3 pt-2 border-top" onsubmit="addOrderNote(event, 'internal')">
             <textarea class="form-control form-control-sm mb-2" name="body" rows="2" placeholder="Nota para el equipo (no la ve el cliente)..." required></textarea>
             <button type="submit" class="o-btn btn-sm"><i class="fas fa-plus me-1"></i>Agregar observación</button>
         </form>`;
     }
     html += `</div></div>`;
 
-    html += `<div class="order-section"><div class="order-section-head"><i class="fas fa-comment-dots me-1 text-success"></i> Feedback con el cliente</div><div class="order-section-body">`;
+    html += `<div class="order-section" data-theme="feedback">${sectionHead('Feedback con el cliente', 'fas fa-comment-dots', 'feedback', 'feedback')}<div class="order-section-body">`;
     html += `<div id="feedback-notes-list">${renderNotesList(order.notes?.filter(n => n.type === 'feedback') || [])}</div>`;
     if (CAN_UPDATE) {
-        html += `<form class="mt-2" onsubmit="addOrderNote(event, 'feedback')">
+        html += `<form class="mt-3 pt-2 border-top" onsubmit="addOrderNote(event, 'feedback')">
             <textarea class="form-control form-control-sm mb-2" name="body" rows="2" placeholder="Ej: Envié factura PDF por WhatsApp, cliente confirmó recepción..." required></textarea>
             <button type="submit" class="o-btn btn-sm"><i class="fas fa-plus me-1"></i>Registrar feedback</button>
         </form>`;
     }
     html += `</div></div>`;
+
+    html += '</div>';
 
     document.getElementById('orderDetails').innerHTML = html;
 
@@ -537,6 +851,71 @@ function renderOrderModal(order) {
     if (order.contact?.id) {
         footer.innerHTML += `<a href="${CHAT_URL_TEMPLATE.replace('__ID__', order.contact.id)}" class="o-btn primary"><i class="fas fa-comments me-1"></i>Abrir chat</a>`;
     }
+}
+
+function renderPaymentProofSection(order) {
+    const payment = order.payment;
+    if (!payment?.visible) return '';
+
+    const state = payment.state;
+    const isAwaiting = state === 'awaiting';
+    const isSubmitted = state === 'submitted';
+    const cardClass = isAwaiting ? 'payment-proof-card is-awaiting' : 'payment-proof-card';
+    const badgeClass = isSubmitted ? 'ok' : 'wait';
+    const badgeText = isSubmitted ? 'Recibido' : (isAwaiting ? 'Pendiente' : 'Sin envío');
+
+    let html = `<div class="order-section" data-theme="payment">${sectionHead('Comprobante de pago del cliente', 'fas fa-receipt', 'payment', 'payment_proof')}<div class="order-section-body flush">`;
+    html += `<div class="${cardClass}">`;
+    html += `<div class="payment-proof-top">
+        <div class="payment-proof-title-wrap">
+            <div class="payment-proof-icon"><i class="fas fa-${isSubmitted ? 'file-circle-check' : 'file-invoice-dollar'}"></i></div>
+            <div>
+                <h4 class="payment-proof-title">${isSubmitted ? 'Comprobante enviado por WhatsApp' : 'Esperando comprobante del cliente'}</h4>
+                <p class="payment-proof-sub">${esc(payment.method_label)} · ${esc(payment.status_label)}</p>
+            </div>
+        </div>
+        <span class="payment-proof-badge ${badgeClass}">${badgeText}</span>
+    </div>`;
+
+    html += `<div class="payment-proof-meta">`;
+    html += `<span><i class="fas fa-credit-card"></i> Método: <strong>${esc(payment.method_label)}</strong></span>`;
+    if (isSubmitted && payment.proof?.received_at) {
+        html += `<span><i class="fas fa-clock"></i> Recibido: <strong>${formatDate(payment.proof.received_at)}</strong></span>`;
+    }
+    html += `</div>`;
+
+    if (isSubmitted && payment.proof?.media_url) {
+        const url = esc(payment.proof.media_url);
+        const filename = esc(payment.proof.filename || 'comprobante');
+        if (payment.proof.type === 'image') {
+            html += `<div class="payment-proof-preview">
+                <img src="${url}" alt="Comprobante de pago" onclick="window.open('${url}', '_blank')" loading="lazy">
+            </div>`;
+        } else {
+            const ext = filename.split('.').pop().toUpperCase().slice(0, 4) || 'PDF';
+            html += `<div class="payment-proof-preview">
+                <div class="payment-proof-doc">
+                    <div class="payment-proof-doc-icon">${ext}</div>
+                    <div>
+                        <div class="payment-proof-doc-name">${filename}</div>
+                        <div class="payment-proof-doc-hint">Documento enviado por el cliente desde WhatsApp</div>
+                    </div>
+                </div>
+            </div>`;
+        }
+        html += `<div class="payment-proof-actions">
+            <a href="${url}" target="_blank" rel="noopener" class="payment-proof-btn primary"><i class="fas fa-expand"></i> Ver en tamaño completo</a>
+            <a href="${url}" download class="payment-proof-btn ghost"><i class="fas fa-download"></i> Descargar</a>
+        </div>`;
+    } else if (isAwaiting) {
+        html += `<div class="payment-proof-empty">
+            <i class="fas fa-info-circle"></i>
+            El cliente aún no ha enviado foto o PDF del comprobante. Aparecerá aquí automáticamente cuando lo mande por WhatsApp.
+        </div>`;
+    }
+
+    html += `</div></div></div>`;
+    return html;
 }
 
 function renderNotesList(notes) {

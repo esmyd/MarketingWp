@@ -10,6 +10,7 @@ use App\Models\WhatsappConversation;
 use App\Services\OrderAdminService;
 use App\Services\OrderConfirmationService;
 use App\Services\OrderExportService;
+use App\Services\WhatsappMediaService;
 use App\Services\WhatsappService;
 use App\Helpers\WhatsappMessageFormatter;
 use Illuminate\Http\Request;
@@ -74,6 +75,33 @@ class AdminController extends Controller
         $order = WhatsappCart::reportable()->findOrFail($id);
 
         return response()->json($orders->orderPayload($order));
+    }
+
+    public function orderPaymentProof($id, WhatsappMediaService $mediaService)
+    {
+        $order = WhatsappCart::reportable()->findOrFail($id);
+
+        if (!$order->hasPaymentProof()) {
+            abort(404);
+        }
+
+        $message = $order->paymentProofMessage();
+        if (!$message || !in_array($message->type, ['image', 'document'], true)) {
+            abort(404);
+        }
+
+        $media = $mediaService->fetchMedia($message);
+        if (!$media) {
+            abort(404, 'Comprobante no disponible. Puede haber expirado en WhatsApp.');
+        }
+
+        $disposition = $message->type === 'document' ? 'attachment' : 'inline';
+        $filename = $media['filename'];
+
+        return response($media['body'], 200)
+            ->header('Content-Type', $media['content_type'])
+            ->header('Content-Disposition', "{$disposition}; filename=\"{$filename}\"")
+            ->header('Cache-Control', 'private, max-age=3600');
     }
 
     public function updateOrder(Request $request, $id, OrderAdminService $orders)

@@ -5,6 +5,9 @@
 @section('content')
 @php
     use App\Helpers\WhatsappMessageFormatter;
+    use App\Services\ClientInsightsService;
+
+    $bestContactTimeHint = ClientInsightsService::BEST_CONTACT_TIME_HINT;
 
     $statusLabels = [
         'pending' => 'Pendiente',
@@ -23,12 +26,16 @@
 @endphp
 
 <style>
+    body.client-detail-page {
+        background: linear-gradient(180deg, #e8edf3 0%, #f1f5f9 45%, #eef2f7 100%) !important;
+    }
     .client-detail { max-width: 1140px; margin: 0 auto; }
 
     /* —— 1. Identidad —— */
     .client-hero {
-        background: #fff;
-        border: 1px solid #e5e7eb;
+        background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
+        border: 1px solid #99f6e4;
+        border-left: 4px solid #128c7e;
         border-radius: 16px;
         padding: 1.15rem 1.35rem;
         margin-bottom: .85rem;
@@ -36,7 +43,7 @@
         grid-template-columns: auto 1fr auto;
         gap: 1rem 1.25rem;
         align-items: center;
-        box-shadow: 0 1px 3px rgba(15,23,42,.04);
+        box-shadow: 0 6px 22px rgba(15, 118, 110, 0.1);
     }
     @media (max-width: 768px) {
         .client-hero { grid-template-columns: auto 1fr; }
@@ -87,32 +94,116 @@
     }
     @media (max-width: 900px) { .client-priority { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 480px) { .client-priority { grid-template-columns: 1fr; } }
+    .client-priority.five-cols { grid-template-columns: repeat(5, 1fr); }
+    @media (max-width: 1100px) { .client-priority.five-cols { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 700px) { .client-priority.five-cols { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .client-priority.five-cols { grid-template-columns: 1fr; } }
 
     .prio-card {
-        background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
-        padding: .85rem 1rem; min-height: 88px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: .85rem 1rem .85rem 1.1rem;
+        min-height: 88px;
+        box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+        position: relative;
+        overflow: hidden;
+    }
+    .prio-card::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
     }
     .prio-card .lbl {
         font-size: .68rem; font-weight: 700; text-transform: uppercase;
-        letter-spacing: .04em; color: #64748b; margin-bottom: .25rem;
+        letter-spacing: .04em; color: #475569; margin-bottom: .25rem;
     }
     .prio-card .val { font-size: 1.15rem; font-weight: 800; color: #0f172a; line-height: 1.2; }
-    .prio-card .sub { font-size: .72rem; color: #94a3b8; margin-top: .2rem; }
-    .prio-card.accent { border-color: #99f6e4; background: linear-gradient(180deg, #f0fdfa, #fff); }
-    .prio-card.urgent { border-color: #fecaca; background: linear-gradient(180deg, #fef2f2, #fff); }
+    .prio-card .sub { font-size: .72rem; color: #64748b; margin-top: .2rem; }
+    .metric-label-row {
+        display: inline-flex; align-items: center; gap: .3rem;
+    }
+    .metric-info-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 16px; height: 16px; padding: 0; border: none; background: transparent;
+        color: #94a3b8; cursor: help; border-radius: 50%; font-size: .72rem;
+        line-height: 1; vertical-align: middle;
+    }
+    .metric-info-btn:hover { color: #128c7e; }
+
+    .prio-card.tone-attention::before { background: #10b981; }
+    .prio-card.tone-attention {
+        background: linear-gradient(145deg, #ecfdf5 0%, #fff 72%);
+        border-color: #6ee7b7;
+    }
+    .prio-card.tone-attention.urgent {
+        background: linear-gradient(145deg, #fef2f2 0%, #fff 72%);
+        border-color: #fca5a5;
+    }
+    .prio-card.tone-attention.urgent::before { background: #ef4444; }
+
+    .prio-card.tone-commerce::before { background: #2563eb; }
+    .prio-card.tone-commerce {
+        background: linear-gradient(145deg, #eff6ff 0%, #fff 72%);
+        border-color: #93c5fd;
+    }
+
+    .prio-card.tone-activity::before { background: #64748b; }
+    .prio-card.tone-activity {
+        background: linear-gradient(145deg, #f1f5f9 0%, #fff 72%);
+        border-color: #cbd5e1;
+    }
+
+    .prio-card.tone-contact::before { background: #d97706; }
+    .prio-card.tone-contact {
+        background: linear-gradient(145deg, #fffbeb 0%, #fff 72%);
+        border-color: #fcd34d;
+    }
+
+    .prio-card.tone-response::before { background: #0f766e; }
+    .prio-card.tone-response {
+        background: linear-gradient(145deg, #ccfbf1 0%, #fff 72%);
+        border-color: #5eead4;
+    }
+
+    .prio-card.accent { border-color: #6ee7b7; }
+    .prio-card.urgent { border-color: #fca5a5; }
     .prio-card.urgent .val { color: #dc2626; }
-    .prio-card .sub.ok { color: #059669; }
-    .prio-card .sub.agent { color: #b45309; }
+    .prio-card .sub.ok { color: #047857; font-weight: 600; }
+    .prio-card .sub.agent { color: #b45309; font-weight: 600; }
 
     /* —— Paneles —— */
     .client-section {
-        background: #fff; border: 1px solid #e5e7eb; border-radius: 14px;
-        margin-bottom: .85rem; overflow: hidden;
-        box-shadow: 0 1px 3px rgba(15,23,42,.04);
+        background: #fff;
+        border: 1px solid #dbe3ee;
+        border-radius: 14px;
+        margin-bottom: .85rem;
+        overflow: hidden;
+        box-shadow: 0 3px 14px rgba(15, 23, 42, 0.06);
     }
     .client-section-head {
-        padding: .85rem 1.15rem; border-bottom: 1px solid #f1f5f9;
-        display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+        padding: .85rem 1.15rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .5rem;
+        background: #f8fafc;
+    }
+    .client-section.notes-section .client-section-head {
+        background: linear-gradient(90deg, #fffbeb, #fff);
+        border-bottom-color: #fde68a;
+    }
+    .client-section.messages-section .client-section-head {
+        background: linear-gradient(90deg, #ecfdf5, #fff);
+        border-bottom-color: #a7f3d0;
+    }
+    .client-section.orders-section .client-section-head {
+        background: linear-gradient(90deg, #eff6ff, #fff);
+        border-bottom-color: #bfdbfe;
     }
     .client-section-head h2 {
         margin: 0; font-size: .92rem; font-weight: 700; color: #0f172a;
@@ -158,14 +249,18 @@
 
     /* Colapsables (menos importante) */
     .client-collapse {
-        background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
-        margin-bottom: .65rem; overflow: hidden;
+        background: #fff;
+        border: 1px solid #dbe3ee;
+        border-radius: 12px;
+        margin-bottom: .65rem;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
     }
     .client-collapse summary {
         padding: .75rem 1.1rem; cursor: pointer; font-weight: 600;
         font-size: .88rem; color: #334155; list-style: none;
         display: flex; align-items: center; gap: .5rem;
-        background: #f8fafc;
+        background: #eef2f7;
     }
     .client-collapse summary::-webkit-details-marker { display: none; }
     .client-collapse summary::after {
@@ -183,6 +278,7 @@
         background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;
     }
 </style>
+<script>document.body.classList.add('client-detail-page');</script>
 
 <div class="client-detail">
     <div class="mb-3">
@@ -211,6 +307,14 @@
                 @endif
                 @if($contact->birth_date)
                     <span class="client-chip"><i class="fas fa-birthday-cake"></i>{{ $contact->birth_date->format('d/m/Y') }}</span>
+                @endif
+                @if(!empty($best_contact_time['window']))
+                    <span class="client-chip">
+                        <i class="fas fa-bell"></i> Mejor contacto: {{ $best_contact_time['window'] }}
+                        <button type="button" class="metric-info-btn ms-1" title="{{ $bestContactTimeHint }}" aria-label="Cómo se calcula la mejor hora de contacto">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                    </span>
                 @endif
             </div>
             @if($indicators)
@@ -250,9 +354,9 @@
         </div>
     @endif
 
-    {{-- 3. LO ESENCIAL EN 4 TARJETAS --}}
-    <div class="client-priority">
-        <div class="prio-card {{ $needsAttention ? 'urgent' : 'accent' }}">
+    {{-- 3. LO ESENCIAL EN 5 TARJETAS --}}
+    <div class="client-priority five-cols">
+        <div class="prio-card tone-attention {{ $needsAttention ? 'urgent' : '' }}">
             <div class="lbl">Atención</div>
             @if($response_metrics['pending_reply'])
                 <div class="val">Pendiente</div>
@@ -262,17 +366,38 @@
                 <div class="sub ok">Sin mensajes sin contestar</div>
             @endif
         </div>
-        <div class="prio-card">
+        <div class="prio-card tone-commerce">
             <div class="lbl">Comercial</div>
             <div class="val">${{ number_format((float) ($contact->total_spent ?? 0), 0) }}</div>
             <div class="sub">{{ $contact->orders_count ?? 0 }} pedido(s) · {{ $contact->recent_orders_count ?? 0 }} recientes</div>
         </div>
-        <div class="prio-card">
+        <div class="prio-card tone-activity">
             <div class="lbl">Último mensaje</div>
             <div class="val" style="font-size:.95rem;">{{ $fmt($contact->last_client_message_at) }}</div>
             <div class="sub">{{ $contact->client_messages_count ?? 0 }} mensajes del cliente</div>
         </div>
-        <div class="prio-card">
+        <div class="prio-card tone-contact">
+            <div class="lbl">
+                <span class="metric-label-row">
+                    Mejor hora de contacto
+                    <button type="button" class="metric-info-btn" title="{{ $bestContactTimeHint }}" aria-label="Cómo se calcula la mejor hora de contacto">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                </span>
+            </div>
+            @if(!empty($best_contact_time['window']))
+                <div class="val" style="font-size:.95rem;">{{ $best_contact_time['window'] }}</div>
+                <div class="sub">
+                    {{ $best_contact_time['message_count'] }} de {{ $best_contact_time['total_messages'] }} msgs
+                    ({{ number_format($best_contact_time['share_percent'], 0) }}%)
+                    · confianza {{ $best_contact_time['confidence'] }}
+                </div>
+            @else
+                <div class="val" style="font-size:1rem;">—</div>
+                <div class="sub">Sin mensajes del cliente aún</div>
+            @endif
+        </div>
+        <div class="prio-card tone-response">
             <div class="lbl">Tiempo de respuesta</div>
             @if($response_metrics['last_seconds'] !== null)
                 <div class="val">{{ $response_metrics['last_formatted'] }}</div>
@@ -291,7 +416,7 @@
 
     {{-- 4. OPERATIVO: observaciones + mensajes recientes --}}
     <div class="client-grid-2">
-        <div class="client-section">
+        <div class="client-section notes-section">
             <div class="client-section-head">
                 <h2><i class="fas fa-sticky-note text-warning me-1"></i> Observaciones</h2>
                 <span class="hint">{{ $contact_notes->count() }} nota(s)</span>
@@ -320,7 +445,7 @@
             </div>
         </div>
 
-        <div class="client-section">
+        <div class="client-section messages-section">
             <div class="client-section-head">
                 <h2><i class="fas fa-comment-dots text-success me-1"></i> Últimos mensajes</h2>
                 @perm('chats.open')
@@ -357,7 +482,7 @@
     </div>
 
     {{-- 5. PEDIDOS --}}
-    <div class="client-section">
+    <div class="client-section orders-section">
         <div class="client-section-head">
             <h2><i class="fas fa-shopping-cart text-success me-1"></i> Pedidos recientes</h2>
         </div>
@@ -470,7 +595,7 @@
                                     <td>{{ $row->month }}</td>
                                     <td class="text-center">{{ $row->inbound }}</td>
                                     <td class="text-center">{{ $row->outbound }}</td>
-                                    <td class="text-center">{{ $row->inbound > 0 ? round($row->outbound / $row->inbound * 100) : 0 }}%</td>
+                                    <td class="text-center">{{ number_format($insights->responseRatioPercent((int) $row->inbound, (int) $row->outbound), 0) }}%</td>
                                 </tr>
                             @endforeach
                         </tbody>

@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\AdminBulkOrderController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\OrdersReportsController;
+use App\Http\Controllers\Admin\WhatsappReportsController;
 use App\Http\Controllers\Auth\LoginController;
 
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
@@ -28,6 +30,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
         ->middleware('permission:dashboard.view,dashboard.menu')
         ->name('dashboard');
 
+    Route::get('/reports/whatsapp', [WhatsappReportsController::class, 'index'])
+        ->middleware('permission:dashboard.view,dashboard.menu')
+        ->name('reports.whatsapp');
+
+    Route::get('/reports/orders', [OrdersReportsController::class, 'index'])
+        ->middleware(['permission:orders.view,orders.menu', 'platform.feature:orders'])
+        ->name('reports.orders');
+
     Route::get('/orders', [App\Http\Controllers\AdminController::class, 'orders'])
         ->middleware(['permission:orders.view,orders.menu', 'platform.feature:orders'])
         ->name('orders');
@@ -43,6 +53,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/orders/{id}/pdf', [App\Http\Controllers\OrderPdfController::class, 'downloadAdmin'])
         ->middleware(['permission:orders.view,orders.menu', 'platform.feature:orders'])
         ->name('orders.pdf');
+    Route::get('/orders/{id}/payment-proof', [App\Http\Controllers\AdminController::class, 'orderPaymentProof'])
+        ->middleware(['permission:orders.view,orders.menu', 'platform.feature:orders'])
+        ->name('orders.payment-proof');
     Route::post('/orders/{id}/send-confirmation', [App\Http\Controllers\AdminController::class, 'sendOrderConfirmation'])
         ->middleware(['permission:orders.update', 'platform.feature:orders'])
         ->name('orders.send-confirmation');
@@ -124,6 +137,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
         ->middleware('permission:menus.update')
         ->name('menus.delete');
 
+    Route::post('/menu-items/bulk-status', [App\Http\Controllers\Admin\ChatbotController::class, 'bulkUpdateMenuItemsStatus'])
+        ->middleware('permission:menus.update')
+        ->name('menu-items.bulk-status');
     Route::post('/menu-items', [App\Http\Controllers\Admin\ChatbotController::class, 'storeMenuItem'])
         ->middleware('permission:menus.update')
         ->name('menu-items.store');
@@ -149,6 +165,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('/products/import', [App\Http\Controllers\Admin\ProductController::class, 'importCatalog'])
         ->middleware('permission:products.update')
         ->name('products.import');
+    Route::post('/products/bulk-status', [App\Http\Controllers\Admin\ProductController::class, 'bulkUpdateStatus'])
+        ->middleware('permission:products.update')
+        ->name('products.bulk-status');
     Route::get('/products/create', [App\Http\Controllers\Admin\ProductController::class, 'create'])
         ->middleware('permission:products.update')
         ->name('products.create');

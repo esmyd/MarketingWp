@@ -2366,20 +2366,24 @@
     })();
 
     // Búsqueda de contactos en sidebar
-    (function() {
+    window.applyContactSearchFilter = function() {
         const searchInput = document.getElementById('contact-search');
         const contactsList = document.getElementById('wa-sidebar-contacts');
         if (!searchInput || !contactsList) return;
 
-        searchInput.addEventListener('input', function() {
-            const query = this.value.trim().toLowerCase();
-            contactsList.querySelectorAll('.wa-sidebar-contact').forEach(function(item) {
-                const name = (item.querySelector('.wa-sidebar-name')?.textContent || '').toLowerCase();
-                const phone = (item.querySelector('.wa-sidebar-phone span')?.textContent || '').toLowerCase();
-                const match = !query || name.includes(query) || phone.includes(query);
-                item.style.display = match ? '' : 'none';
-            });
+        const query = searchInput.value.trim().toLowerCase();
+        contactsList.querySelectorAll('.wa-sidebar-contact').forEach(function(item) {
+            const name = (item.querySelector('.wa-sidebar-name')?.textContent || '').toLowerCase();
+            const phone = (item.querySelector('.wa-sidebar-phone')?.textContent || '').toLowerCase();
+            const match = !query || name.includes(query) || phone.includes(query);
+            item.style.display = match ? '' : 'none';
         });
+    };
+
+    (function() {
+        const searchInput = document.getElementById('contact-search');
+        if (!searchInput) return;
+        searchInput.addEventListener('input', window.applyContactSearchFilter);
     })();
 
     // Variables globales para polling
@@ -4235,9 +4239,13 @@
                         });
                     });
 
+                    if (typeof window.applyContactSearchFilter === 'function') {
+                        window.applyContactSearchFilter();
+                    }
+
                     // Scroll al contacto activo si existe
-                    if (activeContactId) {
-                        const newActiveContact = document.querySelector(`.wa-sidebar-contact[data-contact-id="${activeContactId}"]`);
+                    if (actualCurrentContactId) {
+                        const newActiveContact = document.querySelector(`.wa-sidebar-contact[data-contact-id="${actualCurrentContactId}"]`);
                         if (newActiveContact) {
                             newActiveContact.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                         }

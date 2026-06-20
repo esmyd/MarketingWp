@@ -45,10 +45,12 @@
             </p>
         @endif
     </div>
-    @perm('wallet.view')
-        <a href="{{ route('admin.wallet.index') }}" class="btn btn-success btn-sm">
-            <i class="fas fa-file-invoice-dollar me-1"></i> Ir a billetera
-        </a>
-    @endperm
+    @if($showWalletLink ?? true)
+        @perm('wallet.view')
+            <a href="{{ route('admin.wallet.index') }}" class="btn btn-success btn-sm">
+                <i class="fas fa-file-invoice-dollar me-1"></i> Ir a billetera
+            </a>
+        @endperm
+    @endif
 </div>
 @endif

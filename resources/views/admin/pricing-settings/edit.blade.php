@@ -145,7 +145,7 @@
         <p class="text-sm text-gray-600 mb-0">
             Panel interno de super administrador: define el <strong>plan contratado</strong>, los <strong>límites de capacidad</strong>,
             el <strong><a href="#demo-cliente" class="text-emerald-700">demo de catálogo</a></strong>,
-            el <strong><a href="#order-pdf" class="text-emerald-700">PDF de orden</a></strong> y los <strong>costos Meta WhatsApp</strong> que se reflejan en el dashboard.
+            el <strong><a href="#order-pdf" class="text-emerald-700">PDF de orden</a></strong> y los <strong>costos Meta WhatsApp</strong> que se reflejan en <a href="{{ route('admin.reports.whatsapp') }}" class="text-emerald-700">Reportes WhatsApp</a>.
         </p>
     </div>
 
@@ -416,12 +416,12 @@
         <section class="platform-section" id="costos-meta">
             <div class="platform-section-head">
                 <h2>💬 Costos Meta WhatsApp</h2>
-                <p>Tarifas internas y tipos de conversación visibles en el dashboard y la página de planes.</p>
+                <p>Tarifas internas y tipos de conversación visibles en <a href="{{ route('admin.reports.whatsapp') }}">Reportes WhatsApp</a> y la página de planes.</p>
             </div>
             <div class="platform-section-body">
                 <div class="mb-5 p-4 rounded-xl border border-emerald-200 bg-emerald-50">
                     <h3 class="font-semibold text-gray-900 mb-2 text-sm">Tipos de conversación activos</h3>
-                    <p class="text-sm text-gray-600 mb-3">Los desactivados no aparecen en el dashboard del cliente ni en /planes.</p>
+                    <p class="text-sm text-gray-600 mb-3">Los desactivados no aparecen en Reportes WhatsApp ni en /planes.</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         @php
                             $categoryLabels = [
@@ -497,7 +497,7 @@
                                 </div>
                             </div>
                             <p class="text-xs text-gray-500 mt-2">
-                                Aplicado al dashboard: <strong>${{ number_format($appliedMin, 4) }}</strong> — <strong>${{ number_format($appliedMax, 4) }}</strong> por conversación
+                                Aplicado a reportes: <strong>${{ number_format($appliedMin, 4) }}</strong> — <strong>${{ number_format($appliedMax, 4) }}</strong> por conversación
                             </p>
                         </div>
                     @endforeach
@@ -507,7 +507,7 @@
 
         <div class="platform-save-bar">
             <p class="text-xs text-gray-500 mb-0 max-w-lg">
-                Tarifas Meta y tipos de conversación visibles en el dashboard del cliente.
+                Tarifas Meta y tipos de conversación visibles en Reportes WhatsApp.
             </p>
             <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg border-0">
                 <i class="fas fa-save"></i> Guardar costos Meta

@@ -40,6 +40,7 @@ class WhatsappService
     protected $lastMessage;
     /** @var string|null Phone Number ID del webhook actual (prioridad sobre BD) */
     protected $webhookPhoneNumberId = null;
+    protected bool $webhookProfileKnown = true;
     protected bool $inboundMarkedRead = false;
 
     protected function humanTrackingPayload(bool $humanSent): array
@@ -380,7 +381,7 @@ class WhatsappService
                 return;
             }
 
-            $this->webhookPhoneNumberId = $value['metadata']['phone_number_id'] ?? null;
+            $this->setWebhookPhoneNumberId($value['metadata']['phone_number_id'] ?? null);
             $this->inboundMarkedRead = false;
 
             // Procesar mensajes entrantes
@@ -475,6 +476,15 @@ class WhatsappService
 
             // Siempre actualizar wamid entrante (también en reintentos del webhook)
             $this->rememberInboundFromWebhook($message);
+
+            if ($this->webhookPhoneNumberId && !$this->webhookProfileKnown) {
+                Log::warning('[processIncomingMessage] Mensaje ignorado: línea WhatsApp no registrada en la app', [
+                    'phone_number_id' => $this->webhookPhoneNumberId,
+                    'from' => substr($message['from'], 0, 4) . '****' . substr($message['from'], -4),
+                ]);
+
+                return;
+            }
 
             // Verificar si el mensaje ya fue procesado
             $existingMessage = WhatsappMessage::where('message_id', $message['id'])->first();
@@ -1427,8 +1437,9 @@ class WhatsappService
     protected function sendMessageToWhatsApp($to, $message)
     {
         try {
-            if (!$this->businessProfile) {
-                Log::error('No business profile found');
+            $phoneNumberId = $this->resolvePhoneNumberId();
+            if (!$phoneNumberId) {
+                Log::error('No phone_number_id found for outbound message');
                 return false;
             }
 
@@ -1460,7 +1471,7 @@ class WhatsappService
             }
 
             $response = Http::withToken($this->apiToken)
-                ->post("{$this->baseUrl}/{$this->apiVersion}/{$this->businessProfile->phone_number_id}/messages", $payload);
+                ->post("{$this->baseUrl}/{$this->apiVersion}/{$phoneNumberId}/messages", $payload);
 
             if ($response->successful()) {
                 $data = $response->json();
@@ -1469,7 +1480,8 @@ class WhatsappService
                 Log::info('[sendMessageToWhatsApp] Message sent successfully', [
                     'to' => substr($to, 0, 4) . '****' . substr($to, -4),
                     'message_id' => $messageId,
-                    'type' => $payload['type']
+                    'type' => $payload['type'],
+                    'phone_number_id' => $phoneNumberId,
                 ]);
 
                 return [
@@ -1807,10 +1819,53 @@ class WhatsappService
             ?? config('whatsapp.phone_number_id');
     }
 
+    /**
+     * Contacto del perfil activo (webhook). Evita mezclar el mismo teléfono entre bots del portafolio.
+     */
+    protected function findContactByPhone(string $phone): ?WhatsappContact
+    {
+        if ($this->businessProfile) {
+            $scoped = WhatsappContact::where('phone_number', $phone)
+                ->where('business_profile_id', $this->businessProfile->id)
+                ->first();
+
+            if ($scoped) {
+                return $scoped;
+            }
+
+            if ($this->webhookPhoneNumberId) {
+                return null;
+            }
+        }
+
+        return WhatsappContact::where('phone_number', $phone)->first();
+    }
+
     public function setWebhookPhoneNumberId(?string $phoneNumberId): void
     {
         $this->webhookPhoneNumberId = $phoneNumberId ?: null;
         $this->inboundMarkedRead = false;
+
+        if (!$phoneNumberId) {
+            return;
+        }
+
+        $profile = WhatsappBusinessProfile::where('phone_number_id', $phoneNumberId)->first();
+
+        if ($profile) {
+            $this->businessProfile = $profile;
+            $this->webhookProfileKnown = true;
+
+            return;
+        }
+
+        $this->webhookProfileKnown = false;
+
+        Log::warning('[setWebhookPhoneNumberId] Webhook de un número no registrado en whatsapp_business_profiles', [
+            'phone_number_id' => $phoneNumberId,
+            'perfil_por_defecto' => $this->businessProfile?->business_name,
+            'hint' => 'Registre cada línea del portafolio Meta con su phone_number_id y flujo propio.',
+        ]);
     }
 
     /**
@@ -1818,7 +1873,7 @@ class WhatsappService
      */
     protected function rememberInboundFromWebhook(array $message): void
     {
-        $contact = WhatsappContact::where('phone_number', $message['from'])->first();
+        $contact = $this->findContactByPhone($message['from']);
 
         if ($contact && !empty($message['id'])) {
             $this->rememberInboundMessage($contact, $message['id']);
@@ -3183,7 +3238,7 @@ class WhatsappService
             $text = is_array($message['text']) ? strtolower($message['text']['body']) : strtolower($message['text']);
             $from = $message['from'];
             $messageId = $message['id'] ?? null;
-            $contact = WhatsappContact::where('phone_number', $from)->first();
+            $contact = $this->findContactByPhone($from);
 
             // Detectar si el cliente pide el catálogo (verificar bot_enabled antes)
             if (preg_match('/(catalogo|catálogo|productos|precios|lista de precios|ver productos)/i', $text)) {
@@ -3216,7 +3271,7 @@ class WhatsappService
             $commonResponses = ['no', 'si', 'ok', 'okay', 'gracias', 'thanks', 'bye', 'adios', 'chao', 'hola', 'hi', 'hello'];
 
             // Buscar o crear el contacto en la base de datos
-            $contact = WhatsappContact::where('phone_number', $from)->first();
+            $contact = $this->findContactByPhone($from);
             if (!$contact) {
                 // Si el contacto no existe, obtener sus datos del webhook
                 $contactData = $message['contacts'][0] ?? [];
@@ -4146,7 +4201,7 @@ class WhatsappService
             }
 
             // Obtener el contacto
-            $contact = WhatsappContact::where('phone_number', $to)->first();
+            $contact = $this->findContactByPhone($to);
             if (!$contact) {
                 Log::error('❌ Contacto no encontrado al guardar mensaje del sistema', ['phone' => $to]);
                 return false;
@@ -5384,83 +5439,50 @@ class WhatsappService
     }
 
     /**
-     * Envía el catálogo de WhatsApp Business al cliente
+     * Envía el catálogo configurado en el flujo comercial (categorías/productos del panel).
      *
      * @param string $to Número de teléfono del destinatario
-     * @return void
      */
-    public function sendCatalog($to)
+    public function sendCatalog($to): bool
     {
         try {
-            // Obtener el contacto
             $contact = WhatsappContact::where('phone_number', $to)->first();
             if (!$contact) {
                 return false;
             }
 
-            // Refrescar el contacto desde la base de datos para obtener el valor actualizado de bot_enabled
             $contact->refresh();
 
-            // Verificar si el bot está habilitado para este contacto
             if (!$this->botMayRespondToContact($contact)) {
                 $this->logBotBlocked('sendCatalog', $contact, [
                     'to' => substr($to, 0, 4) . '****' . substr($to, -4),
                 ]);
+
                 return false;
             }
 
-            // Si el bot está activado manualmente, NO verificar actividad humana reciente
-            // El catálogo se enviará inmediatamente cuando el bot esté activado
-
-            // Obtener la configuración del catálogo desde la base de datos
-            $catalogMenu = WhatsappMenu::where('action_id', 'prices_menu')->first();
-
-            if (!$catalogMenu) {
-                Log::warning('⚠️ Menú de catálogo no encontrado', ['action_id' => 'prices_menu']);
-                $response = [
-                    'messaging_product' => 'whatsapp',
-                    'recipient_type' => 'individual',
-                    'to' => $to,
-                    'type' => 'interactive',
-                    'interactive' => [
-                        'type' => 'catalog_message',
-                        'body' => [
-                            'text' => 'Aquí está nuestro catálogo de productos. Puedes explorar y seleccionar los productos que te interesen.'
-                        ],
-                        'action' => [
-                            'name' => 'catalog_message'
-                        ]
-                    ]
-                ];
-            } else {
-                $response = [
-                    'messaging_product' => 'whatsapp',
-                    'recipient_type' => 'individual',
-                    'to' => $to,
-                    'type' => 'interactive',
-                    'interactive' => [
-                        'type' => 'catalog_message',
-                        'body' => [
-                            'text' => $catalogMenu->content ?? 'Aquí está nuestro catálogo de productos. Puedes explorar y seleccionar los productos que te interesen.'
-                        ],
-                        'action' => [
-                            'name' => 'catalog_message'
-                        ]
-                    ]
-                ];
+            $response = $this->getProductsMenu($contact);
+            if (!$response) {
+                return false;
             }
 
-            $this->sendMessageToWhatsApp($to, $response);
-            Log::info('✅ Catálogo enviado exitosamente', [
-                'to' => substr($to, 0, 4) . '****' . substr($to, -4),
-                'menu_id' => $catalogMenu->id ?? null
-            ]);
+            $sent = $this->sendMessage($to, $response);
+
+            if ($sent) {
+                Log::info('✅ Catálogo enviado exitosamente', [
+                    'to' => substr($to, 0, 4) . '****' . substr($to, -4),
+                ]);
+            }
+
+            return (bool) $sent;
         } catch (\Exception $e) {
             Log::error('❌ Error al enviar catálogo', [
                 'error' => $e->getMessage(),
                 'line' => $e->getLine(),
-                'to' => $to
+                'to' => $to,
             ]);
+
+            return false;
         }
     }
 

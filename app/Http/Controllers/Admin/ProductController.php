@@ -25,7 +25,8 @@ class ProductController extends Controller
     public function index()
     {
         $products = WhatsappPrice::with(['menuCategory:id,title,description,icon'])
-            ->orderBy('name')
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
             ->get();
 
         $categories = WhatsappMenuItem::catalogCategories()
@@ -154,6 +155,31 @@ class ProductController extends Controller
             'message' => $message,
             'result' => $result,
         ], $total > 0 ? 200 : 422);
+    }
+
+    public function bulkUpdateStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|exists:whatsapp_prices,id',
+            'is_active' => 'required',
+        ]);
+
+        $isActive = filter_var($request->input('is_active'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($isActive === null) {
+            return response()->json(['message' => 'Estado inválido.'], 422);
+        }
+
+        $updated = WhatsappPrice::query()
+            ->whereIn('id', $validated['ids'])
+            ->update(['is_active' => $isActive]);
+
+        return response()->json([
+            'message' => $isActive
+                ? "{$updated} producto(s) activado(s) correctamente."
+                : "{$updated} producto(s) desactivado(s) correctamente.",
+            'updated' => $updated,
+        ]);
     }
 
     private function getCategories()

@@ -17,10 +17,14 @@ class ClientController extends Controller
     {
         $clients = $insights->paginate($request);
         $summary = $insights->summaryStats($request);
+        $bestContactTimes = $insights->bestContactTimesForContacts(
+            $clients->getCollection()->pluck('id')->all()
+        );
 
         return view('admin.clients.index', [
             'clients' => $clients,
             'summary' => $summary,
+            'bestContactTimes' => $bestContactTimes,
             'segments' => ClientInsightsService::SEGMENTS,
             'sortOptions' => ClientInsightsService::SORT_OPTIONS,
             'filters' => $request->only(['q', 'segment', 'sort', 'activity_from', 'activity_to', 'min_orders']),
