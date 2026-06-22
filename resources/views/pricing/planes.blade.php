@@ -3,49 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Planes — Bot WhatsApp | {{ config('app.name') }}</title>
+    <title>Planes — ChatbotVentas</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #0a0f14;
-            --surface: #121a22;
-            --surface-2: #1a2530;
-            --border: rgba(255,255,255,.08);
-            --text: #e8edf2;
-            --muted: #8b9aab;
+            --bg: #0a0e0d;
+            --surface: #111916;
+            --surface-2: #1a2420;
+            --surface2: #1a2420;
+            --border: rgba(37, 211, 102, .14);
+            --text: #f0f4f2;
+            --muted: #8b9a94;
+            --green: #25d366;
+            --green-dark: #128c7e;
             --accent: #25d366;
-            --accent-dim: rgba(37,211,102,.12);
-            --blue: #3b82f6;
-            --purple: #a855f7;
-            --gold: #f59e0b;
+            --accent-dim: rgba(37, 211, 102, .1);
+            --blue: #53bdeb;
+            --purple: #a78bfa;
+            --gold: #fb923c;
+            --orange: #fb923c;
             --red: #f15c6d;
             --radius: 16px;
-            --shadow: 0 24px 48px rgba(0,0,0,.35);
+            --shadow: 0 20px 50px rgba(0, 0, 0, .4);
         }
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
 
         body {
-            font-family: 'DM Sans', system-ui, sans-serif;
+            font-family: Inter, system-ui, sans-serif;
             background: var(--bg);
+            background-image: radial-gradient(ellipse 80% 55% at 50% -8%, rgba(37, 211, 102, .16), transparent 55%);
             color: var(--text);
             line-height: 1.6;
             min-height: 100vh;
         }
 
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background:
-                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37,211,102,.15), transparent),
-                radial-gradient(ellipse 60% 40% at 100% 50%, rgba(59,130,246,.08), transparent),
-                radial-gradient(ellipse 50% 30% at 0% 80%, rgba(168,85,247,.06), transparent);
-            pointer-events: none;
-            z-index: 0;
+        /* Topbar — coherente con /resumen */
+        .topbar {
+            position: sticky; top: 0; z-index: 200;
+            display: flex; align-items: center; justify-content: space-between; gap: 16px;
+            padding: 14px 28px;
+            background: rgba(10, 14, 13, .88);
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--border);
         }
+        .topbar-brand { text-decoration: none; color: inherit; }
+        .brand { font-weight: 800; font-size: 1.05rem; letter-spacing: -.02em; }
+        .brand span { color: var(--green); }
+        .brand-sub { font-size: .62rem; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); font-weight: 600; }
+        .topbar-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .topbar-link {
+            padding: 7px 14px; border-radius: 999px; font-size: .78rem; font-weight: 600;
+            text-decoration: none; color: var(--muted); border: 1px solid transparent; transition: .2s;
+        }
+        .topbar-link:hover { color: var(--green); border-color: var(--border); background: rgba(37, 211, 102, .06); }
+        .topbar-link.active { color: var(--green); border-color: var(--green); background: rgba(37, 211, 102, .1); }
+        .topbar-link.primary {
+            background: var(--green); color: #0a0e0d !important; border-color: var(--green);
+        }
+        .topbar-link.primary:hover { filter: brightness(1.08); }
 
         .wrap {
             position: relative;
@@ -58,42 +77,66 @@
         /* Header */
         .hero {
             text-align: center;
-            margin-bottom: 48px;
+            margin-bottom: 40px;
+            padding: 24px 0 8px;
         }
 
         .badge {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: var(--accent-dim);
-            color: var(--accent);
-            font-size: 13px;
-            font-weight: 600;
             padding: 6px 14px;
             border-radius: 999px;
+            border: 1px solid var(--border);
+            background: rgba(37, 211, 102, .08);
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--green);
             margin-bottom: 20px;
-            border: 1px solid rgba(37,211,102,.25);
+        }
+
+        .badge::before {
+            content: '';
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 10px var(--green);
         }
 
         .hero h1 {
-            font-family: 'Instrument Serif', Georgia, serif;
-            font-size: clamp(2.2rem, 5vw, 3.2rem);
-            font-weight: 400;
-            line-height: 1.15;
+            font-size: clamp(1.75rem, 4vw, 2.6rem);
+            font-weight: 800;
+            line-height: 1.2;
+            letter-spacing: -.03em;
             margin-bottom: 16px;
+            max-width: 780px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .hero h1 em {
-            font-style: italic;
-            color: var(--accent);
+            font-style: normal;
+            color: var(--green);
         }
 
-        .hero p {
+        .hero > p {
             color: var(--muted);
             font-size: 1.05rem;
-            max-width: 620px;
-            margin: 0 auto 32px;
+            max-width: 640px;
+            margin: 0 auto 24px;
+            line-height: 1.55;
         }
+
+        .urgency-banner {
+            max-width: 680px; margin: 0 auto 24px;
+            padding: 14px 18px; border-radius: var(--radius);
+            background: linear-gradient(135deg, rgba(251, 146, 60, .12), rgba(239, 68, 68, .08));
+            border: 1px solid rgba(251, 146, 60, .35);
+            text-align: left;
+        }
+        .urgency-banner p { font-size: .86rem; color: #fcd9b6; line-height: 1.5; margin: 0; }
+        .urgency-banner strong { color: var(--orange); }
 
         /* Billing toggle */
         .billing-toggle {
@@ -121,7 +164,7 @@
 
         .billing-toggle button.active {
             background: var(--accent);
-            color: #0a0f14;
+            color: #0a0e0d;
         }
 
         .save-tag {
@@ -140,27 +183,27 @@
         }
 
         .view-tabs button {
-            background: var(--surface);
+            background: transparent;
             border: 1px solid var(--border);
             color: var(--muted);
             font-family: inherit;
-            font-size: 14px;
+            font-size: .78rem;
             font-weight: 600;
-            padding: 10px 22px;
-            border-radius: 10px;
+            padding: 8px 16px;
+            border-radius: 999px;
             cursor: pointer;
-            transition: all .2s;
+            transition: .2s;
         }
 
         .view-tabs button.active {
-            background: var(--surface-2);
-            color: var(--text);
-            border-color: rgba(255,255,255,.15);
+            color: var(--green);
+            border-color: var(--green);
+            background: rgba(37, 211, 102, .1);
         }
 
         .view-tabs button:hover:not(.active) {
             color: var(--text);
-            border-color: rgba(255,255,255,.12);
+            border-color: rgba(37, 211, 102, .25);
         }
 
         /* Plans grid */
@@ -209,7 +252,7 @@
             left: 50%;
             transform: translateX(-50%);
             background: var(--accent);
-            color: #0a0f14;
+            color: #0a0e0d;
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
@@ -243,9 +286,9 @@
         }
 
         .plan-title {
-            font-family: 'Instrument Serif', Georgia, serif;
-            font-size: 1.75rem;
-            font-weight: 400;
+            font-size: 1.65rem;
+            font-weight: 800;
+            letter-spacing: -.02em;
             margin-bottom: 6px;
         }
 
@@ -322,7 +365,7 @@
 
         .plan-card[data-plan="pro"] .plan-cta {
             background: var(--accent);
-            color: #0a0f14;
+            color: #0a0e0d;
         }
 
         .plan-card[data-plan="enterprise"] .plan-cta {
@@ -483,8 +526,8 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(18,26,34,.95);
-            backdrop-filter: blur(12px);
+            background: rgba(10, 14, 13, .95);
+            backdrop-filter: blur(14px);
             border-top: 1px solid var(--border);
             padding: 16px 24px;
             transform: translateY(100%);
@@ -508,7 +551,7 @@
 
         .selection-bar button {
             background: var(--accent);
-            color: #0a0f14;
+            color: #0a0e0d;
             border: none;
             font-family: inherit;
             font-weight: 700;
@@ -529,8 +572,9 @@
         }
 
         .faq h2 {
-            font-family: 'Instrument Serif', Georgia, serif;
-            font-size: 2rem;
+            font-size: clamp(1.2rem, 3vw, 1.55rem);
+            font-weight: 800;
+            letter-spacing: -.02em;
             text-align: center;
             margin-bottom: 32px;
         }
@@ -604,8 +648,9 @@
         }
 
         .info-sections > h2 {
-            font-family: 'Instrument Serif', Georgia, serif;
-            font-size: 2rem;
+            font-size: clamp(1.2rem, 3vw, 1.55rem);
+            font-weight: 800;
+            letter-spacing: -.02em;
             text-align: center;
             margin-bottom: 8px;
         }
@@ -776,11 +821,12 @@
         .footnote {
             text-align: center;
             margin-top: 40px;
-            font-size: 13px;
+            font-size: .78rem;
             color: var(--muted);
         }
 
-        .footnote a { color: var(--accent); }
+        .footnote a { color: var(--green); text-decoration: none; }
+        .footnote a:hover { text-decoration: underline; }
 
         .faq.hidden, .footnote.hidden, .demo-section.hidden { display: none; }
         .meta-panel { display: none; animation: fadeIn .4s ease; }
@@ -1109,7 +1155,7 @@
             border-radius: 10px;
             text-decoration: none;
             background: var(--accent);
-            color: #0a0f14;
+            color: #0a0e0d;
             font-weight: 700;
             font-size: 14px;
             white-space: nowrap;
@@ -1119,24 +1165,26 @@
 
         .demo-section {
             margin-top: 48px;
-            padding: 36px 28px;
-            background: linear-gradient(165deg, rgba(0,230,118,.06) 0%, var(--surface) 45%);
-            border: 1px solid rgba(0,230,118,.2);
-            border-radius: 16px;
+            padding: 40px 32px;
+            border-radius: var(--radius);
             text-align: center;
+            background: linear-gradient(160deg, rgba(18, 140, 126, .22), rgba(37, 211, 102, .06));
+            border: 1px solid rgba(37, 211, 102, .28);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, .25);
         }
 
         .demo-section h2 {
-            font-size: clamp(22px, 4vw, 28px);
+            font-size: clamp(1.2rem, 3vw, 1.55rem);
             font-weight: 800;
+            letter-spacing: -.02em;
             margin-bottom: 10px;
         }
 
         .demo-section .demo-lead {
             color: var(--muted);
-            font-size: 15px;
-            max-width: 520px;
-            margin: 0 auto 24px;
+            font-size: .92rem;
+            max-width: 560px;
+            margin: 0 auto 28px;
             line-height: 1.55;
         }
 
@@ -1151,9 +1199,8 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 12px;
+            gap: 14px;
             width: 100%;
-            max-width: 520px;
         }
 
         .demo-btn {
@@ -1161,62 +1208,69 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
-            padding: 14px 22px;
-            border-radius: 12px;
-            font-size: 15px;
+            padding: 14px 28px;
+            border-radius: 999px;
+            font-size: .92rem;
             font-weight: 700;
             text-decoration: none;
-            transition: transform .15s, filter .15s;
-            flex: 1;
-            min-width: 200px;
+            transition: transform .2s, filter .2s, box-shadow .2s;
+            white-space: nowrap;
         }
 
-        .demo-btn:hover {
-            transform: translateY(-2px);
-            filter: brightness(1.06);
-        }
+        .demo-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+        .demo-btn:hover { transform: translateY(-2px); }
 
         .demo-btn-wa {
-            background: var(--accent);
-            color: #0a0f14;
-            border: none;
+            background: var(--green);
+            color: #0a0e0d;
+            border: 2px solid var(--green);
+            box-shadow: 0 0 28px rgba(37, 211, 102, .35);
+        }
+
+        .demo-btn-wa:hover {
+            filter: brightness(1.08);
+            box-shadow: 0 0 36px rgba(37, 211, 102, .45);
         }
 
         .demo-btn-panel {
-            background: var(--surface);
+            background: var(--surface-2);
             color: var(--text);
-            border: 1px solid rgba(255,255,255,.15);
+            border: 2px solid var(--border);
         }
 
         .demo-btn-panel:hover {
-            border-color: var(--accent);
-            color: var(--accent);
+            border-color: var(--blue);
+            color: var(--blue);
         }
 
         .demo-creds {
-            font-size: 13px;
+            margin-top: 6px;
+            font-size: .78rem;
             color: var(--muted);
-            background: var(--surface);
-            border: 1px dashed var(--border);
-            border-radius: 10px;
-            padding: 10px 16px;
-            text-align: center;
-            max-width: 520px;
-            width: 100%;
         }
 
         .demo-creds strong {
-            color: var(--text);
+            color: var(--green);
             font-family: ui-monospace, monospace;
         }
 
         .demo-creds-label {
             display: block;
-            font-size: 11px;
+            font-size: .68rem;
             text-transform: uppercase;
             letter-spacing: .06em;
+            margin-bottom: 4px;
             color: var(--muted);
-            margin-bottom: 6px;
+        }
+
+        .page-footer {
+            text-align: center;
+            padding: 32px 24px 16px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: .78rem;
+            margin-top: 40px;
         }
 
         /* Ventaja panel vs WhatsApp normal */
@@ -1226,8 +1280,9 @@
         }
 
         .panel-value-section > h2 {
-            font-family: 'Instrument Serif', Georgia, serif;
-            font-size: clamp(1.5rem, 4vw, 2rem);
+            font-size: clamp(1.2rem, 3vw, 1.55rem);
+            font-weight: 800;
+            letter-spacing: -.02em;
             text-align: center;
             margin-bottom: 10px;
         }
@@ -1384,6 +1439,13 @@
 
         /* ─── Responsive móvil ─── */
         @media (max-width: 768px) {
+            .topbar {
+                flex-wrap: wrap;
+                padding: 12px 16px;
+                gap: 10px;
+            }
+            .topbar-nav { width: 100%; justify-content: center; }
+
             .wrap {
                 padding: 28px 16px calc(130px + env(safe-area-inset-bottom, 0px));
             }
@@ -1671,11 +1733,27 @@
 </head>
 <body data-whatsapp="{{ $whatsappNumber }}">
 
+<header class="topbar">
+    <a href="{{ route('login') }}" class="topbar-brand">
+        <div class="brand">Chatbot<span>Ventas</span></div>
+        <div class="brand-sub">WhatsApp Business API · Panel web</div>
+    </a>
+    <nav class="topbar-nav">
+        <a href="{{ route('public.resumen') }}" class="topbar-link">Qué incluye</a>
+        <a href="{{ route('pricing.index') }}" class="topbar-link active">Planes</a>
+        <a href="{{ route('login') }}" class="topbar-link primary">Ingresar</a>
+    </nav>
+</header>
+
 <div class="wrap">
     <header class="hero">
-        <div class="badge">💬 Bot WhatsApp + Panel Admin</div>
-        <h1>Elige el plan que <em>crece contigo</em></h1>
-        <p>Automatiza ventas, atiende clientes y gestiona pedidos desde WhatsApp — con un <strong>panel web</strong> que te da reportes, trazabilidad e historial que el celular no muestra.</p>
+        <div class="badge">Planes y precios</div>
+        <h1>Invierte en vender más — <em>antes que tu competencia</em></h1>
+        <p>Automatiza ventas y atención por WhatsApp con bot + panel web. Elige el nivel que necesitas hoy y escala cuando crezcas.</p>
+
+        <div class="urgency-banner">
+            <p><strong>Quien responde primero, cierra.</strong> Mientras evalúas, otros negocios ya atienden 24/7 con catálogo, pedidos y confirmaciones automáticas en el mismo canal donde están tus clientes.</p>
+        </div>
 
         <div class="hero-notice">
             <span>⚠️</span>
@@ -2240,8 +2318,6 @@
         </div>
     </section>
 
-    </section>
-
     <!-- Costos Meta aproximados -->
     <section class="meta-panel" id="metaPanel">
         <div class="info-sections">
@@ -2543,30 +2619,37 @@
     </section>
 
     <section class="demo-section" id="demo">
-        <h2>¿Quieres probarlo antes de contratar?</h2>
-        <p class="demo-lead">Prueba el bot en vivo por WhatsApp o entra al panel admin con credenciales de demo — sin compromiso.</p>
+        <h2>Pruébalo antes de contratar</h2>
+        <p class="demo-lead">Comprueba en minutos cómo responde el bot y cómo se ve tu operación en el panel — sin compromiso.</p>
         <div class="demo-actions">
             <div class="demo-actions-row">
                 @if($demoBotUrl)
                 <a href="{{ $demoBotUrl }}" class="demo-btn demo-btn-wa" target="_blank" rel="noopener">
-                    <span>💬</span> Probar bot en WhatsApp
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.884 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    Probar bot en WhatsApp
                 </a>
                 @endif
                 <a href="{{ $demoPanelUrl }}" class="demo-btn demo-btn-panel">
-                    <span>🖥️</span> Demo del panel admin
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                    Probar panel web
                 </a>
             </div>
             <div class="demo-creds">
-                <span class="demo-creds-label">Acceso demo al panel</span>
-                Usuario: <strong>{{ $demoPanelUser }}</strong> · Contraseña: <strong>{{ $demoPanelPassword }}</strong>
+                <span class="demo-creds-label">Acceso demo del panel</span>
+                Usuario: <strong>{{ $demoPanelUser }}</strong> · contraseña precargada al entrar
             </div>
         </div>
     </section>
 
     <p class="footnote">
-        Precios de planes sin IVA. No incluyen consumos de Meta/WhatsApp. El uso responsable del canal es responsabilidad del cliente.
-        · <a href="#" data-goto="meta">Costos Meta</a>
+        Precios sin IVA · No incluyen consumos Meta/WhatsApp ·
+        <a href="{{ route('public.resumen') }}">Ver qué incluye la plataforma</a> ·
+        <a href="#" data-goto="meta">Costos Meta</a>
     </p>
+
+    <footer class="page-footer">
+        ChatbotVentas · By Siglo Tecnológico
+    </footer>
 </div>
 
 <div class="selection-bar visible" id="selectionBar">

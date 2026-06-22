@@ -15,6 +15,24 @@ Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:l
 Route::get('/planes', [App\Http\Controllers\PricingController::class, 'index'])->name('pricing.index');
 Route::get('/planes/contratar/{plan}', [App\Http\Controllers\PricingController::class, 'checkout'])->name('pricing.checkout');
 
+Route::get('/resumen', function () {
+    $path = base_path('docs/resumen-ejecutivo-empresa.html');
+    abort_unless(is_file($path), 404);
+
+    $number = preg_replace('/[^0-9]/', '', config('pricing.demo.whatsapp_number', config('whatsapp.demo_whatsapp_number', '')));
+    $message = rawurlencode(config('pricing.demo.whatsapp_message', '¡Hola! Quiero probar el demo del bot de WhatsApp 🤖'));
+    $whatsappUrl = $number ? "https://wa.me/{$number}?text={$message}" : '#';
+
+    $html = file_get_contents($path);
+    $html = str_replace(
+        ['__DEMO_WHATSAPP_URL__', '__DEMO_PANEL_URL__', '__DEMO_PANEL_USER__'],
+        [$whatsappUrl, url('/?demo=1'), e(config('pricing.demo.panel_user', 'gosorio'))],
+        $html
+    );
+
+    return response($html, 200, ['Content-Type' => 'text/html; charset=UTF-8']);
+})->name('public.resumen');
+
 Route::prefix('pedido')->name('bulk-order.')->group(function () {
     Route::get('/{token}', [App\Http\Controllers\BulkOrderController::class, 'show'])->name('show');
     Route::get('/{token}/catalogo', [App\Http\Controllers\BulkOrderController::class, 'catalog'])->name('catalog');

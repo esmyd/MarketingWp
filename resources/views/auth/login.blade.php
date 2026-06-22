@@ -127,6 +127,60 @@
             box-shadow: 0 8px 28px rgba(0,0,0,.22);
         }
         .brand-pricing-btn i { color: #25d366; font-size: 1rem; }
+        .brand-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: .65rem;
+            margin-top: 2rem;
+        }
+        .brand-actions .brand-pricing-btn { margin-top: 0; }
+        .brand-resumen-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .55rem;
+            padding: .75rem 1.25rem;
+            border-radius: 12px;
+            background: transparent;
+            border: 1px dashed rgba(255,255,255,.35);
+            color: rgba(233,237,239,.92);
+            font-size: .86rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background .15s, border-color .15s, color .15s, transform .12s;
+        }
+        .brand-resumen-btn:hover {
+            background: rgba(37, 211, 102, .1);
+            border-color: #25d366;
+            color: #fff;
+            transform: translateY(-1px);
+        }
+        .brand-resumen-btn i { color: #53bdeb; font-size: .95rem; }
+        .login-resumen-link {
+            display: none;
+            margin-top: 1rem;
+            text-align: center;
+        }
+        .login-resumen-link a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .45rem;
+            font-size: .84rem;
+            font-weight: 600;
+            color: #128c7e;
+            text-decoration: none;
+            padding: .55rem .85rem;
+            border-radius: 8px;
+            border: 1px solid #d1fae5;
+            background: #f0fdf4;
+            transition: background .15s, border-color .15s;
+        }
+        .login-resumen-link a:hover {
+            background: #dcfce7;
+            border-color: #86efac;
+        }
         .brand-footer {
             position: relative;
             z-index: 1;
@@ -393,6 +447,7 @@
         @media (max-width: 900px) {
             .mobile-brand { display: block; }
             .mobile-brand .brand-logo { justify-content: center; margin-bottom: 0; }
+            .login-resumen-link { display: block; }
         }
     </style>
 </head>
@@ -412,10 +467,16 @@
                     <div class="brand-feature"><i class="fas fa-chart-line"></i> Panel de ventas y conversaciones en vivo</div>
                     <div class="brand-feature"><i class="fas fa-shield-halved"></i> Acceso seguro solo para tu equipo</div>
                 </div>
-                <a href="{{ route('pricing.index') }}" class="brand-pricing-btn">
-                    <i class="fas fa-tags"></i>
-                    Ver planes y precios
-                </a>
+                <div class="brand-actions">
+                    <a href="{{ route('pricing.index') }}" class="brand-pricing-btn">
+                        <i class="fas fa-tags"></i>
+                        Ver planes y precios
+                    </a>
+                    <a href="{{ route('public.resumen') }}" class="brand-resumen-btn" target="_blank" rel="noopener noreferrer">
+                        <i class="fas fa-layer-group"></i>
+                        Qué incluye la plataforma
+                    </a>
+                </div>
             </div>
             <div class="brand-footer">&copy; {{ date('Y') }} WhatsApp Marketing · Uso exclusivo de personal autorizado</div>
         </aside>
@@ -555,9 +616,12 @@
                             @endif
                         </div>
 
-
-
-
+                        <div class="login-resumen-link">
+                            <a href="{{ route('public.resumen') }}" target="_blank" rel="noopener noreferrer">
+                                <i class="fas fa-layer-group"></i>
+                                Ver resumen de la plataforma
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
